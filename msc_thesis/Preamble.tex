@@ -1,0 +1,35 @@
+% I may change the way this is done in a future version, 
+%  but given that some people needed it, if you need a different degree title 
+%  (e.g. Master of Science, Master in Science, Master of Arts, etc)
+%  uncomment the following 3 lines and set as appropriate (this *has* to be before \maketitle)
+% \makeatletter
+% \renewcommand {\@degree@string} {Master of Things}
+% \makeatother
+
+\title{A Thesis Title}
+\author{Author Name}
+\department{Department of Something}
+
+\maketitle
+\makedeclaration
+
+\begin{abstract} % 300 word limit
+My research is about stuff.
+
+It begins with a study of some stuff, and then some other stuff and things.
+
+There is a 300-word limit on your abstract.
+\end{abstract}
+
+\begin{acknowledgements}
+Acknowledge all the things!
+\end{acknowledgements}
+
+\setcounter{tocdepth}{2} 
+% Setting this higher means you get contents entries for
+%  more minor section headers.
+
+\tableofcontents
+\listoffigures
+\listoftables
+

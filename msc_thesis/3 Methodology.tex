@@ -1,0 +1,28 @@
+\chapter{Methodology} \label{Chap3}
+
+Each neural network layer can be considered a mapping from an input space to an output space, $f :\mc{X} \rightarrow \mc{y}$. This layer is equivariant to a group g if,
+\begin{equation}
+\label{equiv_layer}
+    \pi_g^y( f(x) )= f(\pi_g^x( x)), \forall g \in G, \forall x \in \mathcal{X}.
+\end{equation}
+
+From section \ref{dnninv} this is the key constraint for an MLP to obey equivariance. The results from Kondor & Tribishani\cite{kondor_2018_equiv}, show that this equivariance must be an application of a group-structured convolution \footnote{See Theorem 1}. 
+As such we can re-write \label{equiv_layer} as a convolution operation with group structured filters and weights in the language of CNN's. For some arbitrary finite group G, the equivariance statement becomes, 
+$$
+\pi_y(g)f(x) = f(\pi_x(g)x)
+$$
+In the case of a general convolutional layer $f: \mathbb{R}^m \rightarrow \mathbb{R}^n$\footnote{Any linear layer can be seen as a convolution with a kernel of the same size as the input and the number of kernels as the output},
+$$
+f(x) = (\psi * x).
+$$
+The equivariance constraints become;
+$$
+f(x) =(\psi * x) = \pi_y(g)^{-1}(\psi * \pi_x(g)x).
+$$
+In the discrete setting, of a neural network, the convolution of each kernel with input can be seen as a matrix multiplication where $\psi$ is a matrix of shape $(\text{in dimension} * |G|) x \text{output dimension}$. 
+$$
+f(x)= (\pi_y(g)^{-1} \psi) \pi_x(g) x
+$$
+
+
+The "symmetrizer" layer introduced by Van der Pol et al.\cite{vanderpol_2020_mdp_homomorphic} provides a different method of obtaining equivariant layers, 
