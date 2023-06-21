@@ -1,5 +1,33 @@
-\chapter{My Second Content Chapter}
-\label{chapterlabel3}
+\section{Notes}
 
-% This just dumps some pseudolatin in so you can see some text in place.
-\blindtext
+\textbf{Definition: MDP Homomorphism} Given some MDP $\mathcal{M}$, where there
+exists a surjective map, from $\mathcal{S} \times \mathcal{A} \rightarrow \omc{S} \times
+	\omc{A}$. the MDP $\omc{M}$ is an abstract MDP over the new space. The
+homomorphism $h$, then is the tuple of $(\sigma, \alpha_s|s \in \mathcal{S})$, where
+$\sigma: \mathcal{S} \rightarrow \omc{S}$ and $\alpha_s : \mathcal{A} \rightarrow \omc{A}$.
+This surjective map must satisfy two constraints for it to be a valid MDP
+homomorphism; \begin{enumerate} \item $R(s, a) = R(\sigma(s), \alpha_s(a))$
+	\item $T(s', a, s) = T(\sigma(s'), \alpha_s(a), \sigma(s))$ \end{enumerate}
+
+
+Rather than learning a tranditional MDP homomorphism, we wish to learn a homomorphic map
+
+$$h: \mathcal{A} \times \mathcal{S} \times \overline{\mathcal{A}} -> \omc{S}$$
+
+With the constraints that the homomorphsim in the simplest case maps of invertersion symmetry $D_2$ where in state space the $D_2$ representtion is $L_2$ and in action space the $D_2$ representaiton is $K_2$. so that $$h(a, s, \overline{a}) = h(K_2 a, L_2 s, \overline{a})$$.
+
+Because we are learning from determinsistic dynamics $T: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}$ and $\overline{T}: \omc{S} \times \omc{A} \rightarrow \omc{S}$ we must also learn that
+
+$$\overline{T}(\overline{s}, \overline{a}) = h(T(s, a), a', \overline{a})$$.
+
+where $overline{s} = h(s, a, \overline{a})$
+
+$$\overline{T}(h(s, a, \overline{a}), \overline{a}) = h(T(s, a), a', \overline{a})$$.
+
+
+In the case of the cartpole the actions $a, \overline{a} \in [0, 1]$.
+
+
+\subsection{Training}
+The objectiive of training is to use some kind of similarity metric like that used in Approximate MDP Homomorphisms to learn the parametric form of $h$ in a supervised setting, over these (state, action, abstract action, next state) tuples.
+With the hypothesis that having a group equivariant network will make the learning more efficient.
