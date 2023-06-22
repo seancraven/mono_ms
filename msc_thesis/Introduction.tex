@@ -40,7 +40,8 @@ This is described by a tuple $(\mathcal{S}, \mathcal{A}, \mathcal{R}, P, \gamma)
 
 The agent aims to maximise its expected discounted cumulative reward, the return, $ \mathbb{E} [ G_t = \sum_t^T \gamma^t R_t ] $. The problem may be that of an episodic setting with a clear termination, a chess player winning, for example. Alternatively, it may be in a continuous setting with no clear termination, like managing stocks. To make decisions, an agent follows a policy. The policy, $\pi(a|s), \pi: \mathcal{S} \rightarrow \mathcal{A}$ maps states to actions.
 A family of algorithms known as dynamic programming exists that, given finite states and actions, can find exact solutions to these problems. However, these algorithms are often intractable for large state and action spaces.
-solutions to MDPs can be expressed in terms of the value function, $V(s) = \mathbb{E} [ G_t | s_t = s]$, which is the expected return from a given state. The optimal value function, $V^*(s)$, is the maximum value function over all policies. The optimal policy, $\pi^*(s)$, is the policy that maximises the value function for all states. The optimal value function and policy satisfy the Bellman optimality equations\cite{bellamn1957mdp}:
+solutions to MDPs can be expressed in terms of the value function, $V(s) = \mathbb{E} [ G_t | s_t = s]$, which is the expected return from a given state. The optimal value function, $V^*(s)$, is the maximum value function. The optimal policy, $\pi^*(s)$, is the policy that maximises the value function for all states. The optimal value function and policy satisfy the Bellman optimality equations\cite{bellamn1957mdp}:
+
 \begin{equation}
 	V^*(s) = \max_a \mathbb{E} [ R_{t+1} + \gamma V^*(s_{t+1}) | s_t = s, a_t = a].
 \end{equation}
@@ -52,14 +53,55 @@ This idea is very closely linked to the action-value function $Q(s, a) = \mathbb
 Using dynamic programming and finding exact solutions to an MDP and the optimal policy $\pi*$ to optimise your return is often impossible. Reinforcement learning is a common alternative to dynamic programming, which provides a principled approach to learning approximate solutions. It describes a family of techniques that learn from previous experience to improve at solving MDPs.
 
 \section{Reinforcement Learning}
-Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find approximate solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, starcraft and other games and have recently found diamonds in minecraft\cite{silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with an inability to transfer knowledge between tasks, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
+Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find approximate solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, starcraft and other games and have recently found diamonds in Minecraft~\cite {silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with an inability to transfer knowledge between tasks, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
 
 \section{Deep Reinforcement Learning Approaches}
 The underlying optimisation problem in reinforcement learning is finding a policy which produces the maximum expected reward. However, not all RL algorithms take this approach directly. Additionally, many algorithms choose to forgo learning the dynamics of a process and instead model the value function or policy directly. These are Model-Free algorithms. In contrast, model-based algorithms learn the problem's dynamics and simulate the agent's behaviour to learn. This section will describe the most common approaches to solving RL problems.
+Typically, learning algorithms face a few persistent problems in Deep RL that make solving problems difficult. These are;
+\begin{itemize}
+	\item \textbf{Sample Efficiency}  The algorithms require a large amount of data to learn. This is because training large neural networks require a large amount of data to learn. This often means that breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
+	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialisation of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
+	\item \textbf{Reward Sparsity} Reward functions are often sparse, and coming across states that provide rewards, such as finding diamonds in Minecraft, is a difficult problem when initial exploration is random.\cite{hafner2023mastering}.
+\end{itemize}
+
 \subsection{Model Free Algorithms}
-Model-free algorithms forgo trying to build an approximation of the MDP's transition dynamics defined by $P$ and instead try to optimise the agent behaviour by either approximating how good different states are or learning the best action to take in given states.
+Model-free algorithms forgo trying to build an approximation of the MDP's transition dynamics defined by $P$ and instead try to optimise the agent behaviour by either approximating how good different states are or learning the best action to take in given states. When combining standard dynamic programming algorithms such as q-learning with function approximation, or actor-critic methods, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimises a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Actor-Critic approaches is that Q-learning uses an epsilon greedy policy to collect data and experience. Whereas, Actor Critics learn a stochastic policy from the data. However, the training loop is much the same;
+\begin{algorithm}
+	\caption{Model Free RL Training Loop}
+	\begin{algorithmic}
+		\State Initialise $\theta$ randomly.
+		\Comment{Network Parameters}
+		\State Initialise $t=0$
+		\Comment{Buffer Timestep}
+		\State Initialise $T=0$
+		\Comment{Total Timestep}
+		\State Initialise replay buffer $\mathcal{D} \leftarrow \emptyset$
+		\State Sample state $s$
+		\While $\text{ }T < T_{max}$
+		\State Take action $a$ according to policy $\pi(a|s)$
+		\State Observe reward $r$ and next state $s'$
+		\State Store transition $(s, a, r)$ in replay buffer $\mathcal{D}$
+		\LComment {Replay buffer respects temporal order of experience.}
+		\State $s \leftarrow s'$
+		\State $t \leftarrow t+1$
+		\State $T \leftarrow T+1$
+		\LComment{If a state is terminal, then reset the environment. Continue to sample experience. Masking is used to ensure that terminal states have zero value.}
+		\If{$t \mod T_{experience} == 0$}
+		\Comment{ Update Loop}
+		\State Perform minibatch gradient descent updates $\theta$ to minimise $L(\mathcal{D},\theta)$
+		\LComment{Where $L$ is the loss function, these losses are very different in the AC and Q-Learning, but the training loop is the same.}
+		\State $t \leftarrow 0$
+		\State $\mathcal{D} \leftarrow \emptyset$
+		\EndIf
+
+		\EndWhile
+
+	\end{algorithmic}
+\end{algorithm}
+In most cases, some operations need to be performed on the replay buffer, and they store more data than just sequential $(s, a,r)_t$ tuples. Often subsequent actions are required to calculate the loss. This can be done during the update loop. Finally, rather than interacting with one environment, training is done in parallel in multiple environments. The process is much the same; states, rewards and actions become vectors for this. Environment vectorisation has improved training stability and robustness~\cite{minh2016asynchronous}.
+
 \subsubsection{Q-Learning}
-Q-Learning forgoes optimising the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a greedy policy with a stationary point at the optimal value function. Dynamic Programming exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}. In Deep Q learning, as it is approximate, the convergence guarantees to optimal policies are not present. An exact solution may not be found due to computational restraints or partial observability. However, in practice, excellent solutions can be found using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
+Q-Learning forgoes optimising the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a greedy policy with a stationary point at the optimal value function. Dynamic Programming exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}. As it is approximate, the convergence guarantees to optimal policies are absent in Deep-Q-Learning. An exact solution may not be found due to computational restraints or partial observability. However, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
 \begin{equation}
 	Q_{t+1}(s, a) = Q_t(s,a) + \alpha \left[ r(s, a) + \gamma \max_{a'} Q_t(S_{t+1}, a') \right].
 \end{equation}
@@ -75,9 +117,11 @@ This can be sampled when training the network. The loss function to optimise is 
 \end{equation}
 Here, it is essential to note that $Q_w'$ can be the original network if $w = w'$. However, there are some problems associated with this. The gradient with respect to the loss must now become a semi-gradient, where the $Q_w'$ term must be considered a constant with respect to $w$. The indicator, $\mathbb{I}(s' = S_T)$,  is one if $s'$ is a terminal state.
 
-The semi-gradient approximation has been alleviated by using two target networks\cite{minh2016asynchronous}. This makes two copies of the primary, $Q_w$, network and performs gradient updates on one, $Q_w$, with the secondary network, $Q_{w'}$, being updated after some number of iterations. This can be done with weighted averages or just a direct update.
+Alternatively, the semi-gradient can be avoided with Double-Q-Learning. Double-Q-Learning uses target networks\cite{van2016deep}. This makes two copies of the primary, $Q_w$, network and performs gradient updates on one, $Q_w$, with the secondary network, $Q_{w'}$, parameters being moved towards $w$ after some further number of updates so that its parameters lag that of $w$. This can be done with weighted averages or just a direct update.
 
-Some problems arise in continuous state spaces, where the $\max$ operation may involve an optimisation loop. This is not ideal. Algorithms such as DDPG\cite{lillicrap2015continuous} use another network to parameterise an optimal policy instead of the max operation. This is an example of an Actor-Critic algorithm that straddles the divide between Q-Learning and Policy Based Methods.
+Some problems arise in continuous state spaces, where the $\max$ operation may involve an optimisation loop. This is not ideal. Algorithms such as DDPG\cite{lillicrap2015continuous} use another network to parameterise an optimal policy instead of the max operation. DDPG is an example of an Actor-Critic algorithm that straddles the divide between Q-Learning and Policy Based Methods.
+
+
 \subsubsection{Policy Based Methods}
 While Policy Based Methods all strive to optimise the expected cumulative return for an agent, there are quite a few subtleties between the dominant gradient-based approaches. In the episodic setting, where it is possible to obtain complete trajectories and optimise for episodic returns, policy gradient functions can directly optimise the expected cumulative reward,
 \begin{equation}
@@ -89,7 +133,6 @@ However, in infinite time horizon tasks, there is no termination and optimising 
 	= \mathbb{E}_{\pi_{\theta}}\left[R_{t+1}\right].
 \end{equation}
 Many common algorithms for episodic tasks can be extended for infinite time horizon problems.
-
 In both cases, it should be noted that the objective function from which we are taking the gradient is an expectation. This provides a problem, and we use the score function trick to take the gradient before the expectation.
 Here we derive the gradient-based update term in the episodic case using the score function trick. First, we express the expected reward in its natural form as the average return under the distribution of trajectories defined by the policy and the MDP's dynamics and proceed to do some algebra to get it into a more friendly form,
 \begin{align}
@@ -99,14 +142,15 @@ Here we derive the gradient-based update term in the episodic case using the sco
 	                          & = \sum_\tau R(\tau) P(\tau | \theta) \frac{\nabla_\theta P(\tau | \theta)}{P(\tau |\theta)}      \\
 	                          & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \log(P(\tau| \theta))\right].
 \end{align}
-If possible, it would be ideal if the trajectories' probability could be calculated without any knowledge of the MDP's dynamics $P(S_{t+1}| S_t, A_t)$. This can be done by exploiting the definition of the trajectory's probability.
+It would be ideal if the trajectories' probability could be calculated without any knowledge of the MDP's dynamics $P(S_{t+1}| S_t, A_t)$. This can be done by exploiting the definition of the trajectory's probability.
 \begin{equation}
 	P(\tau|\theta) = P(S_0) \prod_{t=0}^ TP(S_{t+1}| S_t, A_t)\pi_\theta(A_{t}|S_{t})
 \end{equation}
 Thus using log rules, the expectations can be rearranged in the form,
 \begin{align}
-	\nabla_\theta J_G(\theta) & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \left\{ \log(P(S_0)) +  \sum_{t=0}^ T \log(P(S_{t+1}| S_t, A_t))+ \log(\pi_\theta(A_t|S_t))\right\} \right], \\
-	                          & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right].
+	\nabla_\theta J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_{\theta}} & \left[ R(\tau) \nabla_\theta  \right.                                                                               \\
+	                                                                 & \left. \left\{ \log(P(S_0)) +  \sum_{t=0}^ T \log(P(S_{t+1}| S_t, A_t))+ \log(\pi_\theta(A_t|S_t))\right\} \right], \\
+	= \mathbb{E}_{\tau \sim \pi_{\theta}}                            & \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right].
 \end{align}
 With this form of the policy gradient, we could sample multiple trajectories and perform gradient descent on the policy. This would be an unbiased estimate of the policy gradient. Empirically, the variance of the gradient updates for deep networks is inefficient in the number of training samples or impossible, depending on the task. One further remedy to this is that we can note that a policy at time $t = t'$ should not depend on the rewards in the past; this insight can be seen by splitting the expectation,
 \begin{align}
@@ -115,7 +159,7 @@ With this form of the policy gradient, we could sample multiple trajectories and
 	                            & = \sum_{t = 0} ^T \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t)) \right.                     \\
 	                            & \left. + \sum_{k' = t} ^ T r(S_{k'}, A_{k'}) \nabla_\theta \log(\pi_\theta(A_t| S_t)) \right ]. \label{causal_expect}
 \end{align}
-As the rewards at time, $t$ are only correlated to the actions only at time $t$, and none of the previous times, the left-hand side of the expectation can be factorised into two expectations,
+As the rewards at time $t$ are only correlated to the actions only at time $t$, and none of the previous times, the left-hand side of the expectation can be factorised into two expectations,
 \begin{equation}
 	\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t))\right]
 \end{equation}
@@ -158,16 +202,16 @@ The lambda return provides a biased but lower variance return estimator, which c
 \end{equation}
 And then the advantage is the difference between the value function and the lambda return,
 \begin{equation}
-    A_t^\lambda = R_t^\lambda - V_\phi(S_t).
+	A_t^\lambda = R_t^\lambda - V_\phi(S_t).
 \end{equation}
 Having the generalised advantage as the optimisation target provides control over the variance of the gradient estimator. The generalised advantage estimator is defined as,
 \begin{equation}
-    \nabla J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_\theta} \left[\sum_{t=0} ^ T A_t^\lambda \nabla_\theta \log(\pi_\theta(A_t|S_t))\right].
+	\nabla J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_\theta} \left[\sum_{t=0} ^ T A_t^\lambda \nabla_\theta \log(\pi_\theta(A_t|S_t))\right].
 \end{equation}
-In this situation, the critic network learns to minimise the advantage. Advantage estimation is often used with regularisation methods that stop the current policy from moving too far between training updates. These regularisation methods penalise the KL divergence between the current policy and the previous policy. This is the case for TRPO\cite{shculman2015trust} and PPO\cite{schulman2017proximal}.
+In this situation, the critic network learns to minimise the advantage. Advantage estimation is often used with regularisation methods that stop the current policy from moving too far between training updates. These regularisation methods penalise the KL divergence between the current and previous policies. This is the case for TRPO\cite{shculman2015trust} and the computationally efficient and simple PPO\cite{schulman2017proximal}.
 
 \subsubsection{PPO}
-Proximal policy optimisation (PPO), follows along the same lines as TRPO, as it is a regularised form of gradient-based policy optimisation with a critic that learns a value function as a bias reduction method. The PPO paper introduces two forms: a hard thresholding method PPO-Clip, and a soft regularisation method PPO-Penalty. The clip optimisation target for a single interaction is,
+Proximal policy optimisation (PPO) follows the same lines as TRPO, as it is a regularised form of gradient-based policy optimisation with a critic that learns a value function as a bias reduction method. The PPO paper introduces two forms: a hard thresholding method PPO-Clip, and a soft regularisation method PPO-Penalty. The clip optimisation target removes the need for explicitly calculating a KL-divergence for a single interaction is,
 \begin{equation}
 	L(s, a, \theta_k, \theta) = \min \left( \frac{\pi_\theta(a|s)}{\pi_{\theta_k}(a|s)} A^{\pi_{\theta_k}}(s,a), g(\epsilon, A^{\pi_{\theta_k}}(s, a) \right).
 \end{equation}
@@ -175,11 +219,11 @@ Where the update rule is defined by the gradient descent algorithm and $\theta_k
 \begin{equation}
 	A^{\pi}(s, a) = V^\pi _\phi(s) - R_t(s, a).
 \end{equation}
-Where the $V^\pi _ \phi(s)$, is the critic, typically a neural network. $R_t(s, a)$ is the sampled return for the state action pair. As the algorithm is off-policy, there is an importance-sampling correction to the advantage. To stop wide variance in the policy, like TRPO, the magnitude of the update is capped with the $g$ function,
+Where the $V^\pi _ \phi(s)$ is the critic, typically a neural network. $R_t(s, a)$ is the sampled return for the state action pair. As the algorithm is off-policy, there is an importance-sampling correction to the advantage. To stop wide variance in the policy, like TRPO, the magnitude of the update is capped with the $g$ function,
 \begin{equation}
 	g(\epsilon, A) = (1 + \text{sign}(A)\epsilon)A.
 \end{equation}
-The $\epsilon$ hyperparameter must be set. This loss function ensures that there are not overly large policy updates.
+The $\epsilon$ hyperparameter must be set. This loss function ensures that there are no overly large policy updates.
 
 
 \section{Groups, Symmetries, Homomorphisms}
@@ -190,7 +234,7 @@ Groups are an abstract mathematical idea on a set with a binary operation, "$\cd
 	\item[1] Closure: applying the group's operation maps all elements back onto another element.
 	\item[2] Possession of an identity element: there must be an element of the set such that it and any element is mapped onto itself.
 	\item[3] Possession of inverse elements: every element in the group has an inverse element.
-	\item [4] Associativity: $(a \cdot b) \cdot c = a \cdot (b \cdot c) \forall a, b, c$
+	\item [4] Associativity: $(a \cdot b) \cdot c = a \cdot (b \cdot c) \text{  }\forall a, b, c$
 \end{itemize}
 The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant.
 
@@ -213,12 +257,12 @@ A homomorphism describes a map between two structures that preserves an operatio
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{MDP Homomorphism}
-An MDP homomorphism describes a surjective mapping between one MDP and another, this notion was first described by Ravindran and Barto in the early 2000s\cite{ravindran2003smdp,ravindran2001symmetries}.
+An MDP homomorphism describes a surjective mapping between one MDP and another; Ravindran and Barto first described this notion in the early 2000s\cite{ravindran2003smdp,ravindran2001symmetries}.
 
-\textbf{Definition: MDP Homomorphism} Given some MDP $\mathcal{M}$, where there exists a surjective map, from $\mathcal{S} \times \mathcal{A} \rightarrow \overline{\mathcal{S}} \times \overline{\mathcal{A}}$. The MDP $\overline{\mathcal{M}}$ is an abstract MDP over the new space. The homomorphism $h$, then is the tuple of $(\sigma, \alpha_s|s \in \mathcal{S})$, where $\sigma: \mathcal{S} \rightarrow \overline{\mathcal{S}}$ and $\alpha_s : \mathcal{A} \rightarrow \overline{\mathcal{A}}$. This surjective map must satisfy two constraints for it to be a valid MDP homomorphism;
+\textbf{Definition: MDP Homomorphism} Given some MDP $\mathcal{M}$, where there exists a surjective map, from $\mathcal{S} \times \mathcal{A} \rightarrow \overline{\mathcal{S}} \times \overline{\mathcal{A}}$. The MDP $\overline{\mathcal{M}}$\footnote{All abstract quantities are denoted with an $\overline{\text{overline}}$} is an abstract MDP over the new space. The homomorphism $h$, then is the tuple of $(\sigma, \alpha_s|s \in \mathcal{S})$, where $\sigma: \mathcal{S} \rightarrow \overline{\mathcal{S}}$ and $\alpha_s : \mathcal{A} \rightarrow \overline{\mathcal{A}}$. This surjective map must satisfy two constraints for it to be a valid MDP homomorphism;
 \begin{enumerate}
 	\item $R(s, a) = R(\sigma(s), \alpha_s(a))$
-	\item $T(s', a, s) = T(\sigma(s'), \alpha_s(a), \sigma(s))$
+	\item $P(s'| a, s) = P(\sigma(s')| \alpha_s(a), \sigma(s))$
 \end{enumerate}
 
 Given this formulation, they show that there are equivalences between the real optimal value function and the optimal abstract value function,
@@ -232,15 +276,14 @@ This is \textit{optimal value equivalence}. Further, they introduced the idea of
 \end{equation}
 
 \subsection{Group Structured MDP Homomorphisms}
-A natural homomorphic mapping is that of an MDP that possesses symmetry, this is concretized by having the homomorphisms be the representations of the group in state and action space,
+A natural homomorphic mapping is that of an MDP that possesses symmetry, which is concretised by having the homomorphisms be the representations of the group in state and action space,
 \begin{enumerate}
 	\item $R(s, a) = (\pi^s_g(s), \pi_g^a(a))$,
-	\item $T(s', a, s) =T(\pi_g^s(s'), \pi_g^a(a), \pi_g^s(s))$.
+	\item $P(s'| a, s) =P(\pi_g^s(s')| \pi_g^a(a), \pi_g^s(s))$.
 \end{enumerate}
-Where $\pi_g^x$ is the representation of the element $g \in G$ in the space $\mathcal{X}$. In plain English, for each state or state action pair, there are a set of states with the same reward and transition probability to some new state, where these states are related to each other by the operations of the elements of g on them.
+Where $\pi_g^x$ is the representation of the element $g \in G$ in the space $\mathcal{X}$, in plain English, for each state or state action pair, there are a set of states with the same reward and transition probability to some new state, where these states are related to each other by the operations of the elements of g on them.
 
 
 
-The abstract MDP can then be solved with Dynamic Programming or approximate Dynamic Programming techniques and then the policy found in the abstract MDP can be "lifted" to the original MDP.
+The abstract MDP can then be solved with Dynamic Programming or approximate Dynamic Programming techniques, and the policy found in the abstract MDP can be "lifted" to the original MDP.
 
-% This just dumps some pseudolatin in so you can see some text in place.
