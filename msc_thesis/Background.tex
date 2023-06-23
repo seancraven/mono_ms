@@ -243,19 +243,41 @@ Groups are an abstract mathematical idea on a set with a binary operation, "$\cd
 \end{itemize}
 The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant.
 
-\subsection{Invariances}
-Invariances are properties maintained under a transformation of the input space, e.g.\ mirror symmetry, where the distance to a point on the mirror line is the same from the left and the right if the object is symmetric. If you have a function $f: \mathcal{X} \rightarrow \mathcal{Y}$ that is invariant to a transformation $\pi_g^x: \mathcal{X} \rightarrow \mathcal{X}$, this is expressed as:
+\subsection{Representation and Actions}
+Members of groups like roation operations or flip operations maintain their properties no matter what space you are in, for example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function as such the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matricies or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The group action is defined as, 
 \begin{equation}
-	f(x) = f(\pi_g^x (x)),   \forall g \in G, \forall x \in \mathcal{X}.
+	\L_g: \mathcal{X} \times G \rightarrow \mathcal{X}, \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
-For the transformation to be a group, there must also include the identity element s.t $\pi_h^x(x) = x,  h \in G, \forall x\in \mathcal{X}$. This is how symmetry is typically expressed. The symmetry belongs to an abstract group. For example, suppose an object has 3-fold rotation symmetry around an axis. In that case, an abstract group with operations between its elements mirrors that of rotations around the axis by $120^o, 240^o$ and $0^o$. It is straightforward to check that these operations form a group. Rotations by $360^o$ left or right are the identity element. The group is closed; no matter how many rotations are performed, the object with the symmetry is still the same. The inverse of the rotation by $120^o$ is the rotation by $240^o$ and vice versa. Finally, the rotations are associative. This is the group of symmetries of the object. The object is invariant to the transformations in the group.
+Where $\mathcal{X}$ is an arbitrary set and the left action obeys the following properties:
+\begin{itemize}
+	\item[1] $\ell_{g_1}(\ell_{g_2}(x)) = \ell_{g_1 \cdot g_2}(x)$.
+	\item[2] $\ell_e(x) = x$.
+\end{itemize}
+Additionally Because of the definintion of a group action, the aplication of a group action to a function is equal to the function applied to the inverse of the group action applied to the functions domain, i.e.
+\begin{equation}
+	\ell_g(f(x)) = f(\ell_{g^{-1}}(x)).
+\end{equation}
+
+The inverse group action is commonly written as $\ell_{g^{-1}}(x) = g^{-1}x$, when acting on the domain of a funtion.
+
+In the special case of vector spaces the group actions are invertable matricies and are called a representation; 
+\begin{equation}
+	\pi_g^\mathcal{V}: G \rightarrow GL(\mathcal{V}), \forall g \in G.
+\end{equation}
+Where $\mathcal{V} \in \mathbb{R}^n$ is a vector space, and the group representaiton $\pi_g^\mathcal{V}$ is an invertable matrix. These representations also follow the properties of the group, i.e. they are invertable, and the identity element is mapped to the identity matrix. 
+\subsection{Invariances}
+Invariances are properties maintained under a transformation of the input space, e.g.\ mirror symmetry, where the distance to a point on the mirror line is the same from the left and the right if the object is symmetric. If you have a function $f: \mathcal{X} \rightarrow \mathcal{Y}$ that is invariant to a transformation $\ell_g(x): \mathcal{X} \rightarrow \mathcal{X}$, this is expressed as:
+\begin{equation}
+	f(x) = f(\ell^\mathcal{X}_g(x)),   \forall g \in G, \forall x \in \mathcal{X}.
+\end{equation}
+For the transformation to be a group, there must also include the identity element s.t $\ell^\mathcal{X}(x) = x,  h \in G, \forall x\in \mathcal{X}$. This is how symmetry is typically expressed. The symmetry belongs to an abstract group. For example, suppose an object has 3-fold rotation symmetry around an axis. In that case, an abstract group with operations between its elements mirrors that of rotations around the axis by $120^o, 240^o$ and $0^o$. It is straightforward to check that these operations form a group. Rotations by $360^o$ left or right are the identity element. The group is closed; no matter how many rotations are performed, the object with the symmetry is still the same. The inverse of the rotation by $120^o$ is the rotation by $240^o$ and vice versa. Finally, the rotations are associative. This is the group of symmetries of the object. The object is invariant to the transformations in the group.
 
 \subsection{Equivariance}
-Equivariance is related in that if there is some transformation $\pi_g^y: \mathcal{Y} \rightarrow \mathcal{Y}$, where it is a different representation of the group, equivariance which is a more general statement than invariance is,
+Equivariance is related in that if there is some transformation $\ell_g^\mathcal{Y}: \mathcal{Y} \rightarrow \mathcal{Y}$, where it is a different representation of the group, equivariance which is a more general statement than invariance is,
 \begin{equation}
-	\pi_g^y( f(x) )= f(\pi_g^x( x)), \forall g \in G, \forall x \in \mathcal{X}.
+	\ell_g^\mathcal{Y}( f(x) )= f(\ell_g^\mathcal{X}( x)), \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
-Here, both $\pi_g$s are the same transformation. However, the spaces they act upon are different. This notion is especially important in the space of RL.\ From this definition, we can see that invariance is a particular case of equivariance where $\pi^y_g$ is the identity, $\forall g \in G$.
+Here, both $\ell_g$s are the same transformation. However, the spaces they act upon are different. This notion is especially important in the space of RL.\ From this definition, we can see that invariance is a particular case of equivariance where $\ell^y_g$ is the identity, $\forall g \in G$.
 \subsection{Homomorphisms}
 A homomorphism describes a map between two structures that preserves an operation. In the context of reinforcement learning, the preservation is that of the dynamics of a Markov Decision Process.
 
@@ -283,8 +305,8 @@ This is \textit{optimal value equivalence}. Further, they introduced the idea of
 \subsection{Group Structured MDP Homomorphisms}
 A natural homomorphic mapping is that of an MDP that possesses symmetry, which is concretised by having the homomorphisms be the representations of the group in state and action space,
 \begin{enumerate}
-	\item $R(s, a) = (\pi^s_g(s), \pi_g^a(a))$,
-	\item $P(s'| a, s) =P(\pi_g^s(s')| \pi_g^a(a), \pi_g^s(s))$.
+	\item $R(s, a) = (\ell^\mathcal{S}_g(s), \ell^\mathcal{A}_g(a))$,
+	\item $P(s'| a, s) =P(\ell^\mathcal{S}(s')| \ell^\mathcal{A}(a), \ell^\mathcal{S}(s))$.
 \end{enumerate}
 Where $\pi_g^x$ is the representation of the element $g \in G$ in the space $\mathcal{X}$, in plain English, for each state or state action pair, there are a set of states with the same reward and transition probability to some new state, where these states are related to each other by the operations of the elements of g on them.
 
@@ -306,14 +328,14 @@ The symmetry present in Cartpole is the cyclic $C_2$ group. Other than the trivi
 \begin{table}[h!]
 	\centering
 	\begin{tabular}{c | c  c}
-		$C_2$ & $e$ & $A$ \\
+		$C_2$ & $e$ & $r$ \\
 		\hline
-		$e$   & $e$ & $A$ \\
-		$A$   & $A$ & $e$
+		$e$   & $e$ & $r$ \\
+		$r$   & $r$ & $e$
 	\end{tabular}
 	\caption{The $C_2$ group table, where entry $i, j$ is the result of group operation on the $i^{th}$ and $j^{th}$ element.}
 \end{table}
 
 
-As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s(s) = s$ and $\pi_A^s(s) = -s$, as well as $\pi_1^a(a) = a$ and $\pi_A^a(a) = 1 - a$.
+As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s(s) = s$ and $\pi_r^s(s) = -s$, as well as $\pi_1^a(a) = a$ and $\pi_r^a(a) = 1 - a$.
 
