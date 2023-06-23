@@ -8,6 +8,8 @@ packages = [{include = "g_conv"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+jaxtyping = "^0.2.20"
+flax = "^0.6.11"
 
 
 [build-system]
