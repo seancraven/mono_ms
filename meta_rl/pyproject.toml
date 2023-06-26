@@ -8,6 +8,8 @@ packages = [{ include = "meta_rl" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+gymnax = "^0.0.6"
+jaxtyping = "^0.2.20"
 
 [tool.ruff]
 unfixable = ["F401", "F841", "F842", "ARG"]

@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence, Tuple
 
 import distrax
 import flax.linen as nn
@@ -14,6 +14,16 @@ from flax.training.train_state import TrainState
 from gymnax.wrappers.purerl import FlattenObservationWrapper, LogWrapper
 
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
+
+
+class C2Conv(nn.Module):
+    features: int
+    kernel_size: Tuple[int, ...]
+
+    @nn.compact
+    def __call__(self, input):
+        layer = nn.Conv(features=self.features, kernel_size=(input.shape[1:]))
+        return jnp.concatenate([layer(input), layer(-input)], axis=-1)
 
 
 class ActorCritic(nn.Module):
@@ -54,6 +64,37 @@ class ActorCritic(nn.Module):
         return pi, jnp.squeeze(critic, axis=-1)
 
 
+class InvariantActorCritic(nn.Module):
+    action_dim: Sequence[int]
+    activaton: str = "tanh"
+
+    ## TODO: Indexing of the layer kernel shapes needs to get fixed
+    @nn.compact
+    def __call__(self, x):
+        activation = nn.relu
+        actor_mean = C2Conv(features=64, kernel_size=((x.shape[1],)))(x)
+        actor_mean = activation(actor_mean)
+        actor_mean = C2Conv(features=64, kernel_size=((x.shape[1],)))(actor_mean)
+        actor_mean = activation(actor_mean)
+        actor_mean = C2Conv(features=self.action_dim, kernel_size=((x.shape[1],)))(
+            actor_mean
+        )
+        pi = distrax.Categorical(logits=actor_mean)
+
+        critic = nn.Dense(
+            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
+        )(x)
+        critic = activation(critic)
+        critic = nn.Dense(
+            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
+        )(critic)
+        critic = activation(critic)
+        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
+            critic
+        )
+        return pi, jnp.squeeze(critic, axis=-1)
+
+
 class Transition(NamedTuple):
     done: jt.Array
     action: jt.Array
@@ -85,8 +126,8 @@ def make_train(config):
 
     def train(rng):
         # INIT NETWORK
-        network = ActorCritic(
-            env.action_space(env_params).n, activation=config["ACTIVATION"]
+        network = InvariantActorCritic(
+            env.action_space(env_params).n,
         )
         rng, _rng = jax.random.split(rng)
         init_x = jnp.zeros(env.observation_space(env_params).shape)

@@ -185,7 +185,7 @@ def train(tp: TrainingHyperparameters):
         frac = 1.0 - (count // tp.num_epochs * num_minibatches) / tp.num_updates
         return tp.lr * frac
 
-    def _update_step(world_sate: WorldState, _):
+    def _update_step(world_state: WorldState, _):
         """Update the parameters of the actor-critic newtwork on
         vectorised environments."""
 
@@ -333,10 +333,10 @@ def train(tp: TrainingHyperparameters):
             scan_state = (train_state, replay_buf, adv, targets, key)
             return scan_state, replay_buf.info
 
-        world_sate, replay_buffer = jax.lax.scan(
-            _env_step, world_sate, None, tp.num_steps
+        world_state, replay_buffer = jax.lax.scan(
+            _env_step, world_state, None, tp.num_steps
         )
-        train_state, env_state, last_obs, key = world_sate
+        train_state, env_state, last_obs, key = world_state
         _, key = jax.random.split(key)
         _, last_val = actor_critic.apply(train_state.params, last_obs)
 
@@ -350,8 +350,8 @@ def train(tp: TrainingHyperparameters):
         )
         train_state, _, _, _, key = update_data
         _, key = jax.random.split(key)
-        world_sate = (train_state, env_state, last_obs, key)
-        return world_sate, info
+        world_state = (train_state, env_state, last_obs, key)
+        return world_state, info
 
     init_key = jax.random.PRNGKey(tp.seed)
     _, env_key, train_key, param_key = jax.random.split(init_key, 4)
