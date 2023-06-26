@@ -2,15 +2,15 @@
 name = "g-conv"
 version = "0.1.0"
 description = ""
-authors = ["sean craven <seanpietercraven@gmail.com>"]
+authors = ["seancraven <seanpietercraven@gmail.com>"]
 readme = "README.md"
-packages = [{include = "g_conv"}]
+packages = [{ include = "c2.py" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-jaxtyping = "^0.2.20"
-flax = "^0.6.11"
 
+[tool.poetry.group.dev.dependencies]
+jax = "^0.4.13"
 
 [build-system]
 requires = ["poetry-core"]

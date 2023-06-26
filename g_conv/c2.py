@@ -3,12 +3,12 @@ from typing import Callable, Optional
 import jax.numpy as jnp
 from flax import linen as nn
 from flax.linen import initializers
+from flax.linen.dtypes import promote_dtype
+from flax.linen.linear import DotGeneralT, Dtype, PrecisionLike, PRNGKey, Shape
 from jax import lax
-from jax.lax import DotGeneralT
-from jax.typing import Dtype, KeyArray, PrecisionLike, Shape
 from jaxtyping import Array
 
-InitFn = Callable[[KeyArray, Shape, Dtype], Array]
+InitFn = Callable[[PRNGKey, Shape, Dtype], Array]
 
 
 class C2Conv(nn.Module):
@@ -64,10 +64,19 @@ class C2Conv(nn.Module):
             (((inputs.ndim - 1,), (0,)), ((), ())),
             precision=self.precision,
         )
+        y_prime = self.dot_general(
+            -inputs,
+            kernel,
+            (((inputs.ndim - 1,), (0,)), ((), ())),
+            precision=self.precision,
+        )
+        if bias is not None:
+            y_prime += jnp.reshape(bias, (1,) * (y.ndim - 1) + (-1,))
+
         if bias is not None:
             y += jnp.reshape(bias, (1,) * (y.ndim - 1) + (-1,))
-        return y
+        return jnp.stack([y, y_prime], axis=-1)
 
 
 if __name__ == "__main__":
-    main()
+    pass
