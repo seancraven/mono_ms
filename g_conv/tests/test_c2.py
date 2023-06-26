@@ -1,65 +1,41 @@
-import random
-
+import distrax
 import jax
 from flax import linen as nn
 from jax import numpy as jnp
 
 from c2 import C2Conv
 
-
-def test_equivariance():
-    seed = random.randint(0, 1000)
-    key = jax.random.PRNGKey(seed)
-    model = C2Conv(features=3)
-    in_ = jnp.ones((1, 2, 3))
-    model_params = model.init(key, in_)
-    output = model.apply(model_params, in_)
-
-    transformed_input = -in_
-    transformed_output = model.apply(model_params, transformed_input)
-    assert jnp.allclose(transformed_output, -output)
+# def test_shaping():
+#     mod = C2Conv(features=3, kernel_size=(1, 4))
+#     dummy_state = jnp.ones((1, 1, 4))
+#     params = mod.init(jax.random.PRNGKey(0), dummy_state)
+#     out = mod.apply(params, dummy_state)
+#     assert out.shape == (1, 2, 3), f"Expected shape (1, 2, 3), got {out.shape}"
 
 
-def test_reshape():
-    seed = random.randint(0, 1000)
-    key = jax.random.PRNGKey(seed)
-    model = C2Conv(features=6)
-    in_ = jnp.ones((1, 40))
-    model_params = model.init(key, in_)
-    output = model.apply(model_params, in_)
-    output = output.reshape((1, -1, 2))
-
-    transformed_input = -in_
-    transformed_output = model.apply(model_params, transformed_input)
-    transformed_output = transformed_output.reshape((1, -1, 2))
-    assert jnp.allclose(transformed_output, -output)
-
-
-class Mod(nn.Module):
-    internal_dim: int = 4
+class TwoLayer(nn.Module):
+    features: int
 
     @nn.compact
     def __call__(self, input):
-        batch_shape = input.shape[0]
-        x = C2Conv(features=self.internal_dim)(input)
-        x = nn.relu(x)
-        x = C2Conv(features=self.internal_dim)(x)
-        x = nn.relu(x)
-        x = C2Conv(features=1)(x)
-        return x
+        layer = C2Conv(features=self.features, kernel_size=((input.shape[1],)))
+        out = layer(input)
+        layer_2 = C2Conv(features=self.features, kernel_size=((input.shape[1],)))
+        out = layer_2(out)
+        layer_3 = C2Conv(features=1, kernel_size=((input.shape[1],)))
+        out = layer_3(out)
+        return out
 
 
-def test_network():
-    """Mock network to learn a policy for cartpole."""
-    seed = random.randint(0, 1000)
-    key = jax.random.PRNGKey(seed)
-    mod = Mod()
-    in_ = jnp.ones((1, 4))
-    tranformed_input = -in_
-    model_params = mod.init(key, in_)
-    output = mod.apply(model_params, in_)
-    transformed_output = mod.apply(model_params, tranformed_input)
-    print(transformed_output)
-    print("----")
-    print(output)
-    assert False
+def test_multi_layer():
+    mod = TwoLayer(features=64)
+    dummy_state = jnp.ones((1, 1, 4))
+    params = mod.init(jax.random.PRNGKey(0), dummy_state)
+    out = mod.apply(params, dummy_state)
+    r_dummy_state = -dummy_state
+    r_out = mod.apply(params, r_dummy_state)
+    print(out)
+    print(r_out)
+    assert jnp.allclose(out, -mod.apply(params, r_dummy_state))
+    assert out.squeeze().shape == (2,)
+    assert (nn.softmax(out)[0] == nn.softmax(-r_out)[0]).all()
