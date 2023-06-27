@@ -34,7 +34,8 @@ The agent aims to maximise its expected discounted cumulative reward, the return
 
 
 A family of algorithms known as dynamic programming exists that, given finite states and actions, can find exact solutions to these problems, under reasonable constraints. However, these algorithms are often intractable for large state and action spaces.
-solutions to MDPs can be expressed in terms of the value function, $V(s) = \mathbb{E} [ G_t | s_t = s]$, which is the expected return from a given state. 
+
+Solutions to MDPs can be expressed in terms of the value function, $V(s) = \mathbb{E} [ G_t | s_t = s]$, which is the expected return from a given state.
 
 The optimal value function, $V^*(s)$, is the maximum value function over all possible policies. The optimal policy, $\pi^*(s)$, is the policy that maximises the value function for all states. The optimal value function and policy satisfy the Bellman optimality equations\cite{bellamn1957mdp}:
 \begin{equation}
@@ -49,23 +50,22 @@ The value function is very closely linked to the action-value function $Q(s, a) 
 Using dynamic programming and finding exact solutions to an MDP and the optimal policy $\pi*$ to optimise your return is often impossible. Reinforcement learning is a common alternative to dynamic programming, which provides a principled approach to learning approximate solutions. It describes a family of techniques that learn from previous experience to improve at solving MDPs.
 
 \section{Reinforcement Learning}
-Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find approximate solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, starcraft and other games and have recently found diamonds in Minecraft~\cite {silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with an inability to transfer knowledge between tasks, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
+Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find any solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, starcraft and other games and have recently found diamonds in Minecraft~\cite{silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with an inability to transfer knowledge between tasks, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
 
 \section{Deep Reinforcement Learning Approaches}
 The underlying optimisation problem in reinforcement learning is finding a policy which produces the maximum expected reward. However, not all RL algorithms take this approach directly. Additionally, many algorithms choose to forgo learning the dynamics of a process and instead model the value function or policy directly. These are Model-Free algorithms. In contrast, model-based algorithms learn the problem's dynamics and simulate the agent's behaviour to learn. This section will describe the most common approaches to solving RL problems.
 Typically, learning algorithms face a few persistent problems in Deep RL that make solving problems difficult. These are;
 \begin{itemize}
-	\item \textbf{Sample Efficiency}  The algorithms require a large amount of data to learn. This is because training large neural networks requires lots of data to learn. As mentioned before, breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
+	\item \textbf{Sample Efficiency} The algorithms require a large amount of data to learn. This is because training large neural networks requires lots of data to learn. As mentioned before, breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
 	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialisation of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
 	\item \textbf{Reward Sparsity} Reward functions are often sparse, and coming across states that provide rewards, such as finding diamonds in Minecraft, is a difficult problem when initial exploration is random.\cite{hafner2023mastering}.
 \end{itemize}
 
 \subsection{Model Based Algorithms}
-Model-based reinforcement learning is the process of the agent learning the dynamics of a system and then performing "planning" to decide how best to act next. In concrete terms, this corresponds to an agent learning the transition
-dynamics of the MDP, thus learning both the subsequent state of a state action pair, $P(s'| s, a)$ and the expected reward from a state action pair $r(s, a)$. From the learned model agent "plans" by simulating the environment and acting in the simulated environment. Then the agent learns a policy with the simulated data. Common algorithms like Dyna-Q, use Q-learning over a comnination of real and simulated data to learn a policy. 
+Model-based reinforcement learning is the process of the agent learning the dynamics of a system and then performing "planning" to decide how best to act next. In concrete terms, this corresponds to an agent learning the transition dynamics of the MDP, thus learning both the subsequent state of a state action pair, $P(s'| s, a)$ and the expected reward from a state action pair $r(s, a)$. From the learned model agent "plans" by simulating the environment and acting in the simulated environment. Then the agent learns a policy with the simulated data. Common algorithms like Dyna-Q, use Q-learning over a comnination of real and simulated data to learn a policy.
 
-Model-based algorithms have the potential to provide much better sample efficiency than model-free algorithms, as they can learn from simulated data. However, this in itself can be difficult to learn. However, the Dreamer models have shown substantial success in tackling difficult problems\cite{hafner2023mastering,
-hafner2020mastering}. This report does in some way, build a world model. However, it is not used for planning. As such, the details of model-based algorithms will not be discussed further.
+Model-based algorithms have the potential to provide much better sample efficiency than model-free algorithms, as they can learn from simulated data. However, this in itself can be difficult to learn. However, the Dreamer models have shown substantial success in tackling difficult problems\cite{hafner2023mastering, hafner2020mastering}. This report does in some way, build a world model.
+....NEEDS MORE..... I could do with actually knowing more about this and having build some model free instances to figure out this
 \subsection{Model Free Algorithms}
 Model-free algorithms forgo trying to build an approximation of the MDP's transition dynamics defined by $P$ and instead try to optimise the agent behaviour by either approximating how good different states are or learning the best action to take in given states. When combining standard dynamic programming algorithms such as q-learning with function approximation, or actor-critic methods, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimises a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Actor-Critic approaches is that Q-learning uses an epsilon greedy policy to collect data and experience. Whereas, Actor Critics learn a stochastic policy from the data. However, the training loop is much the same;
 \begin{algorithm}
@@ -100,24 +100,26 @@ Model-free algorithms forgo trying to build an approximation of the MDP's transi
 
 	\end{algorithmic}
 \end{algorithm}
-In most cases, some operations need to be performed on the replay buffer, and they store more data than just sequential $(s, a,r)_t$ tuples. Often subsequent actions are required to calculate the loss. This can be done during the update loop. Finally, rather than interacting with one environment, training is done in parallel in multiple environments. The process is much the same; states, rewards and actions become vectors for this. Environment vectorisation has improved training stability and robustness~\cite{minh2016asynchronous}.
+In most cases, some operations need to be performed on the replay buffer, and the buffer will store more data than just sequential $(s, a,r)_t$ tuples. Often subsequent actions are required to calculate the loss. This can be done during the update loop. Finally, rather than interacting with one environment, training is done in parallel in multiple environments. The process is much the same; states, rewards and actions become vectors for this. Environment vectorisation has improved training stability and robustness~\cite{minh2016asynchronous}.
 
-\subsubsection{Q-Learning}
-Q-Learning forgoes optimising the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a greedy policy with a stationary point at the optimal value function. Dynamic Programming exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}. As it is approximate, the convergence guarantees to optimal policies are absent in Deep-Q-Learning. An exact solution may not be found due to computational restraints or partial observability. However, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
+\subsubsection{Deep Q-Learning}
+Q-Learning forgoes optimising the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a greedy policy with a stationary point at the optimal value function. Dynamic Programming exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}.
+
+When extended to function approximation the convergence guarantees of the origianl dynmaic programming Q-learning algroithm are absent in Deep-Q-Learning. While exact solution may not be found due to computational restraints or partial observability, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
 \begin{equation}
 	Q_{t+1}(s, a) = Q_t(s,a) + \alpha \left[ r(s, a) + \gamma \max_{a'} Q_t(S_{t+1}, a') \right].
 \end{equation}
 Where $\alpha$ is the step size, all other symbols take their normal values. The important point is that this converges to the optimal value function given infinite state action space visitation. In the setting of Deep Q Learning, we lose the guarantees of convergence in exchange for flexibility.
 
-The Bellman optimality equation can be used to construct a loss function to train a parametric function approximation, a deep learning model, through gradient methods. However, gradient-based methods are data-hungry, and if this method were employed in an on-policy fashion with a deterministic greedy optimal policy, there would be no exploration. As such, the agent would not explore, so an alternative exploration policy is used. The results of its trajectory or trajectories, depending on whether it is an episodic setting, are stored in a Replay Buffer,
+The Bellman optimality equation can be used to construct a loss function to train a parametric function approximation, a deep learning model, through gradient methods, If this method were employed in an on-policy fashion with a deterministic greedy optimal policy, there would be no exploration. As such, the agent would not gain new experience, so an alternative exploration policy is used. The results of its trajectory or trajectories, depending on whether it is an episodic setting, are stored in a Replay Buffer,
 \begin{equation}
 	\mathcal{D} = \{S_0, A_0, R_1, S_1, A_1, \ldots \}
 \end{equation}
-This can be sampled when training the network. The loss function to optimise is derived from the Bellman equation,
+This can be sampled when training the network. The loss function to optimise is derived from the Bellman equation and is the squared temoporal difference error\cite{sutton2018reinforcement},
 \begin{equation}
 	L_{w}(\mathcal{D}) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}}\left[\left(Q_w(s,a) -(r + \gamma(1-\mathbb{I}(s'= S_{T}))\max_{a'}Q_{w'}(s', a')\right)^2\right].
 \end{equation}
-Here, it is essential to note that $Q_w'$ can be the original network if $w = w'$. However, there are some problems associated with this. The gradient with respect to the loss must now become a semi-gradient, where the $Q_w'$ term must be considered a constant with respect to $w$. The indicator, $\mathbb{I}(s' = S_T)$,  is one if $s'$ is a terminal state.
+Here, it is essential to note that $Q_w'$ can be the original network if $w = w'$. However, there are some problems associated with this. The gradient with respect to the loss must now become a semi-gradient, to allow the bootstrapping off one's own predictions, where the $Q_w'$ term must be considered a constant with respect to $w$. The indicator, $\mathbb{I}(s' = S_T)$,  is one if $s'$ is a terminal state.
 
 Alternatively, the semi-gradient can be avoided with Double-Q-Learning. Double-Q-Learning uses target networks\cite{van2016deep}. This makes two copies of the primary, $Q_w$, network and performs gradient updates on one, $Q_w$, with the secondary network, $Q_{w'}$, parameters being moved towards $w$ after some further number of updates so that its parameters lag that of $w$. This can be done with weighted averages or just a direct update.
 
@@ -137,7 +139,7 @@ However, in infinite time horizon tasks, there is no termination and optimising 
 Many common algorithms for episodic tasks can be extended for infinite time horizon problems.
 In both cases, it should be noted that the objective function from which we are taking the gradient is an expectation. This provides a problem, and we use the score function trick to take the gradient before the expectation.
 
-One uses the score function trick to derive the gradient-based update term in the episodic case. First, the expected reward is expressed in its natural form as the average return under the distribution of trajectories defined by the policy and the MDP's dynamics and proceed to do some algebra to get it into a more friendly form,
+It is possibel to use the score function trick to derive the gradient-based update term in the episodic case. First, the expected reward is expressed in its natural form as the average return under the distribution of trajectories defined by the policy and the MDP's dynamics and proceed to do some algebra to get it into a more friendly form,
 \begin{align}
 	\nabla_\theta J_G(\theta) & = \nabla_\theta \mathbb{E}_{\tau \sim \pi_\theta}\left[R(\tau)\right]                            \\
 	                          & = \nabla_\theta \sum_\tau R(\tau) P(\tau|\theta)                                                 \\
@@ -155,7 +157,7 @@ Thus using log rules, the expectations can be rearranged in the form,
 	                                                                 & \left. \left\{ \log(P(S_0)) +  \sum_{t=0}^ T \log(P(S_{t+1}| S_t, A_t))+ \log(\pi_\theta(A_t|S_t))\right\} \right], \\
 	= \mathbb{E}_{\tau \sim \pi_{\theta}}                            & \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right].
 \end{align}
-With this form of the policy gradient, we could sample multiple trajectories and perform gradient descent on the policy. 
+With this form of the policy gradient, we could sample multiple trajectories and perform gradient descent on the policy.
 
 This would be an unbiased estimate of the policy gradient. Empirically, the variance of the gradient updates for deep networks is inefficient in the number of training samples or impossible, depending on the task. One further remedy to this is that we can note that a policy at time $t = t'$ should not depend on the rewards in the past; this insight can be seen by splitting the expectation,
 \begin{align}
@@ -244,9 +246,9 @@ Groups are an abstract mathematical idea on a set with a binary operation, "$\cd
 The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant.
 
 \subsection{Representation and Actions}
-Members of groups like roation operations or flip operations maintain their properties no matter what space you are in, for example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function as such the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matricies or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The group action is defined as, 
+Members of groups like roation operations or flip operations maintain their properties no matter what space you are in, for example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function as such the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matricies or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The group action is defined as,
 \begin{equation}
-	\L_g: \mathcal{X} \times G \rightarrow \mathcal{X}, \forall g \in G, \forall x \in \mathcal{X}.
+	\ell_g: \mathcal{X} \times G \rightarrow \mathcal{X}, \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
 Where $\mathcal{X}$ is an arbitrary set and the left action obeys the following properties:
 \begin{itemize}
@@ -260,24 +262,24 @@ Additionally Because of the definintion of a group action, the aplication of a g
 
 The inverse group action is commonly written as $\ell_{g^{-1}}(x) = g^{-1}x$, when acting on the domain of a funtion.
 
-In the special case of vector spaces the group actions are invertable matricies and are called a representation; 
+In the special case of vector spaces the group actions are invertable matricies and are called a representation;
 \begin{equation}
 	\pi_g^\mathcal{V}: G \rightarrow GL(\mathcal{V}), \forall g \in G.
 \end{equation}
-Where $\mathcal{V} \in \mathbb{R}^n$ is a vector space, and the group representaiton $\pi_g^\mathcal{V}$ is an invertable matrix. These representations also follow the properties of the group, i.e. they are invertable, and the identity element is mapped to the identity matrix. 
+Where $\mathcal{V} \in \mathbb{R}^n$ is a vector space, and the group representaiton $\pi_g^\mathcal{V}$ is an invertable matrix. These representations also follow the properties of the group, i.e. they are invertable, and the identity element is mapped to the identity matrix.
 \subsection{Invariances}
-Invariances are properties maintained under a transformation of the input space, e.g.\ mirror symmetry, where the distance to a point on the mirror line is the same from the left and the right if the object is symmetric. If you have a function $f: \mathcal{X} \rightarrow \mathcal{Y}$ that is invariant to a transformation $\ell_g(x): \mathcal{X} \rightarrow \mathcal{X}$, this is expressed as:
+Invariances are properties maintained under a transformation of the input space, e.g.\ mirror symmetry, where the distance to a point on the mirror line is the same from the left and the right if the object is symmetric. If you have a function $f: \mathcal{X} \rightarrow \mathcal{Y}$ that is invariant to a transformation $\ell_g(x): \mathcal{X} \times G \rightarrow \mathcal{X}$, this is expressed as:
 \begin{equation}
-	f(x) = f(\ell^\mathcal{X}_g(x)),   \forall g \in G, \forall x \in \mathcal{X}.
+	f(x) = f(\ell_g(x)),   \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
-For the transformation to be a group, there must also include the identity element s.t $\ell^\mathcal{X}(x) = x,  h \in G, \forall x\in \mathcal{X}$. This is how symmetry is typically expressed. The symmetry belongs to an abstract group. For example, suppose an object has 3-fold rotation symmetry around an axis. In that case, an abstract group with operations between its elements mirrors that of rotations around the axis by $120^o, 240^o$ and $0^o$. It is straightforward to check that these operations form a group. Rotations by $360^o$ left or right are the identity element. The group is closed; no matter how many rotations are performed, the object with the symmetry is still the same. The inverse of the rotation by $120^o$ is the rotation by $240^o$ and vice versa. Finally, the rotations are associative. This is the group of symmetries of the object. The object is invariant to the transformations in the group.
+For the transformation to be a group, there must also include the identity element s.t $\ell_h(x) = x,  h \in G, \forall x\in \mathcal{X}$. This is how symmetry is typically expressed. The symmetry belongs to an abstract group. For example, suppose an object has 3-fold rotation symmetry around an axis. In that case, an abstract group with operations between its elements mirrors that of rotations around the axis by $120^o, 240^o$ and $0^o$. It is straightforward to check that these operations form a group. Rotations by $360^o$ left or right are the identity element. The group is closed; no matter how many rotations are performed, the object with the symmetry is still the same. The inverse of the rotation by $120^o$ is the rotation by $240^o$ and vice versa. Finally, the rotations are associative. This is the group of symmetries of the object. The object is invariant to the transformations in the group.
 
 \subsection{Equivariance}
-Equivariance is related in that if there is some transformation $\ell_g^\mathcal{Y}: \mathcal{Y} \rightarrow \mathcal{Y}$, where it is a different representation of the group, equivariance which is a more general statement than invariance is,
+Equivariance is related in that if there is some transformation $\ell_g: \mathcal{Y} \times G \rightarrow \mathcal{Y}$, where it is a different representation of the group, equivariance which is a more general statement than invariance is,
 \begin{equation}
 	\ell_g^\mathcal{Y}( f(x) )= f(\ell_g^\mathcal{X}( x)), \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
-Here, both $\ell_g$s are the same transformation. However, the spaces they act upon are different. This notion is especially important in the space of RL.\ From this definition, we can see that invariance is a particular case of equivariance where $\ell^y_g$ is the identity, $\forall g \in G$.
+Here, both $\ell_g$s are actions of the same group member. However, the spaces they act upon are different. This notion is especially important in the space of RL.\ From this definition, we can see that invariance is a particular case of equivariance where $\ell^\mathcal{Y}_g$ is the identity, $\forall g \in G$.
 \subsection{Homomorphisms}
 A homomorphism describes a map between two structures that preserves an operation. In the context of reinforcement learning, the preservation is that of the dynamics of a Markov Decision Process.
 
@@ -301,14 +303,14 @@ This is \textit{optimal value equivalence}. Further, they introduced the idea of
 \begin{equation}
 	\pi^\uparrow(a | s) = \frac{\overline{\pi}(\alpha_s(a) | \sigma(s))}{| a \in \alpha^{-1}_s(\bar{a})|}.
 \end{equation}
-
+As such any solution found in an abstract MDP can easily be transferred to the orginal MDP.
 \subsection{Group Structured MDP Homomorphisms}
 A natural homomorphic mapping is that of an MDP that possesses symmetry, which is concretised by having the homomorphisms be the representations of the group in state and action space,
 \begin{enumerate}
 	\item $R(s, a) = (\ell^\mathcal{S}_g(s), \ell^\mathcal{A}_g(a))$,
 	\item $P(s'| a, s) =P(\ell^\mathcal{S}(s')| \ell^\mathcal{A}(a), \ell^\mathcal{S}(s))$.
 \end{enumerate}
-Where $\pi_g^x$ is the representation of the element $g \in G$ in the space $\mathcal{X}$, in plain English, for each state or state action pair, there are a set of states with the same reward and transition probability to some new state, where these states are related to each other by the operations of the elements of g on them.
+Where $\ell_g^\mathcal{X}$ is the representation of the element $g \in G$ in the space $\mathcal{X}$, in plain English, for each state or state action pair, there are a set of states with the same reward and transition probability to some new state, where these states are related to each other by the operations of the elements of g on them.
 
 
 
@@ -337,5 +339,5 @@ The symmetry present in Cartpole is the cyclic $C_2$ group. Other than the trivi
 \end{table}
 
 
-As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s(s) = s$ and $\pi_r^s(s) = -s$, as well as $\pi_1^a(a) = a$ and $\pi_r^a(a) = 1 - a$.
+As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s\mathbf{s} = \mathbf{s}$ and $\pi_r^s\mathbf{s} = -\mathbf{s}$, as well as $\pi_1^a\mathbf{a} = \mathbf{a}$ and $\pi_r^a\mathbf{a} = 1 - \mathbf{a}$. Here the state and actions as vectors; $\mathbf{s}, \mathbf{a}$ are being acted upon by the vector representations of $C_2, \pi$ in their respective spaces.
 

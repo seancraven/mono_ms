@@ -2,44 +2,44 @@
 \section{Group Equivariance For Cartpole}
 In the setting of cartpole with the $C_2$ group, we have the following group representations; in state space,
 \begin{equation}
-    \begin{aligned}
-        \pi_e^{\mathcal{S}} &= \begin{pmatrix}
-            1 & 0 & 0 & 0 \\
-            0 & 1 & 0 & 0 \\ 
-            0 & 0 & 1 & 0 \\
-            0 & 0 & 0 & 1 \\
-        \end{pmatrix}, \\
-        \pi_r^{\mathcal{S}} &= \begin{pmatrix}
-            -1 & 0 & 0 & 0 \\
-            0 & -1 & 0 & 0 \\ 
-            0 & 0 & -1 & 0 \\
-            0 & 0 & 0 & -1 \\
-        \end{pmatrix}, \\
-    \end{aligned} 
+	\begin{aligned}
+		\pi_e^{\mathcal{S}} & = \begin{pmatrix}
+			                        1 & 0 & 0 & 0 \\
+			                        0 & 1 & 0 & 0 \\
+			                        0 & 0 & 1 & 0 \\
+			                        0 & 0 & 0 & 1 \\
+		                        \end{pmatrix},    \\
+		\pi_r^{\mathcal{S}} & = \begin{pmatrix}
+			                        -1 & 0  & 0  & 0  \\
+			                        0  & -1 & 0  & 0  \\
+			                        0  & 0  & -1 & 0  \\
+			                        0  & 0  & 0  & -1 \\
+		                        \end{pmatrix}, \\
+	\end{aligned}
 \end{equation}
 and in action space,
 \begin{equation}
-    \begin{aligned}
-        \pi_e^{\mathcal{A}} &= 1, \\ 
-        \pi_r^{\mathcal{A}} &= -1.
-    \end{aligned}
+	\begin{aligned}
+		\pi_e^{\mathcal{A}} & = 1,  \\
+		\pi_r^{\mathcal{A}} & = -1.
+	\end{aligned}
 \end{equation}
 
-As mentioned in the previous chapter\ref{chap:background}, if we want a MDP homomorphism, that is group structured we must have and equivariant either directly in the trainsiton and reward fuction or with a policy fucntion. In the supervised learning setting there main way in which to learn an equivariance to an input is to use a G-CNN. In the reinforcement learning setting, we can use a G-NN to learn these equivariances.   
+As mentioned in the previous chapter\ref{chap:background}, if we want a MDP homomorphism, that is group structured we must have and equivariant either directly in the trainsiton and reward fuction or with a policy fucntion. In the supervised learning setting there main way in which to learn an equivariance to an input is to use a G-CNN. In the reinforcement learning setting, we can use a G-NN to learn these equivariances.
 
 \subsection{G-CNNs}
-The Group Equivariant Convolutional Neural Network (G-CNN) is a generalisation of the CNN's translational equivariance to arbitrary group structured equivariances. 
+The Group Equivariant Convolutional Neural Network (G-CNN) is a generalisation of the CNN's translational equivariance to arbitrary group structured equivariances.
 
-The traditional Convolution layer is a discrete convolution, this is an approximation of tha continuous convolution, 
+The traditional Convolution layer is a discrete convolution, this is an approximation of tha continuous convolution,
 \begin{equation}
-    (f*g)(x) = \int_{\mathbb{R}^d} k(x-x')f(x')dy,
+	(f*g)(x) = \int_{\mathbb{R}^d} k(x-x')f(x')dy,
 \end{equation}
 where $f$ and $k$ are functions on $\mathbb{R}^d$. What can be noticed is that this is infact the definition of the cross correlaion between $f$ and $\ell_g[k]:  \mathbb{R}^d  \rightarrow \mathbb{R}^d$, where $\ell_g[k]$
 is the translation group $\mathbb{R}^d$ acting on the kernel $k$,
 \begin{align}
-    (f*g)(x) &= \int_{\mathbb{R}^d} k(x-x')f(x')dx' \\
-    &= \int_{\mathbb{R}^d} k(g^{-1}x')f(x')dx' \\
-    &= \int_{\mathbb{R}^d} \ell_g[k](x')f(x')dx'
+	(f*g)(x) & = \int_{\mathbb{R}^d} k(x-x')f(x')dx'       \\
+	         & = \int_{\mathbb{R}^d} k(g^{-1}x')f(x')dx'   \\
+	         & = \int_{\mathbb{R}^d} \ell_g[k](x')f(x')dx'
 \end{align}
-Here, the inverse of a tranlastion by $x$, group action $g$ is the translation by $-x$. This is then $g^{-1}$, the inverse of the group action. This is the backbone of the G-CNN\cite{cohen2016group}, where rather than a translation group, we have an arbitrary group $G$ acting on the kernel $k$. When looking for more complex equivariances than $C_2$, multiple different groups can be used in the same layer, this increases the number of varibles in the convolution's output,
-And lifting layers are required however these details are not important for the scope of this project.
+Here, the inverse of a tranlastion by $x$, group action $g$ is the translation by $-x$. This is then $g^{-1}$, the inverse of the group action. This is the backbone of the G-CNN\cite{cohen2016group}, where rather than a translation group, we have an arbitrary group $G$ acting on the kernel $k$. When looking for more complex equivariances than $C_2$, multiple different groups can be used in the same layer, this increases the number of varibles in the convolution's output, this complecates the form of the layers, however for our purposes this is not relevant.
+
