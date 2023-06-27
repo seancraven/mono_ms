@@ -1,0 +1,28 @@
+\chapter{Literature Review}\label{chap:litreview}
+
+\section{Deep Learning and MDP Homomorphisms}
+As discussed previously In Chapter \ref{chap:background} the idea of learning a Group Structured MDP homomorphism is a powerfull tool to make the learning problem posed by an MDP simpler. In this section I will discuss multiple parpers that attempt to learn Group Structured MDP Homomorphisms.
+\subsection{MDP Homomorphic Networks}
+\cite{vanderpol2020mdp} introduces the idea of performing policy based learning that respects the symmetry of the environment, by constraining the possible policies that can be represented by a neural network.
+
+This is achieved by using an equivariant network on discrete action spaces. When the input to the network is transformed by a group structured operation, the output policy is also transformed by this operation, due to the equivariance property, and as such the network finds a more efficient method of learning the policy as the MDP problem it is solving is simpler, as it exploits the Group Structured MDP Homomorphism.
+
+The equivariance in the deep network uses many of the same ideas as that of the G-CNNs\cite{cohen2016group}. In that the only requirement for a network to be equivaraint to a discrete group action's is that the individual layers of the network are equivariant to the group's actions. Despite the similarity, thier method of achieving the equivariance is quite different. The Authors propose the "symmetrizer layer". In contrast to the group convolution formulation, the symmetrizer layer achives equivaraince by finding weight matricies that are solutions to,
+\begin{equation}
+	\label{eqn:symmetrizer}
+	\mat{W} =S(\mat{W}) = \frac{1}{|G|}\sum_{g\in G}{\pi_g^{\mathcal{X}'}}^{-1}\mat{W}\pi_g^{\mathcal{X}}
+\end{equation}
+Where if $f(\vec{x}) = \mat{W}\vec{x}$, $f: \mathcal{X} \rightarrow {\mathcal{X}'}$ and $\pi_g^{\mathcal{X}}$ is the representation of $g$ in $\mathcal{X}$, then $\pi_g^{\mathcal{X}'}$ is the representation of $g$ in $\mathcal{X}'$. In order to find such linear systems of equations in a general manner for a group $G$, the authors sample many matricies randomly from the space of all possible matricies of that size $\mathcal{W}_{total}$.Then apply the symmetrizer operation, $S$, to all of the sampled matricies.
+
+
+From this point, because the symmetrizer operation is linear there exists a set of solutions to that linear equation,$\mathcal{W}$, and to form solutions to it, they vectorise and stack the found matricies, This forms a new matrix, which the singular value decomposition's basis vectors are orthogonal vectors of the equivariant subspace! These vectors $\{\mat{V}_i\}$ are all solutions to the above equation\ref{eqn:symmetrizer}. As such any linear combination of them is also a solution. Using the first $r$ vectors of the SVD, where $r= \text{rank}(\mathcal{W})$. An equivariant layer can by formed by,
+
+\begin{equation}
+	\mat{W} = \sum_{i=1}^{r}{\alpha_i\mat{V}_i}
+\end{equation}
+
+These layers have interesting properties in that the size of the subspace defines how many parameters when using this framework, there is no current closed form solution to the question of how many parameters each layer will have.
+
+This scheme of producing equivariant layers, has some notable upsides, in that you only need to know how to trasform the input and output of the layer, $\mat{W} \rightarrow \mat{W}\pi_g^\mathcal{X}$ and $\mat{W} \rightarrow {\pi_g^{\mathcal{X}'}}^{-1} \mat{W}$ respectively. However, the scheme does require, expensive SVD calculations, in addition to the sampling of many matricies, which is expensive, but this only need be done once at the start of training per layer. However, there is no closed form solution to how many parameters the matricies will have, and as such the number of parameters in the network is not known until the SVD is performed.
+
+The larger problems with this approach are that the homomorphisms must be exact, and known apriori. This limits the possible scenarios in which this approach can be used, as it is not always possible to know the exact symmetry. In addtion, to this in many cases generalising to continuous actions spaces is not possible with the current methodology.
