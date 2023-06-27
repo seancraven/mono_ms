@@ -11,19 +11,10 @@ import numpy as np
 import optax
 from flax.linen.initializers import constant, orthogonal
 from flax.training.train_state import TrainState
+from g_conv.c2 import C2Conv
 from gymnax.wrappers.purerl import FlattenObservationWrapper, LogWrapper
 
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
-
-
-class C2Conv(nn.Module):
-    features: int
-    kernel_size: Tuple[int, ...]
-
-    @nn.compact
-    def __call__(self, input):
-        layer = nn.Conv(features=self.features, kernel_size=(input.shape[1:]))
-        return jnp.concatenate([layer(input), layer(-input)], axis=-1)
 
 
 class ActorCritic(nn.Module):
@@ -64,7 +55,7 @@ class ActorCritic(nn.Module):
         return pi, jnp.squeeze(critic, axis=-1)
 
 
-class InvariantActorCritic(nn.Module):
+class EquivariantActorCritic(nn.Module):
     action_dim: Sequence[int]
     activaton: str = "tanh"
 
@@ -72,13 +63,40 @@ class InvariantActorCritic(nn.Module):
     @nn.compact
     def __call__(self, x):
         activation = nn.relu
-        actor_mean = C2Conv(features=64, kernel_size=((x.shape[1],)))(x)
+        actor_mean = C2Conv(features=64, kernel_size=((1,)))(x)
         actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=64, kernel_size=((x.shape[1],)))(actor_mean)
+        actor_mean = C2Conv(features=64, kernel_size=((1,)))(actor_mean)
         actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=self.action_dim, kernel_size=((x.shape[1],)))(
-            actor_mean
+        actor_mean = C2Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
+        pi = distrax.Categorical(logits=actor_mean)
+
+        critic = nn.Dense(
+            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
+        )(x)
+        critic = activation(critic)
+        critic = nn.Dense(
+            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
+        )(critic)
+        critic = activation(critic)
+        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
+            critic
         )
+        return pi, jnp.squeeze(critic, axis=-1)
+
+
+class ConvActorCritic(nn.Module):
+    action_dim: Sequence[int]
+    activaton: str = "tanh"
+
+    @nn.compact
+    def __call__(self, x):
+        internal_dim = 1024
+        activation = nn.relu
+        actor_mean = nn.Conv(features=64, kernel_size=((1,)))(x)
+        actor_mean = activation(actor_mean)
+        actor_mean = nn.Conv(features=64, kernel_size=((1,)))(actor_mean)
+        actor_mean = activation(actor_mean)
+        actor_mean = nn.Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
         pi = distrax.Categorical(logits=actor_mean)
 
         critic = nn.Dense(
@@ -105,7 +123,7 @@ class Transition(NamedTuple):
     info: jt.Array
 
 
-def make_train(config):
+def make_train(config, net_init):
     config["NUM_UPDATES"] = (
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
@@ -126,11 +144,11 @@ def make_train(config):
 
     def train(rng):
         # INIT NETWORK
-        network = InvariantActorCritic(
+        network = net_init(
             env.action_space(env_params).n,
         )
         rng, _rng = jax.random.split(rng)
-        init_x = jnp.zeros(env.observation_space(env_params).shape)
+        init_x = jnp.zeros((1, *env.observation_space(env_params).shape))
         network_params = network.init(_rng, init_x)
         if config["ANNEAL_LR"]:
             tx = optax.chain(
@@ -331,23 +349,14 @@ if __name__ == "__main__":
         "ANNEAL_LR": True,
     }
 
-    num_seeds = 8
+    num_seeds = 256
     key = jax.random.PRNGKey(0)
     keys = jax.random.split(key, num_seeds)
-    jit_train = jax.jit(make_train(config))
-    results = jax.vmap(jit_train)(keys)
-    episodic_returns = results["metrics"]["returned_episode_returns"].reshape(
-        (num_seeds, -1)
-    )
-    returns_std = moving_average(episodic_returns.std(axis=0))
-    returns_mean = moving_average(episodic_returns.mean(axis=0))
-    returns_upper = returns_mean + returns_std
-    returns_lower = returns_mean - returns_std
-    x = np.arange(len(returns_mean))
-
-    plt.plot(x, returns_mean, label="mean")
-    plt.fill_between(x, returns_lower, returns_upper, alpha=0.3, label="std")
-    plt.xlabel("Timesteps")
-    plt.ylabel("Episodic Return")
-    plt.legend()
-    plt.show()
+    fig, ax = plt.subplots()
+    for net_init in [EquivariantActorCritic, ConvActorCritic]:
+        jit_train = jax.jit(make_train(config, net_init))
+        results = jax.vmap(jit_train)(keys)
+        episodic_returns = results["metrics"]["returned_episode_returns"].reshape(
+            (num_seeds, -1)
+        )
+        jnp.save(f"{net_init.__name__}.npy", episodic_returns)
