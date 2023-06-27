@@ -1,9 +1,11 @@
+import random
+
 import distrax
 import jax
 from flax import linen as nn
 from jax import numpy as jnp
 
-from c2 import C2Conv
+from g_conv.c2 import C2Conv
 
 # def test_shaping():
 #     mod = C2Conv(features=3, kernel_size=(1, 4))
@@ -27,15 +29,31 @@ class TwoLayer(nn.Module):
         return out
 
 
-def test_multi_layer():
+def mock_model():
     mod = TwoLayer(features=64)
-    dummy_state = jnp.ones((1, 1, 4))
+    dummy_state = jnp.ones((1, 4))
     params = mod.init(jax.random.PRNGKey(0), dummy_state)
-    out = mod.apply(params, dummy_state)
+    return params, mod.apply
+
+
+def test_multi_layer():
+    params, apply_fn = mock_model()
+    dummy_state = jax.random.normal(jax.random.PRNGKey(random.randint(0, 1000)), (1, 4))
+    out = apply_fn(params, dummy_state)
     r_dummy_state = -dummy_state
-    r_out = mod.apply(params, r_dummy_state)
-    print(out)
-    print(r_out)
-    assert jnp.allclose(out, -mod.apply(params, r_dummy_state))
+    r_out = apply_fn(params, r_dummy_state)
+    assert jnp.allclose(out, -r_out)
     assert out.squeeze().shape == (2,)
-    assert (nn.softmax(out)[0] == nn.softmax(-r_out)[0]).all()
+
+
+def test_equiv():
+    """Assert that the output of the model is equivariant to the input transformation"""
+    params, apply_fn = mock_model()
+    dummy_state = jax.random.normal(jax.random.PRNGKey(random.randint(0, 1000)), (1, 4))
+    out = apply_fn(params, dummy_state)
+    r_dummy_state = -dummy_state
+    r_out = apply_fn(params, r_dummy_state)
+
+    dist = distrax.Categorical(logits=out)
+    r_dist = distrax.Categorical(logits=r_out)
+    assert jnp.allclose(dist.log_prob(0), r_dist.log_prob(1))
