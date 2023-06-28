@@ -10,28 +10,45 @@ from jaxtyping import Array, PRNGKeyArray
 
 
 class Symmetrizer(nn.Module):
-    """A linear Symmetrizer Layer: https://arxiv.org/abs/2006.16908"""
+    """A linear Symmetrizer Layer: https://arxiv.org/abs/2006.16908
 
-    def setup(
-        self,
-        key,
-        in_dim: int,
-        out_dim: int,
-        group: Group,
-        samples: int = 100,
-        bias=True,
-    ):
-        self.in_dim = in_dim
-        if bias:
-            self.in_dim += 1
-        self.out_dim = out_dim
-        self.group = Group
-        self.basis = _find_basis(key, group, in_dim, out_dim, samples=samples)
-        subspace_rank = self.basis.shape[0]
-        self.basis_coef = self.param("params", lecun_normal(), (subspace_rank,))
+    Args:
+        key: A PRNGKey used to initialize the layer.
+        in_dim: The input dimension of the layer.
+        out_dim: The output dimension of the layer.
+        group: The group to symmetrize under.
+        samples: The number of samples to use to find the basis.
+        bias: Whether to include a bias term in the layer.
+
+    """
+
+    key: PRNGKeyArray
+    in_dim: int
+    out_dim: int
+    group: Group
+    samples: int = 100
+    bias: bool = True
+
+    def setup(self):
+        true_in_dim = self.in_dim
+        if self.bias:
+            true_in_dim += 1
+        self.basis = _find_basis(
+            self.key, self.group, true_in_dim, self.out_dim, samples=self.samples
+        )
+        sub_space_rank = self.basis.shape[0]
+        self.basis_coef = self.param(
+            "basis coefficients", lecun_normal(), (sub_space_rank, 1)
+        )
 
     def __call__(self, input: Array) -> Array:
-        return jnp.einsum("ijk,i->jk", self.basis, self.basis_coef) @ input
+        if self.bias:
+            input = jnp.concatenate([input, jnp.ones((1,))])
+        # lecun_normal must make 2d mat, so squeeze is required.
+        symmetrizer_mat = jnp.einsum(
+            "ijk,il->jkl", self.basis, self.basis_coef
+        ).squeeze()
+        return jnp.einsum("ij,j->i", symmetrizer_mat, input)
 
 
 def _find_basis(
@@ -39,11 +56,11 @@ def _find_basis(
 ) -> Array:
     """Finds an orthogonal basis for the subspace of matricies that are
     the solution to W = _symmetrize(group, W)"""
-    matricies = jax.random.normal(key, (samples, in_dim, out_dim))
+    matricies = jax.random.normal(key, (samples, out_dim, in_dim))
     symmetrized_mats = _symmetrize(group, matricies).reshape(samples, -1)
     _, _, V = jnp.linalg.svd(symmetrized_mats)
     r = jnp.linalg.matrix_rank(V)
-    return V[:r].reshape(r, in_dim, out_dim)
+    return V[:r].reshape(r, out_dim, in_dim)
 
 
 def _symmetrize(group: Group, matricies: Array) -> Array:
@@ -62,7 +79,7 @@ def _symmetrize(group: Group, matricies: Array) -> Array:
     rep_in = group.get_representation(in_dim)
     rep_out = group.get_representation(out_dim)
     for g_in, g_out in zip(rep_in, rep_out):
-        symmetrized_mats += jax.vmap(lambda x: _sym(g_in, x, g_out), in_axes=0)(
+        symmetrized_mats += jax.vmap(lambda x: _sym(g_in, g_out, x), in_axes=0)(
             matricies
         )
 
