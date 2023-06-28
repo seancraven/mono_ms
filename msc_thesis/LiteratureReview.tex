@@ -26,3 +26,13 @@ These layers have interesting properties in that the size of the subspace define
 This scheme of producing equivariant layers, has some notable upsides, in that you only need to know how to trasform the input and output of the layer, $\mat{W} \rightarrow \mat{W}\pi_g^\mathcal{X}$ and $\mat{W} \rightarrow {\pi_g^{\mathcal{X}'}}^{-1} \mat{W}$ respectively. However, the scheme does require, expensive SVD calculations, in addition to the sampling of many matricies, which is expensive, but this only need be done once at the start of training per layer. However, there is no closed form solution to how many parameters the matricies will have, and as such the number of parameters in the network is not known until the SVD is performed.
 
 The larger problems with this approach are that the homomorphisms must be exact, and known apriori. This limits the possible scenarios in which this approach can be used, as it is not always possible to know the exact symmetry. In addtion, to this in many cases generalising to continuous actions spaces is not possible with the current methodology.
+
+
+\subsection{Group Equivariant Deep Reinforcement Leanrning}
+In much the same vein as that of \cite{vanderpol2020mdp}, \cite{mondal2020group} proposes a method of exploiting equivariant networks for Deep RL, in comparison to \cite{vanderpol2020mdp}, they propose using G-CNNs\cite{cohen2016group} to achieve equivariance, rather than the symmetrizer layer. In contrast to leaning a policy they have a newtwork structure such that the states are mapped to an equivariant Latent space of dimension 256, This results in a network architure that can be thought of as an equivariant embedding function, $f(s)$, and a Q-Value function, $Q(s_{eqv}, a)$, acting on this space.
+\begin{align}
+	f: & \mathcal{S} \rightarrow \mathcal{S}_{eqv}      \\
+	Q: & \mathcal{S}_{eqv} \rightarrow \mathbb{R}^{|A|}
+\end{align}
+
+One of the key downsides of this is it doesn't exploit the homomorphism of the MDP, that exists also in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over a baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in snake. However, they do not see an improvement in sample efficiency in Pacman, which also posseses the same $C_4$ group symmetry.

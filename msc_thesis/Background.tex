@@ -341,3 +341,55 @@ The symmetry present in Cartpole is the cyclic $C_2$ group. Other than the trivi
 
 As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s\mathbf{s} = \mathbf{s}$ and $\pi_r^s\mathbf{s} = -\mathbf{s}$, as well as $\pi_1^a\mathbf{a} = \mathbf{a}$ and $\pi_r^a\mathbf{a} = 1 - \mathbf{a}$. Here the state and actions as vectors; $\mathbf{s}, \mathbf{a}$ are being acted upon by the vector representations of $C_2, \pi$ in their respective spaces.
 
+
+\section{Neural Networks and The Inductive Biases}
+
+What is nice in many ways about the original MLP model is that it is so flexible, however this also highlights one of its weaknesses when solving applied problems, because in theory MLPs have incredible expressive power, they are perfectly able to represent impossible functions, when applied to domains such as Images, and physical processes where there are concrete rules governing the processes that are being modelled\footnote{See the last few hundred years of Physics for examples.}. Additionally it is posited by~\cite{wolpert1995no}, that there is no free lunch in machine learning, and that there must be a constrained search space for possible algorithms. Such Constraints are in other words, inductive biases~\cite{baxter2000model}. This kind of reasoning has lead to much research into encoding inductive biases into Deep Networks, from~\cite{goyal2022inductive} a table of current approaches to introduce inductive biases;
+
+\begin{table}
+	\centering
+\begin{tabular}{|c | c|}
+	\hline
+	Inductive Bias              & Corresponding property                              \\
+	\hline
+	\hline
+	Distributed representations & Inputs mapped to patterns of features               \\
+	\hline
+	Convolution                 & group equivariance (usually over space)             \\
+	\hline
+	Deep architectures          & Complicated functions = composition of simpler ones \\
+	\hline
+	Graph Neural Networks       & equivariance over entities and relations            \\
+	\hline
+	Recurrent Nets              & equivariance over time                              \\
+	\hline
+	Soft attention              & equivariance over permutations                      \\
+	\hline
+	Self-supervised             & pre-training $P(X)$ is informative about $P(Y |X)$      \\
+	\hline
+\end{tabular}
+\end{table}
+
+For the purposes of this thesis, the focus will be on the induction of group eqivariances. However, it is important to note that this strategy to improving Machine Learning models comes from a more general class of ideas.
+
+
+\subsection{Neural Networks and The Raiders of the Group}
+\subsection{G-CNNs}
+The Group Equivariant Convolutional Neural Network (G-CNN) is a generalisation of the CNN's translational equivariance to arbitrary group structured equivariances.
+
+The traditional Convolution layer is a discrete convolution, this is an approximation of tha continuous convolution,
+\begin{equation}
+	(f*g)(x) = \int_{\mathbb{R}^d} k(x-x')f(x')dy,
+\end{equation}
+where $f$ and $k$ are functions on $\mathbb{R}^d$. What can be noticed is that this is infact the definition of the cross correlaion between $f$ and $\ell_g[k]:  \mathbb{R}^d  \rightarrow \mathbb{R}^d$, where $\ell_g[k]$
+is the translation group $\mathbb{R}^d$ acting on the kernel $k$,
+\begin{align}
+	(f*g)(x) & = \int_{\mathbb{R}^d} k(x-x')f(x')dx'       \\
+	         & = \int_{\mathbb{R}^d} k(g^{-1}x')f(x')dx'   \\
+	         & = \int_{\mathbb{R}^d} \ell_g[k](x')f(x')dx'
+\end{align}
+Here, the inverse of a tranlastion by $x$, group action $g$ is the translation by $-x$. This is then $g^{-1}$, the inverse of the group action. This is the backbone of the G-CNN\cite{cohen2016group}, where rather than a translation group, we have an arbitrary group $G$ acting on the kernel $k$. When looking for more complex equivariances than $C_2$, multiple different groups can be used in the same layer, this increases the number of varibles in the convolution's output, this complecates the form of the layers, however for our purposes this is not relevant.
+
+
+\subsection{Steerabel Kernel G-CNNs}
+% TODO: Add a section on Steerable Kernel G-CNNs
