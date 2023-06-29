@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Protocol, Tuple
+from typing import Protocol, Tuple, Optional, List
 
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from flax.linen.initializers import lecun_normal, zeros_init
 from jaxtyping import Array, PRNGKeyArray, Float
+from distrax import Categorical
 
 
 class Symmetrizer(nn.Module):
@@ -25,7 +26,7 @@ class Symmetrizer(nn.Module):
     in_dim: int
     out_dim: int
     group: Group
-    samples: int = 100
+    samples: int = 1000
     bias: bool = True
 
     def setup(self):
@@ -60,6 +61,73 @@ class Symmetrizer(nn.Module):
             return out
 
 
+class SymmetrizerDense(nn.Module):
+    """A Jitable symmetrizer Layer to be called from inside a factory
+
+    Args:
+        basis: The basis for the subspace of matricies that are the solution to W = _symmetrize(group, W)
+        bias_basis: The basis for the subspace of matricies that are the solution to b = _symmetrize(group, b)
+    """
+
+    basis: Array
+    bias_basis: Optional[Array] = None
+
+    def setup(self):
+        sub_space_rank = self.basis.shape[0]
+        self.basis_coef = self.param(
+            "basis coefficients", lecun_normal(), (sub_space_rank, 1)
+        )
+        if self.bias_basis is not None:
+            bias_space_rank = self.bias_basis.shape[0]
+            self.bias_coef = self.param(
+                "bias basis coefficients", zeros_init(), (bias_space_rank, 1)
+            )
+
+    def __call__(self, input: Array) -> Array:
+        symmetrizer_mat = jnp.einsum(
+            "ijk,il->jkl", self.basis, self.basis_coef
+        ).squeeze()
+
+        out = jnp.einsum("ij,j->i", symmetrizer_mat, input)
+        if self.bias_basis is not None:
+            bias = jnp.einsum("ijk,il->jkl", self.bias_basis, self.bias_coef).squeeze()
+            return out + bias
+        else:
+            return out
+
+
+class Sequential(nn.Module):
+    layer_list: Tuple[nn.Module, ...]
+
+    @nn.compact
+    def __call__(self, input: Array) -> Categorical:
+        out = input
+        for layer in self.layer_list:
+            out = layer(out)
+        return Categorical(logits=out)
+
+
+def symmmetrizer_factory(
+    key: PRNGKeyArray, group: Group, layer_list: List[int], bias_list: List[bool]
+):
+    if len(layer_list) != len(bias_list):
+        raise ValueError("layer_list and bias_list must have the same length")
+
+    layers = []
+    for in_dim, out_dim, bias in zip(layer_list[:-1], layer_list[1:], bias_list):
+        basis = _find_basis(key, group, in_dim, out_dim)
+        if bias:
+            bias_basis = _find_basis(key, group, 1, out_dim)
+            layers.append(SymmetrizerDense(basis, bias_basis))
+            layers.append(nn.tanh)
+        else:
+            layers.append(SymmetrizerDense(basis))
+            layers.append(nn.tanh)
+    # Rmove the final nonlinearity
+    layers.pop(-1)
+    return Sequential(tuple(layers))
+
+
 def _find_basis(
     key: PRNGKeyArray, group: Group, in_dim: int, out_dim: int, samples: int = 100
 ) -> Float[Array, "rank out in"]:
@@ -72,6 +140,8 @@ def _find_basis(
     _, _, V = jnp.linalg.svd(symmetrized_mats)
     r = jnp.linalg.matrix_rank(V)
     return V[:r].reshape(r, out_dim, in_dim)
+    # assert r == V.shape[0], f"{r} {V.shape}"
+    # return V.reshape(-1, out_dim, in_dim)
 
 
 def _symmetrize(group: Group, matricies: Array) -> Array:
