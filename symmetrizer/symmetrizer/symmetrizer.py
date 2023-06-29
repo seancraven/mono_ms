@@ -5,8 +5,8 @@ from typing import Protocol, Tuple
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
-from flax.linen.initializers import lecun_normal
-from jaxtyping import Array, PRNGKeyArray
+from flax.linen.initializers import lecun_normal, zeros_init
+from jaxtyping import Array, PRNGKeyArray, Float
 
 
 class Symmetrizer(nn.Module):
@@ -19,7 +19,6 @@ class Symmetrizer(nn.Module):
         group: The group to symmetrize under.
         samples: The number of samples to use to find the basis.
         bias: Whether to include a bias term in the layer.
-
     """
 
     key: PRNGKeyArray
@@ -30,11 +29,18 @@ class Symmetrizer(nn.Module):
     bias: bool = True
 
     def setup(self):
-        true_in_dim = self.in_dim
         if self.bias:
-            true_in_dim += 1
+            _, bias_key = jax.random.split(self.key)
+            self.bias_basis = _find_basis(
+                bias_key, self.group, 1, self.out_dim, samples=self.samples
+            )
+            bias_space_rank = self.bias_basis.shape[0]
+            self.bias_coef = self.param(
+                "bias basis coefficients", zeros_init(), (bias_space_rank, 1)
+            )
+
         self.basis = _find_basis(
-            self.key, self.group, true_in_dim, self.out_dim, samples=self.samples
+            self.key, self.group, self.in_dim, self.out_dim, samples=self.samples
         )
         sub_space_rank = self.basis.shape[0]
         self.basis_coef = self.param(
@@ -42,20 +48,25 @@ class Symmetrizer(nn.Module):
         )
 
     def __call__(self, input: Array) -> Array:
-        if self.bias:
-            input = jnp.concatenate([input, jnp.ones((1,))])
-        # lecun_normal must make 2d mat, so squeeze is required.
         symmetrizer_mat = jnp.einsum(
             "ijk,il->jkl", self.basis, self.basis_coef
-        ).squeeze()
-        return jnp.einsum("ij,j->i", symmetrizer_mat, input)
+        ).reshape(self.out_dim, self.in_dim)
+
+        out = jnp.einsum("ij,j->i", symmetrizer_mat, input)
+        if self.bias:
+            bias = jnp.einsum("ijk,il->jkl", self.bias_basis, self.bias_coef).squeeze()
+            return out + bias
+        else:
+            return out
 
 
 def _find_basis(
     key: PRNGKeyArray, group: Group, in_dim: int, out_dim: int, samples: int = 100
-) -> Array:
+) -> Float[Array, "rank out in"]:
     """Finds an orthogonal basis for the subspace of matricies that are
-    the solution to W = _symmetrize(group, W)"""
+    the solution to W = _symmetrize(group, W)
+
+    """
     matricies = jax.random.normal(key, (samples, out_dim, in_dim))
     symmetrized_mats = _symmetrize(group, matricies).reshape(samples, -1)
     _, _, V = jnp.linalg.svd(symmetrized_mats)
@@ -79,6 +90,8 @@ def _symmetrize(group: Group, matricies: Array) -> Array:
     rep_in = group.get_representation(in_dim)
     rep_out = group.get_representation(out_dim)
     for g_in, g_out in zip(rep_in, rep_out):
+        assert g_in.shape == (in_dim, in_dim), f"{g_in.shape} {in_dim}"
+        assert g_out.shape == (out_dim, out_dim), g_out.shape
         symmetrized_mats += jax.vmap(lambda x: _sym(g_in, g_out, x), in_axes=0)(
             matricies
         )
@@ -123,4 +136,14 @@ class C2Group(Group):
     size = 2
 
     def get_representation(self, dim: int) -> Tuple[Array, Array]:
-        return jnp.eye(dim), -jnp.eye(dim)
+        return (jnp.eye(dim), -jnp.eye(dim))
+
+
+class C2PermGroup(Group):
+    size = 2
+
+    def get_representation(self, dim: int) -> Tuple[Array, Array]:
+        if dim == 2:
+            return (jnp.eye(2), jnp.array([[0, 1], [1, 0]]))
+        else:
+            return (jnp.eye(dim), -jnp.eye(dim))

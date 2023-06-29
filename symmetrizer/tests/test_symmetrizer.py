@@ -1,11 +1,19 @@
 from random import randint
 
-import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from jaxtyping import PRNGKeyArray
+import flax.linen as nn
+from distrax import Categorical
 
-from symmetrizer.symmetrizer import C2Group, Symmetrizer, _find_basis, _sym, _symmetrize
+from symmetrizer.symmetrizer import (
+    C2Group,
+    C2PermGroup,
+    Symmetrizer,
+    _find_basis,
+    _sym,
+    _symmetrize,
+)
 
 
 def test_find_basis():
@@ -57,7 +65,7 @@ def test_linear():
         bias=False,
     )
     _, key = jax.random.split(key)
-    x = jax.random.normal(key, (100, in_dim))
+    x = 100 * jax.random.normal(key, (100, in_dim))
     layer_params = layer.init(key, x[0])
     vec_apply = jax.vmap(layer.apply, in_axes=(None, 0))
     y = vec_apply(layer_params, x)
@@ -76,46 +84,68 @@ def test_bias():
         out_dim,
         C2Group(),
         bias=True,
+        samples=1000,
     )
     _, key = jax.random.split(key)
     x = jax.random.normal(key, (100, in_dim))
     layer_params = layer.init(key, x[0])
     vec_apply = jax.vmap(layer.apply, in_axes=(None, 0))
     y = vec_apply(layer_params, x)
-
     y_bar = vec_apply(layer_params, -x)
-    print(y - y_bar)
     assert jnp.allclose(y, -y_bar)
     assert not jnp.allclose(y, 0)
 
 
-# class EquivariantMLP(nn.Module):
-#     key: PRNGKeyArray
-#     in_dim: int = 4
-#     internal_dim: int = 64
-#     out_dim: int = 1
-#
-#     @nn.compact
-#     def __call__(self, in_):
-#         _, key_1, key_2, key_3 = jax.random.split(self.key, 4)
-#         out = Symmetrizer(key_1, self.in_dim, self.out_dim, C2Group(), bias=False)(in_)
-#         out = nn.relu(out)
-#         out = Symmetrizer(key_2, self.out_dim, self.out_dim, C2Group(), bias=False)(out)
-#         out = nn.relu(out)
-#         out = Symmetrizer(key_3, self.out_dim, self.out_dim, C2Group(), bias=False)(out)
-#         return out
-#
-#
-# def test_equivaraint_mlp():
-#     key = jax.random.PRNGKey(randint(0, 1000))
-#
-#     x = jax.random.normal(key, (100, 4))
-#     _, key = jax.random.split(key)
-#     model = EquivariantMLP(key)
-#     _, key = jax.random.split(key)
-#     params = model.init(key, x[0])
-#     print(params)
-#     apply = jax.vmap(model.apply, in_axes=(None, 0))
-#     y = apply(params, x)
-#     y_bar = apply(params, -x)
-#     assert jnp.allclose(y, -y_bar)
+class EquivariantMLP(nn.Module):
+    key: PRNGKeyArray
+    in_dim: int = 4
+    internal_dim: int = 64
+    out_dim: int = 1
+
+    @nn.compact
+    def __call__(self, in_):
+        _, key_1, key_2, key_3 = jax.random.split(self.key, 4)
+        out = Symmetrizer(
+            key_1,
+            self.in_dim,
+            self.internal_dim,
+            C2Group(),
+            bias=True,
+            samples=1000,
+        )(in_)
+        out = nn.tanh(out)
+        out = Symmetrizer(
+            key_2,
+            self.internal_dim,
+            self.internal_dim,
+            C2Group(),
+            bias=False,
+            samples=1000,
+        )(out)
+        out = nn.tanh(out)
+        out = Symmetrizer(
+            key_3,
+            self.internal_dim,
+            self.out_dim,
+            C2PermGroup(),
+            bias=False,
+            samples=1000,
+        )(out)
+        return Categorical(logits=out)
+
+
+def test_mlp():
+    in_dim = 4
+    out_dim = 2
+    key = jax.random.PRNGKey(randint(0, 1000))
+
+    x = 100 * jax.random.normal(key, (5, in_dim))
+    _, key = jax.random.split(key)
+    model = EquivariantMLP(key, in_dim, out_dim=out_dim)
+    _, key = jax.random.split(key)
+    params = model.init(key, x[0])
+    apply = jax.vmap(model.apply, in_axes=(None, 0))
+    p_0 = apply(params, x).log_prob(1)
+    inverted_p_1 = apply(params, -x).log_prob(0)
+    print(p_0, inverted_p_1)
+    assert jnp.allclose(p_0, inverted_p_1)
