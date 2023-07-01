@@ -59,8 +59,8 @@ def test_linear():
     layer = SymmetrizerDense(basis)
     _, key = jax.random.split(key)
     x = 100 * jax.random.normal(key, (100, in_dim))
-    layer_params = layer.init(key, x[0])
-    vec_apply = jax.vmap(layer.apply, in_axes=(None, 0))
+    layer_params = layer.init(key, x[0:1])
+    vec_apply = layer.apply
     y = vec_apply(layer_params, x)
     y_bar = vec_apply(layer_params, -x)
     assert jnp.allclose(y, -y_bar)
@@ -76,8 +76,8 @@ def test_bias():
     layer = SymmetrizerDense(basis, bias_basis)
     _, key = jax.random.split(key)
     x = 100 * jax.random.normal(key, (100, in_dim))
-    layer_params = layer.init(key, x[0])
-    vec_apply = jax.vmap(layer.apply, in_axes=(None, 0))
+    layer_params = layer.init(key, x[0:1])
+    vec_apply = layer.apply
     y = vec_apply(layer_params, x)
     y_bar = vec_apply(layer_params, -x)
     assert jnp.allclose(y, -y_bar)
@@ -92,8 +92,8 @@ def test_mlp_bias():
     layers = [in_dim, 64, 64, out_dim]
     bias = [True] * len(layers)
     mlp = symmmetrizer_factory(key, C2PermGroup(), layers, bias)
-    params = jax.jit(mlp.init)(key, x[0])
-    vec_apply = jax.jit(jax.vmap(mlp.apply, in_axes=(None, 0)))
+    params = jax.jit(mlp.init)(key, x[0:1])
+    vec_apply = jax.jit(mlp.apply)
 
     y = vec_apply(params, x)
     y_bar = vec_apply(params, -x)
@@ -111,8 +111,8 @@ def test_mlp():
     layers = [in_dim, 64, 64, out_dim]
     bias = [False] * len(layers)
     mlp = symmmetrizer_factory(key, C2PermGroup(), layers, bias)
-    params = mlp.init(key, x[0])
-    vec_apply = jax.jit(jax.vmap(mlp.apply, in_axes=(None, 0)))
+    params = mlp.init(key, x[0:1])
+    vec_apply = jax.jit(mlp.apply)
 
     y = vec_apply(params, x)
     y_bar = vec_apply(params, -x)
