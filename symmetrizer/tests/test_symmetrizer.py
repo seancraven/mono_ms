@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from symmetrizer.symmetrizer import (
     C2Group,
     C2PermGroup,
-    Symmetrizer,
+    SymmetrizerDense,
     _find_basis,
     _sym,
     _symmetrize,
@@ -55,13 +55,8 @@ def test_linear():
     in_dim = randint(1, 100)
     out_dim = randint(1, 100)
     key = jax.random.PRNGKey(randint(0, 1000))
-    layer = Symmetrizer(
-        key,
-        in_dim,
-        out_dim,
-        C2Group(),
-        bias=False,
-    )
+    basis = _find_basis(key, C2Group(), in_dim, out_dim, samples=1000)
+    layer = SymmetrizerDense(basis)
     _, key = jax.random.split(key)
     x = 100 * jax.random.normal(key, (100, in_dim))
     layer_params = layer.init(key, x[0])
@@ -75,16 +70,12 @@ def test_bias():
     in_dim = randint(1, 100)
     out_dim = randint(1, 100)
     key = jax.random.PRNGKey(randint(0, 1000))
-    layer = Symmetrizer(
-        key,
-        in_dim,
-        out_dim,
-        C2Group(),
-        bias=True,
-        samples=1000,
-    )
+    basis = _find_basis(key, C2Group(), in_dim, out_dim, samples=1000)
     _, key = jax.random.split(key)
-    x = jax.random.normal(key, (100, in_dim))
+    bias_basis = _find_basis(key, C2Group(), 1, out_dim, samples=1000)
+    layer = SymmetrizerDense(basis, bias_basis)
+    _, key = jax.random.split(key)
+    x = 100 * jax.random.normal(key, (100, in_dim))
     layer_params = layer.init(key, x[0])
     vec_apply = jax.vmap(layer.apply, in_axes=(None, 0))
     y = vec_apply(layer_params, x)
@@ -93,6 +84,7 @@ def test_bias():
 
 
 def test_mlp_bias():
+    """Test that the MLP with bias is invariant under In action space."""
     in_dim = 4
     out_dim = 2
     key = jax.random.PRNGKey(randint(0, 1000))

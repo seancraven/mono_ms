@@ -57,3 +57,14 @@ def test_equiv():
     dist = distrax.Categorical(logits=out)
     r_dist = distrax.Categorical(logits=r_out)
     assert jnp.allclose(dist.log_prob(0), r_dist.log_prob(1))
+
+
+def test_params():
+    model = C2Conv(features=64, kernel_size=(1,))
+    dummy_state = jnp.ones((1, 4))
+    params = model.init(jax.random.PRNGKey(0), dummy_state)
+    single_lyaer = nn.Conv(features=64, kernel_size=(1,))
+    single_params = single_lyaer.init(jax.random.PRNGKey(0), dummy_state)
+    size_c2 = sum(x.size for x in jax.tree_leaves(params))
+    size_conv = sum(x.size for x in jax.tree_leaves(single_params))
+    assert size_c2 == size_conv

@@ -10,63 +10,16 @@ from jaxtyping import Array, PRNGKeyArray, Float
 from distrax import Categorical
 
 
-class Symmetrizer(nn.Module):
-    """A linear Symmetrizer Layer: https://arxiv.org/abs/2006.16908
-
-    Args:
-        key: A PRNGKey used to initialize the layer.
-        in_dim: The input dimension of the layer.
-        out_dim: The output dimension of the layer.
-        group: The group to symmetrize under.
-        samples: The number of samples to use to find the basis.
-        bias: Whether to include a bias term in the layer.
-    """
-
-    key: PRNGKeyArray
-    in_dim: int
-    out_dim: int
-    group: Group
-    samples: int = 1000
-    bias: bool = True
-
-    def setup(self):
-        if self.bias:
-            _, bias_key = jax.random.split(self.key)
-            self.bias_basis = _find_basis(
-                bias_key, self.group, 1, self.out_dim, samples=self.samples
-            )
-            bias_space_rank = self.bias_basis.shape[0]
-            self.bias_coef = self.param(
-                "bias basis coefficients", zeros_init(), (bias_space_rank, 1)
-            )
-
-        self.basis = _find_basis(
-            self.key, self.group, self.in_dim, self.out_dim, samples=self.samples
-        )
-        sub_space_rank = self.basis.shape[0]
-        self.basis_coef = self.param(
-            "basis coefficients", lecun_normal(), (sub_space_rank, 1)
-        )
-
-    def __call__(self, input: Array) -> Array:
-        symmetrizer_mat = jnp.einsum(
-            "ijk,il->jkl", self.basis, self.basis_coef
-        ).reshape(self.out_dim, self.in_dim)
-
-        out = jnp.einsum("ij,j->i", symmetrizer_mat, input)
-        if self.bias:
-            bias = jnp.einsum("ijk,il->jkl", self.bias_basis, self.bias_coef).squeeze()
-            return out + bias
-        else:
-            return out
-
-
 class SymmetrizerDense(nn.Module):
     """A Jitable symmetrizer Layer to be called from inside a factory
 
     Args:
-        basis: The basis for the subspace of matricies that are the solution to W = _symmetrize(group, W)
-        bias_basis: The basis for the subspace of matricies that are the solution to b = _symmetrize(group, b)
+        basis: The basis for the subspace of matricies,
+        which solve:
+            W = _symmetrize(group, W)
+        bias_basis: Optional, the basis for the subspace of matricies,
+        which solve:
+            _symmetrize(group, b)
     """
 
     basis: Array
@@ -88,7 +41,7 @@ class SymmetrizerDense(nn.Module):
             "ijk,il->jkl", self.basis, self.basis_coef
         ).squeeze()
 
-        out = jnp.einsum("ij,j->i", symmetrizer_mat, input)
+        out = jnp.einsum("ij,bj->bi", symmetrizer_mat, input)
         if self.bias_basis is not None:
             bias = jnp.einsum("ijk,il->jkl", self.bias_basis, self.bias_coef).squeeze()
             return out + bias
@@ -107,9 +60,75 @@ class Sequential(nn.Module):
         return Categorical(logits=out)
 
 
+class ACSequential(nn.Module):
+    """Sequential Actor Critic Network.
+    Call function returns a tuple of (action_logits, state_value)
+
+    Args:
+        actor_layers: A tuple of actor layers
+        critic_layers: A tuple of critic layers
+    """
+
+    actor_layers: Tuple[nn.Module, ...]
+    critic_layers: Tuple[nn.Module, ...]
+
+    @nn.compact
+    def __call__(self, state: Array) -> Tuple[Categorical, Array]:
+        action_logits = state
+        state_value = state
+        for actor_layer, critic_layer in zip(self.actor_layers, self.critic_layers):
+            state_value = critic_layer(state_value)
+            action_logits = actor_layer(action_logits)
+        return Categorical(logits=action_logits), state_value.squeeze()
+
+
+def ac_symmmetrizer_factory(
+    key: PRNGKeyArray, group: Group, layer_list: List[int], bias_list: List[bool]
+) -> ACSequential:
+    """A factory for creating a symmetrized actor-critic network
+
+    Args:
+        key: A PRNGKeyArray
+        group: A Group
+        layer_list: A list of layer sizes
+        bias_list: A list of booleans indicating whether the layer should have a bias
+    """
+    if len(layer_list) != len(bias_list):
+        raise ValueError("layer_list and bias_list must have the same length")
+
+    actor_layers = []
+    critic_layers = []
+    for in_dim, out_dim, bias in zip(layer_list[:-1], layer_list[1:], bias_list):
+        basis = _find_basis(key, group, in_dim, out_dim)
+        if bias:
+            bias_basis = _find_basis(key, group, 1, out_dim)
+            actor_layers.append(SymmetrizerDense(basis, bias_basis))
+            actor_layers.append(nn.tanh)
+        else:
+            actor_layers.append(SymmetrizerDense(basis))
+            actor_layers.append(nn.tanh)
+        # Rmove the final nonlinearity
+        critic_layers.append(nn.Dense(out_dim, use_bias=bias))
+        critic_layers.append(nn.relu)
+    actor_layers.pop(-1)
+    critic_layers.pop(-1)
+    critic_layers.pop(-1)
+    critic_layers.append(nn.Dense(1, use_bias=True))
+    return ACSequential(tuple(actor_layers), tuple(critic_layers))
+
+
 def symmmetrizer_factory(
     key: PRNGKeyArray, group: Group, layer_list: List[int], bias_list: List[bool]
 ):
+    """A factory for creating a symmetrized sequentail dense network
+
+    Args:
+        key: A PRNGKeyArray
+        group: A Group
+        layer_list: A list of layer sizes
+        bias_list: A list of booleans indicating whether the layer should have a bias
+    """
+
     if len(layer_list) != len(bias_list):
         raise ValueError("layer_list and bias_list must have the same length")
 
@@ -140,8 +159,6 @@ def _find_basis(
     _, _, V = jnp.linalg.svd(symmetrized_mats)
     r = jnp.linalg.matrix_rank(V)
     return V[:r].reshape(r, out_dim, in_dim)
-    # assert r == V.shape[0], f"{r} {V.shape}"
-    # return V.reshape(-1, out_dim, in_dim)
 
 
 def _symmetrize(group: Group, matricies: Array) -> Array:
@@ -203,6 +220,8 @@ class Group(Protocol):
 
 
 class C2Group(Group):
+    """Reflection group sets x = -x for the reflection operation"""
+
     size = 2
 
     def get_representation(self, dim: int) -> Tuple[Array, Array]:
@@ -210,6 +229,9 @@ class C2Group(Group):
 
 
 class C2PermGroup(Group):
+    """Reflection group that sets x = -x for the reflection operation
+    for all dimentions but 2. Where it permutes the elements"""
+
     size = 2
 
     def get_representation(self, dim: int) -> Tuple[Array, Array]:
