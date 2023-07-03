@@ -1,116 +1,17 @@
-from typing import Any, Callable, NamedTuple, Sequence, Tuple
+from typing import Callable, NamedTuple
 
-import distrax
 import flax.linen as nn
 import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
 import matplotlib.pyplot as plt
-import numpy as np
 import optax
-from flax.linen.initializers import constant, orthogonal
 from flax.training.train_state import TrainState
-from g_conv.c2 import C2Conv
-from gymnax.wrappers.purerl import FlattenObservationWrapper, LogWrapper
+from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
+from meta_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
-from symmetrizer.symmetrizer import ac_symmmetrizer_factory, C2PermGroup, ACSequential
-
-
-class ActorCritic(nn.Module):
-    action_dim: Sequence[int]
-    activation: str = "tanh"
-
-    @nn.compact
-    def __call__(self, x):
-        if self.activation == "relu":
-            activation = nn.relu
-        else:
-            activation = nn.tanh
-        actor_mean = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Dense(
-            self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0)
-        )(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
-        )
-
-        return pi, jnp.squeeze(critic, axis=-1)
-
-
-class EquivariantActorCritic(nn.Module):
-    action_dim: Sequence[int]
-    activaton: str = "tanh"
-
-    ## TODO: Indexing of the layer kernel shapes needs to get fixed
-    @nn.compact
-    def __call__(self, x):
-        activation = nn.relu
-        actor_mean = C2Conv(features=64, kernel_size=((1,)))(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=64, kernel_size=((1,)))(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
-        )
-        return pi, jnp.squeeze(critic, axis=-1)
-
-
-class ConvActorCritic(nn.Module):
-    action_dim: Sequence[int]
-    activaton: str = "tanh"
-
-    @nn.compact
-    def __call__(self, x):
-        activation = nn.relu
-        actor_mean = nn.Conv(features=64, kernel_size=((1,)))(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Conv(features=128, kernel_size=((1,)))(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
-        )
-        return pi, jnp.squeeze(critic, axis=-1)
 
 
 class Transition(NamedTuple):
@@ -171,9 +72,9 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
         # TRAIN LOOP
-        def _update_step(runner_state, unused):
+        def _update_step(runner_state, _):
             # COLLECT TRAJECTORIES
-            def _env_step(runner_state, unused):
+            def _env_step(runner_state, _):
                 train_state, env_state, last_obs, rng = runner_state
 
                 # SELECT ACTION
@@ -323,10 +224,6 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
         return {"runner_state": runner_state, "metrics": metric}
 
     return train
-
-
-def moving_average(x, window_size=10000):
-    return jnp.convolve(x, jnp.ones(window_size), "valid") / window_size
 
 
 def SymmetrizerNet(action_dim: int) -> ACSequential:

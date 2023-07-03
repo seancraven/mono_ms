@@ -60,28 +60,6 @@ class Sequential(nn.Module):
         return Categorical(logits=out)
 
 
-class ACSequential(nn.Module):
-    """Sequential Actor Critic Network.
-    Call function returns a tuple of (action_logits, state_value)
-
-    Args:
-        actor_layers: A tuple of actor layers
-        critic_layers: A tuple of critic layers
-    """
-
-    actor_layers: Tuple[nn.Module, ...]
-    critic_layers: Tuple[nn.Module, ...]
-
-    @nn.compact
-    def __call__(self, state: Array) -> Tuple[Categorical, Array]:
-        action_logits = state
-        state_value = state
-        for actor_layer, critic_layer in zip(self.actor_layers, self.critic_layers):
-            state_value = critic_layer(state_value)
-            action_logits = actor_layer(action_logits)
-        return Categorical(logits=action_logits), state_value.squeeze()
-
-
 def ac_symmmetrizer_factory(
     key: PRNGKeyArray, group: Group, layer_list: List[int], bias_list: List[bool]
 ) -> ACSequential:

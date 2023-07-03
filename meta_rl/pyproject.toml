@@ -12,8 +12,11 @@ gymnax = "^0.0.6"
 jaxtyping = "^0.2.20"
 
 [tool.ruff]
-unfixable = ["F401", "F841", "F842", "ARG"]
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+select = ["E", "F", "I", "PL", "D"]
+ignore = []
 
+unfixable = ["F401", "F841", "F842", "ARG"]
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
