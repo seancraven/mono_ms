@@ -35,4 +35,13 @@ In much the same vein as that of \cite{vanderpol2020mdp}, \cite{mondal2020group}
 	Q: & \mathcal{S}_{eqv} \rightarrow \mathbb{R}^{|A|}
 \end{align}
 
-One of the key downsides of this is it doesn't exploit the homomorphism of the MDP, that exists also in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over a baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in snake. However, they do not see an improvement in sample efficiency in Pacman, which also posseses the same $C_4$ group symmetry.
+One of the key downsides of this is it doesn't exploit the homomorphism of the MDP, that exists also in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over a baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in snake. However, they onlt see a minor improvement in sample efficiency in Pacman, which also posseses the same $C_4$ group symmetry.
+
+\subsection{$\mathrm{SO}(2)$ Equivariant Reinforcement Learning}
+
+In much the same way as the above methods,~\cite{wang2022so2} also exploit exploit the equivariance property, in the context of robotic control in the PyBullet suite\cite{coumans2021}. They use steerable G-CNNs\cite{weiler2019general}, which provide $\text{SE}(2)$ equivariance, in robotic control environments. In contrast to previous papers where finite groups were exploited, the continuous Lie group $\text{SO}2$ constrains the degrees of freedom of the problem much more than the finite groups. Utilising this they are able to achieve impressive improvements in sample efficiency and robustness over conventional DQN and SAC mtehods.
+
+In their first experiments of Drawer-Opening, Block Pulling, and Object Picking, the equivariant networks outperform all other DQN methods, and when applied to the SAC forumlation, In Objedct picking and Drawer Opening, they are the only methods that are able to solve the task.
+
+Further they perform tests on more difficult robotic control tasks where demonstrations are provided, this enables the the agents to tackle more complex tasks such as block stacking and house building, in which they again are the only agents that are able to solve the tasks. 
+
