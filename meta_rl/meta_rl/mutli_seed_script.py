@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple
+from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
 
 import flax.linen as nn
 import gymnax
@@ -8,23 +8,61 @@ import jaxtyping as jt
 import matplotlib.pyplot as plt
 import optax
 from flax.training.train_state import TrainState
+from gymnax import EnvState
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from meta_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
+from meta_rl.models import (ACSequential, ConvActorCritic,
+                            EquivariantActorCritic)
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
+
+# Single timestep
+Scalar = jt.Num[jt.Array, "*num_envs"]
+Action = jt.Num[jt.Array, "*num_envs action_shape"]
+Observation = jt.Float[jt.Array, "*num_envs state_shape"]
+
+# Trajectory of timesteps
+Obs = jt.Float[jt.Array, "*num_envs num_timesteps state_shape"]
+Actions = jt.Num[jt.Array, "*num_envs num_timesteps action_shape"]
+PerTimestepScalar = jt.Num[jt.Array, "*num_envs num_timesteps"]
+
+
+WorldState = Tuple[TrainState, EnvState, Obs, jt.PRNGKeyArray]
+Params = jt.PyTree[jt.Float[jt.Array, "_"]]
+
+
+class Trajectory(NamedTuple):
+    """Set of Transistions, which can be batched."""
+
+    done: PerTimestepScalar
+    action: Actions
+    value: PerTimestepScalar
+    reward: PerTimestepScalar
+    log_prob: Actions
+    obs: Obs
+    info: Any
 
 
 class Transition(NamedTuple):
-    done: jt.Array
-    action: jt.Array
-    value: jt.Array
-    reward: jt.Array
-    log_prob: jt.Array
-    obs: jt.Array
-    info: jt.Array
+    """Single timestep of a trajectory."""
+
+    done: Scalar
+    action: Action
+    value: Scalar
+    reward: Scalar
+    log_prob: Action
+    obs: Observation
+    info: Any
 
 
-def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
+RunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
+UpdateState = Tuple[
+    TrainState, Trajectory, PerTimestepScalar, PerTimestepScalar, jt.PRNGKeyArray
+]
+BatchData = Tuple[Trajectory, PerTimestepScalar, PerTimestepScalar]
+
+
+def make_train(config: Dict, modle_creation_fn: Callable[[int], nn.Module]):
+    """Jittable training function builder."""
     config["NUM_UPDATES"] = (
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
@@ -33,7 +71,7 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
     )
     env, env_params = gymnax.make(config["ENV_NAME"])
     env = FlattenObservationWrapper(env)
-    env = LogWrapper(env)
+    env = LogWrapper(env)  # type: ignore
     network = modle_creation_fn(env.action_space(env_params).n)
 
     def linear_schedule(count):
@@ -44,7 +82,7 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
         )
         return config["LR"] * frac
 
-    def train(rng):
+    def train(rng: jt.PRNGKeyArray) -> Dict[str, Union[TrainState, Any]]:
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
         init_x = jnp.zeros((1, *env.observation_space(env_params).shape))
@@ -72,9 +110,13 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
         # TRAIN LOOP
-        def _update_step(runner_state, _):
+        def _update_step(runner_state: RunnerState, _):
+            """Trajectories are evaluated and performs Adam on batched trajectories."""
+
             # COLLECT TRAJECTORIES
-            def _env_step(runner_state, _):
+            def _env_step(
+                runner_state: RunnerState, _
+            ) -> Tuple[RunnerState, Transition]:
                 train_state, env_state, last_obs, rng = runner_state
 
                 # SELECT ACTION
@@ -90,9 +132,9 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
                     env.step, in_axes=(0, 0, 0, None)
                 )(rng_step, env_state, action, env_params)
                 transition = Transition(
-                    done, action, value, reward, log_prob, last_obs, info
+                    done, action, value, reward, log_prob, last_obs, info  # type: ignore
                 )
-                runner_state = (train_state, env_state, obsv, rng)
+                runner_state = (train_state, env_state, obsv, rng)  # type: ignore
                 return runner_state, transition
 
             runner_state, traj_batch = jax.lax.scan(
@@ -103,8 +145,17 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
             train_state, env_state, last_obs, rng = runner_state
             _, last_val = network.apply(train_state.params, last_obs)
 
-            def _calculate_gae(traj_batch, last_val):
-                def _get_advantages(gae_and_next_value, transition):
+            def _calculate_gae(
+                traj_batch: Trajectory,
+                last_val: jt.Array,
+            ) -> Tuple[PerTimestepScalar, PerTimestepScalar]:
+                """Recursively calculates truncated GAE."""
+
+                def _get_advantages(
+                    gae_and_next_value: Tuple[jt.Array, jt.Array],
+                    transition: Transition,
+                ) -> Tuple[Tuple[jt.Array, jt.Array], jt.Array]:
+                    """One step of GAE."""
                     gae, next_value = gae_and_next_value
                     done, value, reward = (
                         transition.done,
@@ -121,20 +172,32 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
                 _, advantages = jax.lax.scan(
                     _get_advantages,
                     (jnp.zeros_like(last_val), last_val),
-                    traj_batch,
+                    traj_batch,  # type: ignore
                     reverse=True,
                     unroll=16,
                 )
                 return advantages, advantages + traj_batch.value
 
-            advantages, targets = _calculate_gae(traj_batch, last_val)
+            advantages, targets = _calculate_gae(traj_batch, last_val)  # type: ignore
 
             # UPDATE NETWORK
-            def _update_epoch(update_state, unused):
-                def _update_minbatch(train_state, batch_info):
+            def _update_epoch(update_state: UpdateState, _):
+                """Loss evaluated and Adam applied across all minibatches."""
+
+                def _update_minbatch(
+                    train_state: TrainState, batch_info: BatchData
+                ) -> Tuple[
+                    TrainState, Tuple[jt.Array, Tuple[jt.Array, jt.Array, jt.Array]]
+                ]:
+                    """Loss evaluated and Adam applied to a single minibatch."""
                     traj_batch, advantages, targets = batch_info
 
-                    def _loss_fn(params, traj_batch, gae, targets):
+                    def _loss_fn(
+                        params: Params,
+                        traj_batch: Trajectory,
+                        gae: PerTimestepScalar,
+                        targets: PerTimestepScalar,
+                    ) -> Tuple[jt.Array, Tuple[jt.Array, jt.Array, jt.Array]]:
                         # RERUN NETWORK
                         pi, value = network.apply(params, traj_batch.obs)
                         log_prob = pi.log_prob(traj_batch.action)
@@ -207,7 +270,7 @@ def make_train(config, modle_creation_fn: Callable[[int], nn.Module]):
 
             update_state = (train_state, traj_batch, advantages, targets, rng)
             update_state, loss_info = jax.lax.scan(
-                _update_epoch, update_state, None, config["UPDATE_EPOCHS"]
+                _update_epoch, update_state, None, config["UPDATE_EPOCHS"]  # type: ignore
             )
             train_state = update_state[0]
             metric = traj_batch.info
