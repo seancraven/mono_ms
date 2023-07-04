@@ -61,7 +61,9 @@ UpdateState = Tuple[
 BatchData = Tuple[Trajectory, PerTimestepScalar, PerTimestepScalar]
 
 
-def make_train(config: Dict, modle_creation_fn: Callable[[int], nn.Module]):
+def make_train(
+    config: Dict, modle_creation_fn: Callable[[int], nn.Module]
+) -> Callable[[jt.PRNGKeyArray], Dict[str, Union[TrainState, Any]]]:
     """Jittable training function builder."""
     config["NUM_UPDATES"] = (
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]

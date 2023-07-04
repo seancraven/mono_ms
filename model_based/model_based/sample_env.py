@@ -1,0 +1,71 @@
+"""File to sample random trajectories from the environment."""
+import pickle
+from collections.abc import Callable
+from typing import Any, NamedTuple, Tuple
+
+import gymnax
+import jax
+import jaxtyping as jt
+from gymnax import EnvState
+
+
+class SARSDTuple(NamedTuple):
+    state: jt.Array
+    action: jt.Array
+    reward: jt.Array
+    next_state: jt.Array
+    done: jt.Array
+    info: Any
+
+
+ReplayBuffer = SARSDTuple
+
+
+def make_experience_fn(
+    env_name: str, train_length: int
+) -> Callable[[jt.PRNGKeyArray], ReplayBuffer]:
+    env, env_params = gymnax.make(env_name)
+
+    def experince(key) -> ReplayBuffer:
+        inital_obs, env_state = env.reset(key, env_params)
+
+        def _step(
+            joint_state: Tuple[jt.Array, EnvState, jt.PRNGKeyArray],
+            _,
+        ) -> Tuple[Tuple[jt.Array, EnvState, jt.Array], SARSDTuple]:
+            obs, env_state, rng = joint_state
+            _, action_rng, step_rng = jax.random.split(rng, 3)
+            sample_action = env.action_space(env_params).sample(action_rng)  # type: ignore
+            next_obs, env_state, reward, done, info = env.step(
+                step_rng, env_state, sample_action
+            )
+            print("reward :", reward * done)
+            state_tuple = SARSDTuple(obs, sample_action, reward, next_obs, done, info)  # type: ignore
+            return (next_obs, env_state, rng), state_tuple  # type: ignore
+
+        _, replayBuffer = jax.lax.scan(
+            _step, (inital_obs, env_state, key), None, length=train_length
+        )
+        return replayBuffer
+
+    return experince
+
+
+def scan(f, carry, iterate):
+    ys = []
+    for i in iterate:
+        carry, y = f(carry, i)
+        y.append(y)
+    return carry, jax.numpy.stack(ys)
+
+
+if __name__ == "__main__":
+    experience_fn = make_experience_fn("CartPole-v1", 500)
+    with jax.disable_jit():
+        experience_fn(jax.random.PRNGKey(42))
+    vmap_experience_fn = jax.vmap(experience_fn, in_axes=0, out_axes=0)
+    rng = jax.random.PRNGKey(42)
+    rngs = jax.random.split(rng, 1000)
+    replay_buffer = vmap_experience_fn(rngs)
+    pickle.dump(replay_buffer, open("replay_buffer.pickle", "wb"))
+    replay_buffer = pickle.load(open("replay_buffer.pickle", "rb"))
