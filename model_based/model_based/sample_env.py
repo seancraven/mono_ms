@@ -1,7 +1,9 @@
 """File to sample random trajectories from the environment."""
+from __future__ import annotations
+
 import pickle
 from collections.abc import Callable
-from typing import Any, NamedTuple, Tuple
+from typing import NamedTuple, Tuple
 
 import gymnax
 import jax
@@ -15,7 +17,23 @@ class SARSDTuple(NamedTuple):
     reward: jt.Array
     next_state: jt.Array
     done: jt.Array
-    info: Any
+
+    def partition(self, first_partition) -> Tuple[SARSDTuple, SARSDTuple]:
+        one = SARSDTuple(
+            self.state[:first_partition],
+            self.action[:first_partition],
+            self.reward[:first_partition],
+            self.next_state[:first_partition],
+            self.done[:first_partition],
+        )
+        two = SARSDTuple(
+            self.state[first_partition:],
+            self.action[first_partition:],
+            self.reward[first_partition:],
+            self.next_state[first_partition:],
+            self.done[first_partition:],
+        )
+        return one, two
 
 
 ReplayBuffer = SARSDTuple
@@ -36,11 +54,10 @@ def make_experience_fn(
             obs, env_state, rng = joint_state
             _, action_rng, step_rng = jax.random.split(rng, 3)
             sample_action = env.action_space(env_params).sample(action_rng)  # type: ignore
-            next_obs, env_state, reward, done, info = env.step(
+            next_obs, env_state, reward, done, _ = env.step(
                 step_rng, env_state, sample_action
             )
-            print("reward :", reward * done)
-            state_tuple = SARSDTuple(obs, sample_action, reward, next_obs, done, info)  # type: ignore
+            state_tuple = SARSDTuple(obs, sample_action, reward, next_obs, done)  # type: ignore
             return (next_obs, env_state, rng), state_tuple  # type: ignore
 
         _, replayBuffer = jax.lax.scan(
