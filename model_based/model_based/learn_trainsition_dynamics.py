@@ -169,6 +169,7 @@ def make_train(hyper_params: HyperParams):
         final_state, losses = jax.lax.scan(
             _epoch, (rng, train_state, train_data, val_data), None, hyper_params.epochs
         )
+
         return final_state, losses
 
     return lambda x: train(x, train_data, val_data)
@@ -179,5 +180,7 @@ if __name__ == "__main__":
     hyper_params = HyperParams()
     train = make_train(hyper_params)
     final_state, losses = train(jax.random.PRNGKey(42))
+    final_train_state = final_state[1]
     checkpointer = checkpoint.PyTreeCheckpointer()
-    checkpointer.save("transition_model_tree/", final_state)
+
+    checkpointer.save("transition_model_tree/", final_train_state.params)
