@@ -11,8 +11,7 @@ from flax.training.train_state import TrainState
 from gymnax import EnvState
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from meta_rl.models import (ACSequential, ConvActorCritic,
-                            EquivariantActorCritic)
+from meta_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -71,7 +70,8 @@ def make_train(
     config["MINIBATCH_SIZE"] = (
         config["NUM_ENVS"] * config["NUM_STEPS"] // config["NUM_MINIBATCHES"]
     )
-    env, env_params = gymnax.make(config["ENV_NAME"])
+    env = config["ENV"]
+    env_params = config["ENV_PARAMS"]
     env = FlattenObservationWrapper(env)
     env = LogWrapper(env)  # type: ignore
     network = modle_creation_fn(env.action_space(env_params).n)
@@ -306,25 +306,25 @@ def SymmetrizerNet(action_dim: int) -> ACSequential:
     )
 
 
-if __name__ == "__main__":
-    config = config = {
-        "LR": 2.5e-4,
-        "NUM_ENVS": 4,
-        "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 5e5,
-        "UPDATE_EPOCHS": 4,
-        "NUM_MINIBATCHES": 4,
-        "GAMMA": 0.99,
-        "GAE_LAMBDA": 0.95,
-        "CLIP_EPS": 0.2,
-        "ENT_COEF": 0.01,
-        "VF_COEF": 0.5,
-        "MAX_GRAD_NORM": 0.5,
-        "ACTIVATION": "tanh",
-        "ENV_NAME": "CartPole-v1",
-        "ANNEAL_LR": True,
-    }
+CONFIG = {
+    "LR": 2.5e-4,
+    "NUM_ENVS": 4,
+    "NUM_STEPS": 128,
+    "TOTAL_TIMESTEPS": 5e5,
+    "UPDATE_EPOCHS": 4,
+    "NUM_MINIBATCHES": 4,
+    "GAMMA": 0.99,
+    "GAE_LAMBDA": 0.95,
+    "CLIP_EPS": 0.2,
+    "ENT_COEF": 0.01,
+    "VF_COEF": 0.5,
+    "MAX_GRAD_NORM": 0.5,
+    "ACTIVATION": "tanh",
+    "ENV_NAME": "CartPole-v1",
+    "ANNEAL_LR": True,
+}
 
+if __name__ == "__main__":
     num_seeds = 256
     key = jax.random.PRNGKey(0)
     sym_key, key = jax.random.split(key)
@@ -347,7 +347,7 @@ if __name__ == "__main__":
 
     for net_init in [SymmetrizerNet, EquivariantActorCritic, ConvActorCritic]:
         print(net_init.__name__)
-        jit_train = jax.jit(make_train(config, net_init))
+        jit_train = jax.jit(make_train(CONFIG, net_init))
         results = jax.vmap(jit_train)(keys)
         episodic_returns = results["metrics"]["returned_episode_returns"].reshape(
             (num_seeds, -1)

@@ -32,10 +32,10 @@ class Model(nn.Module):
 
     @nn.compact
     def __call__(self, state, action):
+        action = jnp.array((action,))
         state_embedding = nn.relu(
             nn.Dense(self.hidden_dim, kernel_init=he_normal())(state)
         )
-        assert action.ndim > 0, action
         action_embedding = nn.relu(
             nn.Dense(self.hidden_dim, kernel_init=he_normal())(action)
         )
