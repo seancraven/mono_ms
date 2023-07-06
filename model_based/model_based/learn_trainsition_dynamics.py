@@ -6,10 +6,11 @@ from typing import Any, NamedTuple, Tuple
 import flax.linen as nn
 import jax
 import jaxtyping as jt
-import matplotlib.pyplot as plt
+from flax.linen.initializers import he_normal
 from flax.training.train_state import TrainState
 from jax import numpy as jnp
 from optax import adam
+from orbax import checkpoint
 
 from model_based.sample_env import ReplayBuffer, SARSDTuple
 
@@ -20,6 +21,9 @@ class LossData(NamedTuple):
     train_loss: jt.Array
     val_loss: jt.Array
 
+    def flatten(self):
+        return LossData(self.train_loss.reshape(-1), self.val_loss.reshape(-1))
+
 
 class Model(nn.Module):
     state_dim: int
@@ -28,16 +32,21 @@ class Model(nn.Module):
 
     @nn.compact
     def __call__(self, state, action):
-        state_embedding = nn.relu(nn.Dense(self.hidden_dim)(state))
+        state_embedding = nn.relu(
+            nn.Dense(self.hidden_dim, kernel_init=he_normal())(state)
+        )
         assert action.ndim > 0, action
-        action_embedding = nn.relu(nn.Dense(self.hidden_dim)(action))
+        action_embedding = nn.relu(
+            nn.Dense(self.hidden_dim, kernel_init=he_normal())(action)
+        )
         concat = jnp.concatenate([state_embedding, action_embedding], axis=0)
-        hidden = nn.relu(nn.Dense(self.hidden_dim)(concat))
-        next_state = nn.Dense(self.state_dim)(hidden)
-        reward = nn.softmax(nn.Dense(1)(hidden))
-        done = nn.softmax(nn.Dense(1)(hidden))
+        hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(concat))
+        hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(hidden))
+        next_state = nn.Dense(self.state_dim, kernel_init=he_normal())(hidden)
+        # reward_logit = nn.Dense(1, kernel_init=he_normal())(hidden)
+        # done_logit = nn.Dense(1, kernel_init=he_normal())(hidden)
 
-        return (next_state, reward, done)
+        return next_state
 
 
 class HyperParams(NamedTuple):
@@ -62,6 +71,17 @@ def expand_scalar(x: jt.Array) -> jt.Array:
     if x.ndim == 1:
         return x.reshape((-1, 1))
     return x
+
+
+def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
+    negative_relu = -nn.relu(pred_logit)
+    bce = (
+        (1 - target) * pred_logit
+        + negative_relu
+        + jnp.log(jnp.exp(-negative_relu) + jnp.exp(-pred_logit - negative_relu) + 1e-3)
+    )
+
+    return bce
 
 
 def make_train(hyper_params: HyperParams):
@@ -105,17 +125,13 @@ def make_train(hyper_params: HyperParams):
             Tuple[jt.PRNGKeyArray, TrainState, SARSDTuple, SARSDTuple], LossData
         ]:
             def _loss_fn(params: jt.PyTree, sarsd_tuple: SARSDTuple) -> jt.Array:
-                state, action, reward, next_state, done = sarsd_tuple
-                (next_state_pred, reward_pred, done_pred) = train_state.apply_fn(
-                    params, state, action
-                )
+                state, action, _, next_state, _ = sarsd_tuple
+                next_state_pred = train_state.apply_fn(params, state, action)
                 next_state_loss = jnp.mean((next_state - next_state_pred) ** 2)
-                reward_loss = jnp.mean((reward - reward_pred) ** 2)
-                done_loss = jnp.mean(
-                    (done * jnp.log(done_pred)) + ((1 - done) * jnp.log(1 - done_pred))
-                )
-                jax.debug.breakpoint()
-                return next_state_loss + reward_loss + done_loss
+                # reward_loss = jnp.mean(bce_from_logit(reward_pred_logit, reward))
+                # done_loss = jnp.mean(bce_from_logit(done_pred_logit, done))
+
+                return next_state_loss  # + reward_loss + done_loss
 
             def _mini_batch(
                 train_state: TrainState, mini_batch: Any
@@ -161,10 +177,7 @@ def make_train(hyper_params: HyperParams):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     hyper_params = HyperParams()
-    with jax.disable_jit(False):
-        train = make_train(hyper_params)
-        final_state, losses = train(jax.random.PRNGKey(42))
-
-    print(losses.train_loss.shape)
-    plt.plot(losses.train_loss, label="train")
-    plt.show()
+    train = make_train(hyper_params)
+    final_state, losses = train(jax.random.PRNGKey(42))
+    checkpointer = checkpoint.PyTreeCheckpointer()
+    checkpointer.save("transition_model_tree/", final_state)
