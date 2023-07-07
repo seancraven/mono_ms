@@ -17,8 +17,3 @@ def test_nn_model():
         obs, env_state, reward, done, info = env.step(
             key, env_state, action, env_params
         )
-
-
-if __name__ == "__main__":
-    test_nn_model()
-    pass

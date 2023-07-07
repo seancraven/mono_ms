@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import Protocol, Tuple, Optional, List
+from typing import List, Optional, Protocol, Tuple
 
 import jax
 import jax.numpy as jnp
+from distrax import Categorical
 from flax import linen as nn
 from flax.linen.initializers import lecun_normal, zeros_init
-from jaxtyping import Array, PRNGKeyArray, Float
-from distrax import Categorical
+from jaxtyping import Array, Float, PRNGKeyArray
+from meta_rl.models import ACSequential
 
 
 class SymmetrizerDense(nn.Module):

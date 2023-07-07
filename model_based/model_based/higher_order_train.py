@@ -10,11 +10,10 @@ import optax
 from flax.training.train_state import TrainState
 from gymnax import EnvState
 from gymnax.environments.classic_control import CartPole
-from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
-
-from meta_rl.models import (ACSequential, ConvActorCritic,
-                            EquivariantActorCritic)
+from meta_rl.models import ConvActorCritic
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
+
+from model_based.nn_model import NNCartpole
 
 # Single timestep
 Scalar = jt.Num[jt.Array, "*num_envs"]
@@ -57,7 +56,11 @@ class Transition(NamedTuple):
 
 RunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
 UpdateState = Tuple[
-    TrainState, Trajectory, PerTimestepScalar, PerTimestepScalar, jt.PRNGKeyArray
+    TrainState,
+    Tuple[Transition, Transition],
+    PerTimestepScalar,
+    PerTimestepScalar,
+    jt.PRNGKeyArray,
 ]
 BatchData = Tuple[Trajectory, PerTimestepScalar, PerTimestepScalar]
 
@@ -76,7 +79,16 @@ def make_train(
     env_params = config["ENV_PARAMS"]
     env = FlattenObservationWrapper(env)
     env = LogWrapper(env)  # type: ignore
-    network = modle_creation_fn(env.action_space(env_params).n)
+    network = modle_creation_fn(4)
+
+    if "VAL_ENV" in config:
+        env_val = config["VAL_ENV"]
+        env_val_params = config["VAL_ENV_PARAMS"]
+        env_val = FlattenObservationWrapper(env_val)
+        env_val = LogWrapper(env_val)  # type: ignore
+
+    else:
+        raise NotImplementedError("Use other function!")
 
     def linear_schedule(count):
         frac = (
@@ -89,7 +101,7 @@ def make_train(
     def train(rng: jt.PRNGKeyArray) -> Dict[str, Union[TrainState, Any]]:
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
-        init_x = jnp.zeros((1, *env.observation_space(env_params).shape))
+        init_x = jnp.zeros((1, 4))
         network_params = network.init(_rng, init_x)
         if config["ANNEAL_LR"]:
             tx = optax.chain(
@@ -113,23 +125,40 @@ def make_train(
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
-        # TRAIN LOOP
         def _update_step(runner_state: RunnerState, _):
             """Trajectories are evaluated and performs Adam on batched trajectories."""
 
-            # COLLECT TRAJECTORIES
-            def _env_step(
-                runner_state: RunnerState, _
+            def _val_env_step(
+                val_runner_state: RunnerState, _
             ) -> Tuple[RunnerState, Transition]:
-                train_state, env_state, last_obs, rng = runner_state
+                train_state, val_env_state, last_obs, rng = val_runner_state
 
-                # SELECT ACTION
                 rng, _rng = jax.random.split(rng)
                 pi, value = network.apply(train_state.params, last_obs)
                 action = pi.sample(seed=_rng)
                 log_prob = pi.log_prob(action)
 
-                # STEP ENV
+                rng, _rng = jax.random.split(rng)
+                rng_step = jax.random.split(_rng, config["NUM_ENVS"])
+                obsv, val_env_state, reward, done, info = jax.vmap(
+                    env_val.step, in_axes=(0, 0, 0, None)
+                )(rng_step, val_env_state, action, env_val_params)
+                transition = Transition(
+                    done, action, value, reward, log_prob, last_obs, info  # type: ignore
+                )
+                runner_state = (train_state, val_env_state, obsv, rng)  # type: ignore
+                return runner_state, transition
+
+            def _env_step(
+                runner_state: RunnerState, _
+            ) -> Tuple[RunnerState, Transition]:
+                train_state, env_state, last_obs, rng = runner_state
+
+                rng, _rng = jax.random.split(rng)
+                pi, value = network.apply(train_state.params, last_obs)
+                action = pi.sample(seed=_rng)
+                log_prob = pi.log_prob(action)
+
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
                 obsv, env_state, reward, done, info = jax.vmap(
@@ -145,6 +174,9 @@ def make_train(
                 _env_step, runner_state, None, config["NUM_STEPS"]
             )
 
+            _, val_traj_batch = jax.lax.scan(
+                _val_env_step, runner_state, None, config["NUM_STEPS"]
+            )
             # CALCULATE ADVANTAGE
             train_state, env_state, last_obs, rng = runner_state
             _, last_val = network.apply(train_state.params, last_obs)
@@ -246,7 +278,7 @@ def make_train(
                     train_state = train_state.apply_gradients(grads=grads)
                     return train_state, total_loss
 
-                train_state, traj_batch, advantages, targets, rng = update_state
+                train_state, train_val_traj, advantages, targets, rng = update_state
                 rng, _rng = jax.random.split(rng)
                 batch_size = config["MINIBATCH_SIZE"] * config["NUM_MINIBATCHES"]
                 assert (
@@ -269,18 +301,23 @@ def make_train(
                 train_state, total_loss = jax.lax.scan(
                     _update_minbatch, train_state, minibatches
                 )
-                update_state = (train_state, traj_batch, advantages, targets, rng)
+
+                train_val_traj = (traj_batch, val_traj_batch)
+                update_state = (train_state, train_val_traj, advantages, targets, rng)
                 return update_state, total_loss
 
-            update_state = (train_state, traj_batch, advantages, targets, rng)
+            train_val_traj = (traj_batch, val_traj_batch)
+            update_state = (train_state, train_val_traj, advantages, targets, rng)
             update_state, loss_info = jax.lax.scan(
                 _update_epoch, update_state, None, config["UPDATE_EPOCHS"]  # type: ignore
             )
             train_state = update_state[0]
-            metric = traj_batch.info
+            metric = (train_val_traj[0].info, train_val_traj[1].info)
             rng = update_state[-1]
 
             runner_state = (train_state, env_state, last_obs, rng)
+            ## Perform validation test on world model learned policy.
+
             return runner_state, metric
 
         rng, _rng = jax.random.split(rng)
@@ -291,21 +328,6 @@ def make_train(
         return {"runner_state": runner_state, "metrics": metric}
 
     return train
-
-
-def SymmetrizerNet(action_dim: int) -> ACSequential:
-    layer_list = [
-        4,
-        64,
-        100,
-    ]
-    sym_key = jax.random.PRNGKey(0)
-    return ac_symmmetrizer_factory(
-        sym_key,
-        C2PermGroup(),
-        layer_list + [action_dim],
-        [True] * (len(layer_list) + 1),
-    )
 
 
 CONFIG = {
@@ -323,36 +345,21 @@ CONFIG = {
     "MAX_GRAD_NORM": 0.5,
     "ACTIVATION": "tanh",
     "ANNEAL_LR": True,
-    "ENV": CartPole(),
-    "ENV_PARAMS": CartPole().default_params,
+    "ENV": NNCartpole(),
+    "ENV_PARAMS": NNCartpole().default_params,
+    "VAL_ENV": CartPole(),
+    "VAL_ENV_PARAMS": CartPole().default_params,
 }
 
 if __name__ == "__main__":
     num_seeds = 256
-    key = jax.random.PRNGKey(0)
+    key = jax.random.PRNGKey(42)
     sym_key, key = jax.random.split(key)
 
+    model = ConvActorCritic
+
     keys = jax.random.split(key, num_seeds)
-    fig, ax = plt.subplots()
 
-    def SymmetrizerNet(action_dim: int) -> ACSequential:
-        layer_list = [
-            4,
-            64,
-            100,
-        ]
-        return ac_symmmetrizer_factory(
-            sym_key,
-            C2PermGroup(),
-            layer_list + [action_dim],
-            [True] * (len(layer_list) + 1),
-        )
-
-    for net_init in [SymmetrizerNet, EquivariantActorCritic, ConvActorCritic]:
-        print(net_init.__name__)
-        jit_train = jax.jit(make_train(CONFIG, net_init))
-        results = jax.vmap(jit_train)(keys)
-        episodic_returns = results["metrics"]["returned_episode_returns"].reshape(
-            (num_seeds, -1)
-        )
-        jnp.save(f"{net_init.__name__}.npy", episodic_returns)
+    train_fn = jax.vmap(jax.jit(make_train(CONFIG, model)))
+    results = train_fn(keys)
+    print(results)

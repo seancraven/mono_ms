@@ -39,7 +39,9 @@ class Model(nn.Module):
         action_embedding = nn.relu(
             nn.Dense(self.hidden_dim, kernel_init=he_normal())(action)
         )
-        concat = jnp.concatenate([state_embedding, action_embedding], axis=0)
+        concat = jnp.concatenate(
+            [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
+        )
         hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(concat))
         hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(hidden))
         next_state = nn.Dense(self.state_dim, kernel_init=he_normal())(hidden)

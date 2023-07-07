@@ -1,6 +1,3 @@
-import os
-
-import jax.numpy as jnp
 import jaxtyping as jt
 from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
@@ -15,10 +12,10 @@ class NNCartpole(cartpole.CartPole):
         super().__init__()
         self.TransitionModel = Model(*self.obs_shape, 1, 64)
 
-        path = "/home/sean/ms_mono/model_based/transition_model_tree"
-        assert os.path.isdir(path)
+        path = "/home/sean/mono_ms/model_based/transition_model_tree/"
         self.model_params = checkpoint.PyTreeCheckpointer().restore(path)
 
+    @property
     def default_params(self):
         return cartpole.EnvParams()
 
@@ -44,6 +41,9 @@ class NNCartpole(cartpole.CartPole):
             done,
             {"discount": self.discount(next_env_state, params)},  # type: ignore
         )
+
+    def observation_space(self, params):
+        return super().observation_space(params)
 
 
 def state_from_obs(obs: jt.Array, time_step: int) -> EnvState:
