@@ -12,7 +12,7 @@ class NNCartpole(cartpole.CartPole):
         super().__init__()
         self.TransitionModel = Model(*self.obs_shape, 1, 64)
 
-        path = "/home/sean/mono_ms/model_based/transition_model_tree/"
+        path = "/home/sean/ms_mono/model_based/transition_model_tree/"
         self.model_params = checkpoint.PyTreeCheckpointer().restore(path)
 
     @property

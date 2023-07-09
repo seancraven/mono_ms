@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import logging
+import os
 import pickle
+import shutil
 from math import prod
 from typing import Any, NamedTuple, Tuple
 
@@ -23,6 +27,34 @@ class LossData(NamedTuple):
 
     def flatten(self):
         return LossData(self.train_loss.reshape(-1), self.val_loss.reshape(-1))
+
+
+class DebugData(NamedTuple):
+    """Per dimension loss data."""
+
+    x_pos_loss: jt.Array
+    x_vel_loss: jt.Array
+    theta_pos_loss: jt.Array
+    theta_vel_loss: jt.Array
+
+    def flatten(self) -> DebugData:
+        return DebugData(
+            self.x_pos_loss.reshape(-1),
+            self.x_vel_loss.reshape(-1),
+            self.theta_pos_loss.reshape(-1),
+            self.theta_vel_loss.reshape(-1),
+        )
+
+    def as_array(self) -> jt.Array:
+        return jnp.concatenate(
+            [
+                self.x_pos_loss,
+                self.x_vel_loss,
+                self.theta_pos_loss,
+                self.theta_vel_loss,
+            ],
+            axis=-1,
+        )
 
 
 class Model(nn.Module):
@@ -89,9 +121,12 @@ def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
 def make_train(hyper_params: HyperParams):
     data: ReplayBuffer = pickle.load(open("replay_buffer.pickle", "rb"))
     data = SARSDTuple(*jax.tree_map(lambda x: x.astype(jnp.float32), data))
+    non_term_index = data.done == 0
+    data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
 
     train_size = hyper_params.get_train_size(data)
-    flattened_data = jax.tree_map(lambda x: x.reshape(-1, *x.shape[2:]), data)
+    print(data.state.shape)
+    flattened_data = jax.tree_map(lambda x: x.reshape(-1, *x.shape[1:]), data)
     train_data, val_data = flattened_data.partition(train_size)
     val_data = jax.tree_map(lambda x: expand_scalar(x), val_data)
 
@@ -124,26 +159,38 @@ def make_train(hyper_params: HyperParams):
         def _epoch(
             joint_state: Tuple[jt.PRNGKeyArray, TrainState, SARSDTuple, SARSDTuple], _
         ) -> Tuple[
-            Tuple[jt.PRNGKeyArray, TrainState, SARSDTuple, SARSDTuple], LossData
+            Tuple[jt.PRNGKeyArray, TrainState, SARSDTuple, SARSDTuple],
+            Tuple[LossData, DebugData, DebugData],
         ]:
-            def _loss_fn(params: jt.PyTree, sarsd_tuple: SARSDTuple) -> jt.Array:
+            def _loss_fn(
+                params: jt.PyTree, sarsd_tuple: SARSDTuple
+            ) -> Tuple[jt.Array, DebugData]:
                 state, action, _, next_state, _ = sarsd_tuple
                 next_state_pred = train_state.apply_fn(params, state, action)
-                next_state_loss = jnp.mean((next_state - next_state_pred) ** 2)
+
+                next_state_loss = jnp.mean((next_state - next_state_pred) ** 2, axis=0)
+
+                debug_loss = DebugData(
+                    next_state_loss[0],
+                    next_state_loss[1],
+                    next_state_loss[2],
+                    next_state_loss[3],
+                )
+
                 # reward_loss = jnp.mean(bce_from_logit(reward_pred_logit, reward))
                 # done_loss = jnp.mean(bce_from_logit(done_pred_logit, done))
 
-                return next_state_loss  # + reward_loss + done_loss
+                return next_state_loss.mean(), debug_loss  # + reward_loss + done_loss
 
             def _mini_batch(
                 train_state: TrainState, mini_batch: Any
-            ) -> Tuple[TrainState, jt.Array]:
-                grad_fn = jax.value_and_grad(_loss_fn)
+            ) -> Tuple[TrainState, Tuple[jt.Array, DebugData]]:
+                grad_fn = jax.value_and_grad(_loss_fn, has_aux=True)
 
-                train_loss, grad = grad_fn(train_state.params, mini_batch)
+                (train_loss, debug_data), grad = grad_fn(train_state.params, mini_batch)
                 train_state = train_state.apply_gradients(grads=grad)
 
-                return train_state, train_loss
+                return train_state, (train_loss, debug_data)
 
             rng, train_state, train_data, val_data = joint_state
             _, rng = jax.random.split(rng)
@@ -157,15 +204,17 @@ def make_train(hyper_params: HyperParams):
                 train_data,
             )
 
-            (train_state, train_loss) = jax.lax.scan(
+            (train_state, (train_loss, debug_data)) = jax.lax.scan(
                 _mini_batch,
                 train_state,
                 shuffle_train_data,
             )
-            val_loss = _loss_fn(train_state.params, val_data)
+            val_loss, val_debug_data = _loss_fn(train_state.params, val_data)
 
-            return (rng, train_state, train_data, val_data), LossData(
-                train_loss, val_loss
+            return (rng, train_state, train_data, val_data), (
+                LossData(train_loss, val_loss),
+                debug_data,
+                val_debug_data,
             )
 
         final_state, losses = jax.lax.scan(
@@ -185,4 +234,11 @@ if __name__ == "__main__":
     final_train_state = final_state[1]
     checkpointer = checkpoint.PyTreeCheckpointer()
 
+    if os.path.exists("transition_model_tree/"):
+        shutil.rmtree("transition_model_tree/")
     checkpointer.save("transition_model_tree/", final_train_state.params)
+    train_loss, debug_loss, val_debug_loss = losses
+    jnp.save("transition_model_train_loss.npy", train_loss.train_loss.flatten())
+    jnp.save("transition_model_val_loss.npy", train_loss.val_loss.flatten())
+    jnp.save("transition_model_debug_loss.npy", debug_loss.flatten().as_array())
+    jnp.save("transition_model_val_debug_loss.npy", val_debug_loss.flatten().as_array())

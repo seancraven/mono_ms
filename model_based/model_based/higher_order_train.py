@@ -360,5 +360,15 @@ if __name__ == "__main__":
     keys = jax.random.split(key, num_seeds)
 
     train_fn = jax.vmap(jax.jit(make_train(CONFIG, model)))
-    results = train_fn(keys)
-    print(results)
+    return_dict = train_fn(keys)
+    metrics = return_dict["metrics"]
+    results_train = metrics[0]
+    results_val = metrics[1]
+    episodic_returns_val = results_val["returned_episode_returns"].reshape(
+        (num_seeds, -1)
+    )
+    episodic_returns_train = results_train["returned_episode_returns"].reshape(
+        (num_seeds, -1)
+    )
+    jnp.save("world_model_train.npy", episodic_returns_train)
+    jnp.save("world_model_val.npy", episodic_returns_val)
