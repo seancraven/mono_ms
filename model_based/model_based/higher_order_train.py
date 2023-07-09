@@ -68,7 +68,7 @@ BatchData = Tuple[Trajectory, PerTimestepScalar, PerTimestepScalar]
 def make_train(
     config: Dict, modle_creation_fn: Callable[[int], nn.Module]
 ) -> Callable[[jt.PRNGKeyArray], Dict[str, Union[TrainState, Any]]]:
-    """Jittable training function builder."""
+    """Make training fuction with evaluation on a validaiton environment."""
     config["NUM_UPDATES"] = (
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
@@ -316,7 +316,6 @@ def make_train(
             rng = update_state[-1]
 
             runner_state = (train_state, env_state, last_obs, rng)
-            ## Perform validation test on world model learned policy.
 
             return runner_state, metric
 
