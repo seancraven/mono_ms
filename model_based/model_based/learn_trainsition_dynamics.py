@@ -240,5 +240,5 @@ if __name__ == "__main__":
     train_loss, debug_loss, val_debug_loss = losses
     jnp.save("transition_model_train_loss.npy", train_loss.train_loss.flatten())
     jnp.save("transition_model_val_loss.npy", train_loss.val_loss.flatten())
-    jnp.save("transition_model_debug_loss.npy", debug_loss.flatten().as_array())
-    jnp.save("transition_model_val_debug_loss.npy", val_debug_loss.flatten().as_array())
+    pickle.dump(debug_loss, open("transition_model_debug_loss.pickle", "wb"))
+    pickle.dump(val_debug_loss, open("transition_model_val_debug_loss.pickle", "wb"))
