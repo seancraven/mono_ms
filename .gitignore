@@ -465,3 +465,4 @@ cython_debug/
 **.npy
 **.png
 **_model_tree/
+**.pickle
