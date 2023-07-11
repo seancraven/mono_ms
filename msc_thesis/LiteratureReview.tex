@@ -71,7 +71,50 @@ The Model-Agnostic Meta-Learning(MAML) algorithm~\ref{alg:maml}, is the cannonic
 
 
 \subsection{Meta-Learning Symmetries By Reparametrisation}
-\cite{zhou2020meta}, proposes a method to learn approximately equivarant networks, using the Model Agnostic Meta-Leaning(MAML) framework~\cite{finn2017model}. MAML provides gradient updates to one set of parameters. However,~\cite{zhou2020meta} proposes a method of learning group convolutional layers~\ref{sec:G-CNNs}. This is achieved by breaking the model into two sets of parameters, the convolutional filters, the conventionally trainable weights, and then the parameter sharing scheme. This is the non trainable part of a general $G-CNN$. 
-\begin{equation} 
-\end{equation}
+~\cite{zhou2020meta}, proposes a method to learn approximately equivarant networks, using the Model Agnostic Meta-Leaning~(MAML) framework~\cite{finn2017model}. MAML provides gradient updates to one set of parameters. However,~\cite{zhou2020meta} proposes a method of learning group convolutional layers~\ref{sec:G-CNNs}. This is achieved by breaking the model into two sets of parameters, the convolutional filters which are the conventionally trainable weights, and then the parameter sharing scheme. This is the non trainable part of a general $G-CNN$.
 
+By reparameterising $\mat{W} \in \mathbb{R}^{m \times n}$ of a feedforward network, into a filter $v$ and a parameter sharing scheme $\mat{U}$;
+\begin{equation}
+	\text{vec}(\mat{W}) = \mat{U}v
+\end{equation}
+One can see this in the case of a group specific $\mat{U}_g$, is a way of representing a group convolutional layer.
+An example of the eqivalence of this to the G-CNN scheme is for $C_2$, where the network is equivariant to an inversion of the input,
+\begin{align}
+	\mat{U_{C_2}}   & \cdot v  = [\oplus_{g \in C_2} \pi_g] \cdot v, \\
+	\begin{pmatrix}
+		1  & 0  \\
+		0  & 1  \\
+		-1 & 0  \\
+		0  & -1 \\
+	\end{pmatrix} & \cdot
+	\begin{pmatrix}
+		v_1 \\
+		v_2 \\
+	\end{pmatrix}
+	= \begin{pmatrix}
+		  v_1  \\
+		  v_2  \\
+		  -v_1 \\
+		  -v_2 \\
+	  \end{pmatrix}.
+\end{align}
+To prove this is equivariant, we can show that the following holds, 
+\begin{equation}
+	\begin{pmatrix}
+		0  & 1  \\
+		1  & 0  \\
+	\end{pmatrix} \cdot \left[
+		\begin{pmatrix}
+			v_1  & v_2  \\
+			-v_1 & -v_2 \\
+		\end{pmatrix} \cdot x \right] = \begin{pmatrix}
+		                                -v_1 x_1 - v_2 x_2 \\
+		                                v_1 x_1 + v_2 x_2  \\
+	                                \end{pmatrix}
+	= \begin{pmatrix}
+		 v_1  & v_2  \\
+		 -v_1 & -v_2 \\
+	 \end{pmatrix} \cdot  -x
+\end{equation}
+From this insight, they propose a method of meta-learning an equivariant parameter sharing scheme $\mat{U}$, given a set of tasks $\mathcal{T}$, that all posess the same equivarances.
+Using an adapted MAML framework, $v$ is trained on a per task loss $L_{\tau_i}$ and the training data and $\mat{U}$ is trained on the meta loss on the validation data, they demonstrate the ability to recover the equivariant parameter sharing scheme, for convolutional layers.

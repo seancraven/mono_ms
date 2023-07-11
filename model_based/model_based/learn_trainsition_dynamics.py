@@ -125,7 +125,6 @@ def make_train(hyper_params: HyperParams):
     data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
 
     train_size = hyper_params.get_train_size(data)
-    print(data.state.shape)
     flattened_data = jax.tree_map(lambda x: x.reshape(-1, *x.shape[1:]), data)
     train_data, val_data = flattened_data.partition(train_size)
     val_data = jax.tree_map(lambda x: expand_scalar(x), val_data)

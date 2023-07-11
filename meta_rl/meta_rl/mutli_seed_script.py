@@ -363,4 +363,4 @@ if __name__ == "__main__":
             train_state = runner_state[0]
             network_params = train_state.params
             chk = checkpoint.PyTreeCheckpointer()
-            chk.save("expert_actor_critic_tree/")
+            chk.save("expert_actor_critic_tree/", network_params)
