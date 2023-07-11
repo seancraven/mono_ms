@@ -46,3 +46,32 @@ In their first experiments of Drawer-Opening, Block Pulling, and Object Picking,
 Further they perform tests on more difficult robotic control tasks where demonstrations are provided, this enables the the agents to tackle more complex tasks such as block stacking and house building, in which they again are the only agents that are able to solve the tasks.
 
 \section{Learning Models}
+\section{Meta-Learning}
+Meta Learning, is the process of learning to learn, across multiple tasks. This is a very broad field, where the goals are varied. Specifically, in this project, we are looking at parameter meta learning, where there is a single model, $f_\theta$, which is aplied to multiple different tasks, $\tau_i \sim \mathcal{T}$, drawn from a distriubtion.
+On each task, there is a per task loss, $L_{\tau_i}(\theta)$, which is a function of the parameters of the model, and may change it's functional form.
+
+
+The Model-Agnostic Meta-Learning(MAML) algorithm~\ref{alg:maml}, is the cannonical example of these methods. It works by performing a gradient based update on each task, storing the parameters,$\theta_i'$, of the model after each task's update, and then performs a gradient update on the meta loss, which is usually the sum of the per task losses $L_{\tau_i}(\theta_i')$, evaluated with their new parameters $\theta_i'$. This is then repeated till convergence. Pseudocode is given below.
+
+
+\begin{algorithm}
+	\caption{MAML Algorithm}
+	\label{alg:maml}
+	\begin{algorithmic}
+		\State $\theta$ is randomly initialised
+		\While{not done}
+		\State Sample batch of tasks, $\tau_i \sim p(\tau)$
+		\For {each task $\tau_i$}
+		\State $\theta_i' \leftarrow \theta - \alpha \nabla_\theta L_{\tau_i}(F\theta)$
+		\EndFor
+		\State $\theta \leftarrow \theta - \beta \nabla_\theta \sum_{\tau_i \sim p(\tau)}{L_{\tau_i}(\theta_i')}$
+		\EndWhile
+	\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Meta-Learning Symmetries By Reparametrisation}
+\cite{zhou2020meta}, proposes a method to learn approximately equivarant networks, using the Model Agnostic Meta-Leaning(MAML) framework~\cite{finn2017model}. MAML provides gradient updates to one set of parameters. However,~\cite{zhou2020meta} proposes a method of learning group convolutional layers~\ref{sec:G-CNNs}. This is achieved by breaking the model into two sets of parameters, the convolutional filters, the conventionally trainable weights, and then the parameter sharing scheme. This is the non trainable part of a general $G-CNN$. 
+\begin{equation} 
+\end{equation}
+

@@ -10,10 +10,10 @@ import optax
 from flax.training.train_state import TrainState
 from gymnax import EnvState
 from gymnax.environments.classic_control import CartPole
+from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from meta_rl.models import (ACSequential, ConvActorCritic,
-                            EquivariantActorCritic)
+from meta_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -356,3 +356,11 @@ if __name__ == "__main__":
             (num_seeds, -1)
         )
         jnp.save(f"{net_init.__name__}.npy", episodic_returns)
+
+        if net_init == ConvActorCritic:
+            runner_state = results["runner_state"]
+
+            train_state = runner_state[0]
+            network_params = train_state.params
+            chk = checkpoint.PyTreeCheckpointer()
+            chk.save("expert_actor_critic_tree/")

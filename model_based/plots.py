@@ -29,7 +29,7 @@ if __name__ == "__main__":
             returns_upper,
             alpha=0.3,
         )
-        ax[0].set_xlabel("Timesteps")
+        ax[0].set_xlabel("Timesteps, {}")
         ax[0].set_ylabel("Episodic Return")
 
         cumulative_returns = np.cumsum(episodic_returns, axis=1)[:, -1]

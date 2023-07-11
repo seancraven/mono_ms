@@ -18,18 +18,23 @@ if __name__ == "__main__":
     val_debug = debug_from_file("./transition_model_val_debug_loss.pickle").flatten()
     train_loss = np.load(train_loss_path)
     val_loss = np.load(val_loss_path)
+
     ## Plot loss
     # plt.plot(train_loss, label="train_loss")
     # plt.plot(val_loss, label="val_loss")
     # plt.show()
 
     fig, ax = plt.subplots(2, 2)
-    for i, value in enumerate(train_debug):
+    for i, (key, value) in enumerate(train_debug._asdict().items()):
         ax[i // 2, i % 2].semilogy(
             value,
         )
+        ax[i // 2, i % 2].set_title(key)
+
     # for i, value in enumerate(val_debug):
     #     ax[i // 2, i % 2].plot(
     #         value,
     #     )
+    ax[0, 0].set_title("")
     plt.show()
+    plt.savefig("debug_loss.png")
