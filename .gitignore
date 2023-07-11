@@ -466,3 +466,4 @@ cython_debug/
 **.png
 **_model_tree/
 **.pickle
+**.pdf
