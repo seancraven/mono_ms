@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import jaxtyping as jt
 from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
@@ -44,6 +46,11 @@ class NNCartpole(cartpole.CartPole):
 
     def observation_space(self, params):
         return super().observation_space(params)
+
+
+class NNCartpoleParams(NamedTuple):
+    model_params: jt.PyTree
+    cartpole_params: cartpole.EnvParams = cartpole.EnvParams()
 
 
 def state_from_obs(obs: jt.Array, time_step: int) -> EnvState:

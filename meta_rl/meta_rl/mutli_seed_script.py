@@ -13,7 +13,8 @@ from gymnax.environments.classic_control import CartPole
 from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from meta_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
+from meta_rl.models import (ACSequential, ConvActorCritic,
+                            EquivariantActorCritic)
 from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -185,7 +186,11 @@ def make_train(
             advantages, targets = _calculate_gae(traj_batch, last_val)  # type: ignore
 
             # UPDATE NETWORK
-            def _update_epoch(update_state: UpdateState, _):
+            def _update_epoch(
+                update_state: UpdateState, _
+            ) -> Tuple[
+                UpdateState, Tuple[jt.Array, Tuple[jt.Array, jt.Array, jt.Array]]
+            ]:
                 """Loss evaluated and Adam applied across all minibatches."""
 
                 def _update_minbatch(
