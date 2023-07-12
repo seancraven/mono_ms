@@ -1,37 +1,41 @@
+from __future__ import annotations
+
 from typing import NamedTuple
 
 import jaxtyping as jt
 from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
 from optax._src.linear_algebra import lax
-from orbax import checkpoint
 
 from model_based.learn_trainsition_dynamics import Model
 
 
 class NNCartpole(cartpole.CartPole):
+    """
+    A neural network model of the cartpole environment.
+
+    The model default params returns the default params of the cartpole environment.
+    """
+
     def __init__(self):
         super().__init__()
-        self.TransitionModel = Model(*self.obs_shape, 1, 64)
-
-        path = "/home/sean/ms_mono/model_based/transition_model_tree/"
-        self.model_params = checkpoint.PyTreeCheckpointer().restore(path)
+        self.trainsition_model = Model(*self.obs_shape, 1, 64)
 
     @property
-    def default_params(self):
-        return cartpole.EnvParams()
+    def default_params(self) -> EnvParams:
+        return cartpole.EnvParams()  # type: ignore
 
     def step_env(
         self,
         _: jt.PRNGKeyArray,
         env_state: EnvState,
         action: jt.Array,
-        params: EnvParams,
+        params: NNCartpoleParams,
     ):
-        prev_terminal = self.is_terminal(env_state, params)  # type: ignore
+        prev_terminal = self.is_terminal(env_state, params.cartpole)  # type: ignore
         reward = 1 - prev_terminal
         obs_ = self.get_obs(env_state)  # type: ignore
-        next_env_obs = self.TransitionModel.apply(self.model_params, obs_, action)
+        next_env_obs = self.trainsition_model.apply(params.model, obs_, action)
         time_step = env_state.time + 1
         next_env_state = state_from_obs(next_env_obs, time_step)  # type: ignore
 
@@ -49,8 +53,8 @@ class NNCartpole(cartpole.CartPole):
 
 
 class NNCartpoleParams(NamedTuple):
-    model_params: jt.PyTree
-    cartpole_params: cartpole.EnvParams = cartpole.EnvParams()
+    model: jt.PyTree
+    cartpole: cartpole.EnvParams = cartpole.EnvParams()
 
 
 def state_from_obs(obs: jt.Array, time_step: int) -> EnvState:

@@ -56,7 +56,7 @@ class Transition(NamedTuple):
     info: Any
 
 
-RunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
+CartPoleRunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
 UpdateState = Tuple[
     TrainState, Trajectory, PerTimestepScalar, PerTimestepScalar, jt.PRNGKeyArray
 ]
@@ -115,13 +115,13 @@ def make_train(
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
         # TRAIN LOOP
-        def _update_step(runner_state: RunnerState, _):
+        def _update_step(runner_state: CartPoleRunnerState, _):
             """Trajectories are evaluated and performs Adam on batched trajectories."""
 
             # COLLECT TRAJECTORIES
             def _env_step(
-                runner_state: RunnerState, _
-            ) -> Tuple[RunnerState, Transition]:
+                runner_state: CartPoleRunnerState, _
+            ) -> Tuple[CartPoleRunnerState, Transition]:
                 train_state, env_state, last_obs, rng = runner_state
 
                 # SELECT ACTION

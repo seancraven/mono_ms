@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple, Tuple
+from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import gymnax
 import jax
@@ -6,9 +6,18 @@ import jax.numpy as jnp
 import jaxtyping as jt
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from meta_rl.mutli_seed_script import (BatchData, Obs, Params,
-                                       PerTimestepScalar, RunnerState, Scalar,
-                                       Trajectory, Transition)
+from meta_rl.mutli_seed_script import (
+    Action,
+    BatchData,
+    CartPoleRunnerState,
+    Obs,
+    Params,
+    PerTimestepScalar,
+    Scalar,
+    Trajectory,
+    Transition,
+)
+from model_based.nn_model import NNCartpole
 
 from dyna.training import ActorCriticHyperParams, DynaHyperParams
 
@@ -116,9 +125,30 @@ def make_ac_mini_batch_update_fn(
 
 
 def make_env_step_fn(
-    dyna_hyp: DynaHyperParams, env: gymnax.environments.CartPole, env_params
+    dyna_hyp: DynaHyperParams,
+    env: gymnax.environments.CartPole,
+    env_params,
+    env_model_params: Optional[Params] = None,
 ):
-    def _env_step(runner_state: RunnerState, _) -> Tuple[RunnerState, Transition]:
+    match env:
+        case gymnax.environments.CartPole():
+            env_step_fn = env.step
+        case NNCartpole():
+            assert (
+                env_model_params is not None
+            ), "Transition model params must be provided for NN Cartpole"
+
+            def env_step_fn(
+                rng, state, action, env_params
+            ) -> Callable[
+                [jt.PRNGKeyArray, Obs, Action, gymnax.EnvParams],
+                Tuple[Obs, gymnax.EnvState, PerTimestepScalar, PerTimestepScalar, Any],
+            ]:
+                return env.step(rng, state, action, env_params, env_model_params)
+
+    def _env_step(
+        runner_state: CartPoleRunnerState, _
+    ) -> Tuple[CartPoleRunnerState, Transition]:
         train_state, env_state, last_obs, rng = runner_state
 
         rng, _rng = jax.random.split(rng)
@@ -128,8 +158,8 @@ def make_env_step_fn(
 
         rng, _rng = jax.random.split(rng)
         rng_step = jax.random.split(_rng, dyna_hyp.NUM_ENVS)
-        obsv, env_state, reward, done, info = jax.vmap(
-            env.step, in_axes=(0, 0, 0, None)
+        obsv, env_state, reward, done, info = jax.vmap(  # type: ignore
+            env_step_fn, in_axes=(0, 0, 0, None)
         )(rng_step, env_state, action, env_params)
         transition = Transition(
             done, action, value, reward, log_prob, last_obs, info  # type: ignore
