@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from base_rl.models import ActorCritic
+from base_rl.wrappers import LogWrapper
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
 from model_based.nn_model import NNCartpole
@@ -28,7 +29,8 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
     )
 
     def train(rng):
-        env_model = NNCartpole()
+        env_model = LogWrapper(NNCartpole())
+        env = LogWrapper(CartPole())
         rng, rng_ac, rng_reset, rng_model, rng_state = jax.random.split(rng, 5)
         ac_train_state = TrainState.create(
             apply_fn=jax.vmap(actor_critic.apply, in_axes=(None, 0)),
@@ -45,13 +47,13 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
 
         model_free_update_fn = make_actor_critic_update(
             dyna_hyp,
-            CartPole,
+            env,
             ac_train_state.apply_fn,
             False,
         )
         model_based_update_fn = make_actor_critic_update(
             dyna_hyp,
-            NNCartpole,
+            env_model,
             ac_train_state.apply_fn,
             True,
         )
@@ -62,7 +64,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
         )
 
         rng_reset = jax.random.split(rng_reset, dyna_hyp.NUM_ENVS)
-        first_obs, cp_env_state = jax.vmap(CartPole().reset, in_axes=(0, None))(
+        first_obs, cp_env_state = jax.vmap(env.reset, in_axes=(0, None))(
             rng_reset, CartPole().default_params
         )
         dyna_runner_state = DynaRunnerState(
@@ -75,27 +77,19 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
 
         def _experience_step(dyna_state: DynaState, _) -> Tuple[DynaState, Tuple]:
             dyna_runner_state, model_train_state = dyna_state
-            assert dyna_runner_state.last_obs.shape[0] == dyna_hyp.NUM_ENVS
+
+            #######
             dyna_runner_state, (losses, trajectories) = model_free_update_fn(
                 dyna_runner_state, None
             )
             rng = dyna_runner_state.rng
             rng, rng_model = jax.random.split(rng)
+
+            #######
             model_train_state, model_losses = env_model_update_fn(
                 rng_model, model_train_state, trajectories
             )
-            dyna_runner_state, (p_loss, p_trajectories) = model_based_update_fn(
-                dyna_runner_state,
-                None,
-            )
 
-            infos = (
-                losses,
-                trajectories,
-                p_loss,
-                p_trajectories,
-                model_losses,
-            )
             rng, rng_next = jax.random.split(rng)
             new_runner_state = DynaRunnerState(
                 model_params=model_train_state.params,
@@ -105,7 +99,30 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
                 rng=rng_next,
             )
 
+            # #######
+            # dyna_runner_state, (p_loss, p_trajectories) = model_based_update_fn(
+            #     new_runner_state,
+            #     None,
+            # )
+            p_loss = 0.0
+            p_trajectories = None
+
+            new_runner_state = DynaRunnerState(
+                model_params=model_train_state.params,
+                train_state=dyna_runner_state.train_state,
+                cartpole_env_state=dyna_runner_state.cartpole_env_state,
+                last_obs=dyna_runner_state.last_obs,
+                rng=rng_next,
+            )
+
             new_dyna_state = DynaState(new_runner_state, model_train_state)
+            infos = (
+                losses,
+                trajectories,
+                p_loss,
+                p_trajectories,
+                model_losses,
+            )
             return new_dyna_state, infos
 
         final_dyna_runner, infos = jax.lax.scan(

@@ -35,14 +35,13 @@ class Losses(NamedTuple):
 
 def make_actor_critic_update(
     dyna_hyp: DynaHyperParams,
-    env_creation_function: Callable[[], gymnax.environments.CartPole],
+    env: Any,
     apply_fn: Callable[[Params, jt.Array], Tuple[Categorical, Obs]],
     model_based: bool = False,
 ) -> Callable[
     [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
 ]:
     # Throught training constant functions.
-    env = env_creation_function()
     _mini_batch_update_fn = make_ac_mini_batch_update_fn(apply_fn, dyna_hyp.ac_hyp)
     _gae_fn = make_gae_fn(dyna_hyp)
 
@@ -235,7 +234,6 @@ def make_env_step_fn(
         runner_state: DynaRunnerState, _
     ) -> Tuple[DynaRunnerState, Transition]:
         model_params, train_state, env_state, last_obs, rng = runner_state
-        assert_type(env, NNCartpole)
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
         action = pi.sample(seed=_rng)

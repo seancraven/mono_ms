@@ -90,10 +90,16 @@ class LogWrapper(GymnaxWrapper):
         state: environment.EnvState,
         action: Union[int, float],
         params: Optional[environment.EnvParams] = None,
+        model_params: Optional[environment.EnvParams] = None,
     ) -> Tuple[chex.Array, environment.EnvState, float, bool, dict]:
-        obs, env_state, reward, done, info = self._env.step(
-            key, state.env_state, action, params
-        )
+        if model_params is not None:
+            obs, env_state, reward, done, info = self._env.step(
+                key, state.env_state, action, params, model_params
+            )
+        else:
+            obs, env_state, reward, done, info = self._env.step(
+                key, state.env_state, action, params
+            )
         new_episode_return = state.episode_returns + reward
         new_episode_length = state.episode_lengths + 1
         state = LogEnvState(
