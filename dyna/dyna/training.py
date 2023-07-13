@@ -13,15 +13,12 @@ from distrax import Categorical
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
 from meta_rl.models import ActorCritic
-from meta_rl.mutli_seed_script import CartPoleRunnerState, Obs, Params, Trajectory
+from meta_rl.mutli_seed_script import (CartPoleRunnerState, Obs, Params,
+                                       Trajectory)
 from model_based.nn_model import NNCartpole, NNCartpoleParams
 
-from dyna.ac_higher_order import (
-    Losses,
-    make_ac_mini_batch_update_fn,
-    make_env_step_fn,
-    make_gae_fn,
-)
+from dyna.ac_higher_order import (Losses, make_ac_mini_batch_update_fn,
+                                  make_env_step_fn, make_gae_fn)
 
 # CONFIG = {
 #     "LR": 2.5e-4,
@@ -111,22 +108,12 @@ class DynaHyperParams(NamedTuple):
 
 
 # TODO ESCAPE TYPE HELL
-ModelRunnerState = Tuple[TrainState, NNCartpoleParams, Obs, jt.PRNGKeyArray]
-
-RunnerState = Tuple[
-    TrainState, Union[gymnax.EnvState, NNCartpoleParams], Obs, jt.PRNGKeyArray
-]
-
-
-def transfer_state(
-    cartpole_runner_state: RunnerState, model_env_params: NNCartpoleParams
-) -> ModelRunnerState:
-    return (  # type: ignore
-        cartpole_runner_state[0],
-        model_env_params,
-        cartpole_runner_state[2],
-        cartpole_runner_state[3],
-    )
+class DynaRunnerState(NamedTuple):
+    model_params: Optional[Params]
+    train_state: TrainState
+    cartpole_env_state: gymnax.EnvState
+    last_obs: Obs
+    rng: jt.PRNGKeyArray
 
 
 def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
@@ -151,7 +138,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             actor_critic.apply,  # type: ignore
         )
         model_based_update_function = make_actor_critic_update(
-            dyna_hyp, NNCartpole, actor_critic.apply, env_model_params  # type: ignore
+            dyna_hyp, NNCartpole, actor_critic.apply, True  # type: ignore
         )
 
         inital_dyna_runner_state = DynaRunnerState(
@@ -165,33 +152,35 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
         )
 
         def _experience_step(dyna_runner_state: DynaRunnerState, _):
-            cartpole_runner_state = dyna_runner_state.cartpole_runner_state
-
-            cartpole_runner_state, (losses, trajectories) = model_free_update_function(
-                cartpole_runner_state, None
+            dyna_runner_state, (losses, trajectories) = model_free_update_function(
+                dyna_runner_state, None
             )
             # Extract the AC state from the cartpole runner state.
 
-            model_runner_state = transfer_state(
-                cartpole_runner_state, dyna_runner_state.model_env_params
-            )
             # TRAIN MODEL
             # TODO: Train Model.
-            model_runner_state, (
+            dyna_runner_state, (
                 planned_losses,
                 planned_trajectories,
-            ) = model_based_update_function(  # type: igonre
-                model_runner_state, None  # type: ignore
+            ) = model_based_update_function(dyna_runner_state, None)
+            model_params, model_losses = env_model_train(
+                dyna_runner_state.model_params, trajectories
             )
-            train_state, model_env_params, last_obs, rng = model_runner_state  # type: ignore
-            cartpole_env_state = cartpole_runner_state[1]
+
+            infos = (
+                losses,
+                trajectories,
+                planned_losses,
+                planned_trajectories,
+                model_losses,
+            )
             return (
                 DynaRunnerState(
-                    cartpole_env_state=cartpole_env_state,  # type: ignore
-                    model_env_params=model_env_params,  # type: ignore
-                    train_state=train_state,
-                    last_obs=last_obs,
-                    rng=rng,
+                    model_params=model_params,
+                    train_state=dyna_runner_state.train_state,
+                    cartpole_env_state=dyna_runner_state.cartpole_env_state,
+                    last_obs=dyna_runner_state.last_obs,
+                    rng=dyna_runner_state.rng,
                 ),
                 infos,
             )
@@ -206,16 +195,19 @@ def make_actor_critic_update(
     dyna_hyp: DynaHyperParams,
     env_creation_function: Callable[[], gymnax.environments.CartPole],
     apply_fn: Callable[[Params, jt.Array], Tuple[Categorical, Obs]],
-    transition_model_params: Optional[Params] = None,
-) -> Callable[[RunnerState, Any], Tuple[RunnerState, Tuple[Losses, Trajectory]]]:
+    model_based: bool = False,
+) -> Callable[
+    [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
+]:
     # Throught training constant functions.
     env = env_creation_function()
     _mini_batch_update_fn = make_ac_mini_batch_update_fn(apply_fn, dyna_hyp.ac_hyp)
     _gae_fn = make_gae_fn(dyna_hyp)
 
     def actor_critic_update(
-        runner_state: RunnerState, env_params: Union[gymnax.EnvParams, NNCartpoleParams]
-    ) -> Tuple[RunnerState, Tuple[Losses, Trajectory]]:
+        runner_state: DynaRunnerState,
+        env_params: Union[gymnax.EnvParams, NNCartpoleParams],
+    ) -> Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]:
         """Upates the train state of the actor critic model, on a given model.
 
         Notes: Model Is frozen don't need to update.
@@ -223,18 +215,24 @@ def make_actor_critic_update(
         """
         # Changes depending on learned transition dynmaics.
         _env_step_fn = make_env_step_fn(
-            dyna_hyp, env, env_params, transition_model_params
+            dyna_hyp, env, env_params, model_based=model_based
         )
 
-        def _model_free_update(runner_state: RunnerState, _):
+        def _model_free_update(runner_state: DynaRunnerState, _):
             intermediate_runner_state, trajectories = jax.lax.scan(
                 _env_step_fn,
                 runner_state,  # type: ignore
                 None,
                 length=dyna_hyp.AC_NUM_TRANSITIONS,
             )
-            train_state, final_env_state, last_obs, rng = intermediate_runner_state  # type: ignore
-            _, last_val = train_state.apply_fn(train_state.params, last_obs)  # type: ignore
+            (
+                model_params,
+                train_state,
+                final_env_state,
+                last_obs,
+                rng,
+            ) = intermediate_runner_state
+            _, last_val = train_state.apply_fn(train_state.params, last_obs)
             advantages, targets = _gae_fn(trajectories, last_val)  # type: ignore
 
             def _ac_epoch(train_state_rng: Tuple[TrainState, jt.PRNGKeyArray], _):
@@ -273,7 +271,8 @@ def make_actor_critic_update(
 
             final_train_state, rng = final_train_state_rng
 
-            final_runner_state: RunnerState = (
+            final_runner_state = DynaRunnerState(
+                model_params,
                 final_train_state,
                 final_env_state,
                 last_obs,

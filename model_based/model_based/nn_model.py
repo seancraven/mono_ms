@@ -19,7 +19,7 @@ class NNCartpole(cartpole.CartPole):
 
     def __init__(self):
         super().__init__()
-        self.trainsition_model = Model(*self.obs_shape, 1, 64)
+        self.transition_model = Model(*self.obs_shape, 1, 64)
 
     @property
     def default_params(self) -> EnvParams:
@@ -28,14 +28,15 @@ class NNCartpole(cartpole.CartPole):
     def step_env(
         self,
         _: jt.PRNGKeyArray,
-        env_state: EnvState,
+        env_state: cartpole.EnvState,
         action: jt.Array,
-        params: NNCartpoleParams,
+        params: cartpole.EnvParams,
+        model_params: jt.PyTree,
     ):
-        prev_terminal = self.is_terminal(env_state, params.cartpole)  # type: ignore
+        prev_terminal = self.is_terminal(env_state, params)
         reward = 1 - prev_terminal
         obs_ = self.get_obs(env_state)  # type: ignore
-        next_env_obs = self.trainsition_model.apply(params.model, obs_, action)
+        next_env_obs = self.transition_model.apply(model_params, obs_, action)
         time_step = env_state.time + 1
         next_env_state = state_from_obs(next_env_obs, time_step)  # type: ignore
 

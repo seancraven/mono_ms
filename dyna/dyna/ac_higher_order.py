@@ -1,4 +1,4 @@
-from typing import Any, Callable, NamedTuple, Optional, Tuple
+from typing import Any, Callable, NamedTuple, Tuple, Union
 
 import gymnax
 import jax
@@ -6,20 +6,13 @@ import jax.numpy as jnp
 import jaxtyping as jt
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from meta_rl.mutli_seed_script import (
-    Action,
-    BatchData,
-    CartPoleRunnerState,
-    Obs,
-    Params,
-    PerTimestepScalar,
-    Scalar,
-    Trajectory,
-    Transition,
-)
-from model_based.nn_model import NNCartpole
+from meta_rl.mutli_seed_script import (BatchData, Obs, Params,
+                                       PerTimestepScalar, Scalar, Trajectory,
+                                       Transition)
+from model_based.nn_model import NNCartpoleParams
 
-from dyna.training import ActorCriticHyperParams, DynaHyperParams
+from dyna.training import (ActorCriticHyperParams, DynaHyperParams,
+                           DynaRunnerState)
 
 
 class PartialLosses(NamedTuple):
@@ -31,6 +24,107 @@ class PartialLosses(NamedTuple):
 class Losses(NamedTuple):
     total_loss: jt.Array
     partial_losses: PartialLosses
+
+
+def make_actor_critic_update(
+    dyna_hyp: DynaHyperParams,
+    env_creation_function: Callable[[], gymnax.environments.CartPole],
+    apply_fn: Callable[[Params, jt.Array], Tuple[Categorical, Obs]],
+    model_based: bool = False,
+) -> Callable[
+    [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
+]:
+    # Throught training constant functions.
+    env = env_creation_function()
+    _mini_batch_update_fn = make_ac_mini_batch_update_fn(apply_fn, dyna_hyp.ac_hyp)
+    _gae_fn = make_gae_fn(dyna_hyp)
+
+    def actor_critic_update(
+        runner_state: DynaRunnerState,
+        env_params: Union[gymnax.EnvParams, NNCartpoleParams],
+    ) -> Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]:
+        """Upates the train state of the actor critic model, on a given model.
+
+        Notes: Model Is frozen don't need to update.
+        Notes: Must Return trajectory.
+        """
+        # Changes depending on learned transition dynmaics.
+        _env_step_fn = make_env_step_fn(
+            dyna_hyp, env, env_params, model_based=model_based
+        )
+
+        def _model_free_update(runner_state: DynaRunnerState, _):
+            intermediate_runner_state, trajectories = jax.lax.scan(
+                _env_step_fn,
+                runner_state,  # type: ignore
+                None,
+                length=dyna_hyp.AC_NUM_TRANSITIONS,
+            )
+            (
+                model_params,
+                train_state,
+                final_env_state,
+                last_obs,
+                rng,
+            ) = intermediate_runner_state
+            _, last_val = train_state.apply_fn(train_state.params, last_obs)
+            advantages, targets = _gae_fn(trajectories, last_val)  # type: ignore
+
+            def _ac_epoch(train_state_rng: Tuple[TrainState, jt.PRNGKeyArray], _):
+                train_state, _rng = train_state_rng
+                _, _rng = jax.random.split(_rng)
+                batch_size = dyna_hyp.AC_BATCH_SIZE
+                permutation = jax.random.permutation(_rng, batch_size)
+                batch = (trajectories, advantages, targets)
+                batch = jax.tree_util.tree_map(
+                    lambda x: x.reshape((batch_size,) + x.shape[2:]), batch
+                )
+                shuffled_batch = jax.tree_util.tree_map(
+                    lambda x: jnp.take(x, permutation, axis=0), batch
+                )
+                mini_batches = jax.tree_util.tree_map(
+                    lambda x: jnp.reshape(
+                        x, [dyna_hyp.AC_NUM_MINIBATCHES, -1] + list(x.shape[1:])
+                    ),
+                    shuffled_batch,
+                )
+
+                train_state, losses = jax.lax.scan(
+                    _mini_batch_update_fn,
+                    train_state,
+                    mini_batches,
+                )
+
+                return (train_state, _rng), losses
+
+            final_train_state_rng, losses = jax.lax.scan(
+                _ac_epoch,
+                (train_state, rng),
+                None,
+                length=dyna_hyp.ac_hyp.NUM_EPOCHS,
+            )
+
+            final_train_state, rng = final_train_state_rng
+
+            final_runner_state = DynaRunnerState(
+                model_params,
+                final_train_state,
+                final_env_state,
+                last_obs,
+                rng,
+            )
+            return final_runner_state, (losses, trajectories)
+
+        final_runner_state, metrics = jax.lax.scan(
+            _model_free_update,
+            runner_state,
+            None,
+            length=dyna_hyp.ac_hyp.NUM_UPDATES,
+        )
+
+        return final_runner_state, metrics  # type: ignore
+
+    return actor_critic_update
 
 
 def make_gae_fn(
@@ -128,28 +222,12 @@ def make_env_step_fn(
     dyna_hyp: DynaHyperParams,
     env: gymnax.environments.CartPole,
     env_params,
-    env_model_params: Optional[Params] = None,
+    model_based: bool = False,
 ):
-    match env:
-        case gymnax.environments.CartPole():
-            env_step_fn = env.step
-        case NNCartpole():
-            assert (
-                env_model_params is not None
-            ), "Transition model params must be provided for NN Cartpole"
-
-            def env_step_fn(
-                rng, state, action, env_params
-            ) -> Callable[
-                [jt.PRNGKeyArray, Obs, Action, gymnax.EnvParams],
-                Tuple[Obs, gymnax.EnvState, PerTimestepScalar, PerTimestepScalar, Any],
-            ]:
-                return env.step(rng, state, action, env_params, env_model_params)
-
-    def _env_step(
-        runner_state: CartPoleRunnerState, _
-    ) -> Tuple[CartPoleRunnerState, Transition]:
-        train_state, env_state, last_obs, rng = runner_state
+    def _env_step_model(
+        runner_state: DynaRunnerState, _
+    ) -> Tuple[DynaRunnerState, Transition]:
+        model_params, train_state, env_state, last_obs, rng = runner_state
 
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
@@ -158,13 +236,71 @@ def make_env_step_fn(
 
         rng, _rng = jax.random.split(rng)
         rng_step = jax.random.split(_rng, dyna_hyp.NUM_ENVS)
-        obsv, env_state, reward, done, info = jax.vmap(  # type: ignore
-            env_step_fn, in_axes=(0, 0, 0, None)
-        )(rng_step, env_state, action, env_params)
-        transition = Transition(
-            done, action, value, reward, log_prob, last_obs, info  # type: ignore
+        obsv, env_state, reward, done, info = jax.vmap(
+            env.step, in_axes=(0, 0, 0, None, None)
+        )(
+            rng_step,
+            env_state,
+            action,
+            env_params,
+            model_params,
         )
-        runner_state = (train_state, env_state, obsv, rng)  # type: ignore
+        transition = Transition(
+            done,
+            action,
+            value,
+            reward,
+            log_prob,
+            last_obs,
+            info,
+        )
+        runner_state = DynaRunnerState(
+            model_params,
+            train_state,
+            env_state,
+            obsv,
+            rng,
+        )
         return runner_state, transition
 
-    return _env_step
+    def _env_step_(
+        runner_state: DynaRunnerState, _
+    ) -> Tuple[DynaRunnerState, Transition]:
+        model_params, train_state, env_state, last_obs, rng = runner_state
+
+        rng, _rng = jax.random.split(rng)
+        pi, value = train_state.apply_fn(train_state.params, last_obs)
+        action = pi.sample(seed=_rng)
+        log_prob = pi.log_prob(action)
+
+        rng, _rng = jax.random.split(rng)
+        rng_step = jax.random.split(_rng, dyna_hyp.NUM_ENVS)
+        obsv, env_state, reward, done, info = jax.vmap(
+            env.step, in_axes=(0, 0, 0, None)
+        )(
+            rng_step,
+            env_state,
+            action,
+            env_params,
+        )
+        transition = Transition(
+            done,
+            action,
+            value,
+            reward,
+            log_prob,
+            last_obs,
+            info,
+        )
+        runner_state = DynaRunnerState(
+            model_params,
+            train_state,
+            env_state,
+            obsv,
+            rng,
+        )
+        return runner_state, transition
+
+    if model_based:
+        return _env_step_model
+    return _env_step_
