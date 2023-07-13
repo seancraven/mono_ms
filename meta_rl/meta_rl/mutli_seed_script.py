@@ -32,18 +32,6 @@ WorldState = Tuple[TrainState, EnvState, Obs, jt.PRNGKeyArray]
 Params = jt.PyTree[jt.Float[jt.Array, "_"]]
 
 
-class Trajectory(NamedTuple):
-    """Set of Transistions, which can be batched."""
-
-    done: PerTimestepScalar
-    action: Actions
-    value: PerTimestepScalar
-    reward: PerTimestepScalar
-    log_prob: Actions
-    obs: Obs
-    info: Any
-
-
 class Transition(NamedTuple):
     """Single timestep of a trajectory."""
 
@@ -56,6 +44,7 @@ class Transition(NamedTuple):
     info: Any
 
 
+Trajectory = Transition
 CartPoleRunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
 UpdateState = Tuple[
     TrainState, Trajectory, PerTimestepScalar, PerTimestepScalar, jt.PRNGKeyArray
