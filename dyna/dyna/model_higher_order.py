@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, NamedTuple, Tuple
+from typing import Tuple
 
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
-from base_rl.higher_order import Actions, Obs, Trajectory
+from base_rl.higher_order import Trajectory
 from flax.training.train_state import TrainState
-from training import DynaHyperParams
 
-EnvModelLosses = Any
-
-
-class SASTuple(NamedTuple):
-    state: Obs
-    action: Actions
-    next_state: Obs
+from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
 
 
 def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
@@ -58,7 +51,8 @@ def make_mini_batch_fn(apply_fn):
     def _mini_batch_fn(train_state, data):
         grad_fn = jax.value_and_grad(loss_fn)
         loss, grads = grad_fn(train_state.params, data)
-        train_state = train_state.apply_gradients(grads)
+
+        train_state = train_state.apply_gradients(grads=grads)
         return train_state, loss
 
     return _mini_batch_fn
@@ -66,7 +60,7 @@ def make_mini_batch_fn(apply_fn):
 
 def trajectory_to_sas_tuple(trajectory: Trajectory) -> SASTuple:
     return SASTuple(
-        state=trajectory.obs[:-1].reshape(-1, trajectory.obs.shape[2:]),
-        action=trajectory.action.reshape(-1, trajectory.action.shape[2:]),
-        next_state=trajectory.obs[1:].reshape(-1, trajectory.obs.shape[2:]),
+        state=trajectory.obs[:-1].reshape(-1, *trajectory.obs.shape[2:]),
+        action=trajectory.action.reshape(-1, *trajectory.action.shape[2:]),
+        next_state=trajectory.obs[1:].reshape(-1, *trajectory.obs.shape[2:]),
     )

@@ -4,11 +4,11 @@ from typing import List, Optional, Protocol, Tuple
 
 import jax
 import jax.numpy as jnp
+from base_rl.models import ACSequential
 from distrax import Categorical
 from flax import linen as nn
 from flax.linen.initializers import lecun_normal, zeros_init
 from jaxtyping import Array, Float, PRNGKeyArray
-from meta_rl.models import ACSequential
 
 
 class Group(Protocol):

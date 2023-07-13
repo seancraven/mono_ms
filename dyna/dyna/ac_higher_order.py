@@ -15,9 +15,11 @@ from base_rl.higher_order import (
 )
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from model_based.nn_model import NNCartpoleParams
+from gymnax.environments.classic_control.cartpole import CartPole
+from model_based.nn_model import NNCartpole
+from typing_extensions import assert_type
 
-from dyna.training import ActorCriticHyperParams, DynaHyperParams, DynaRunnerState
+from dyna.types import ActorCriticHyperParams, DynaHyperParams, DynaRunnerState
 
 
 class PartialLosses(NamedTuple):
@@ -46,7 +48,7 @@ def make_actor_critic_update(
 
     def actor_critic_update(
         runner_state: DynaRunnerState,
-        env_params: Union[gymnax.EnvParams, NNCartpoleParams],
+        _,
     ) -> Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]:
         """Upates the train state of the actor critic model, on a given model.
 
@@ -55,13 +57,13 @@ def make_actor_critic_update(
         """
         # Changes depending on learned transition dynmaics.
         _env_step_fn = make_env_step_fn(
-            dyna_hyp, env, env_params, model_based=model_based
+            dyna_hyp, env, CartPole().default_params, model_based=model_based
         )
 
-        def _model_free_update(runner_state: DynaRunnerState, _):
+        def _agent_update(runner_state: DynaRunnerState, _):
             intermediate_runner_state, trajectories = jax.lax.scan(
                 _env_step_fn,
-                runner_state,  # type: ignore
+                runner_state,
                 None,
                 length=dyna_hyp.AC_NUM_TRANSITIONS,
             )
@@ -73,7 +75,7 @@ def make_actor_critic_update(
                 rng,
             ) = intermediate_runner_state
             _, last_val = train_state.apply_fn(train_state.params, last_obs)
-            advantages, targets = _gae_fn(trajectories, last_val)  # type: ignore
+            advantages, targets = _gae_fn(trajectories, last_val)
 
             def _ac_epoch(train_state_rng: Tuple[TrainState, jt.PRNGKeyArray], _):
                 train_state, _rng = train_state_rng
@@ -121,7 +123,7 @@ def make_actor_critic_update(
             return final_runner_state, (losses, trajectories)
 
         final_runner_state, metrics = jax.lax.scan(
-            _model_free_update,
+            _agent_update,
             runner_state,
             None,
             length=dyna_hyp.ac_hyp.NUM_UPDATES,
@@ -225,7 +227,7 @@ def make_ac_mini_batch_update_fn(
 
 def make_env_step_fn(
     dyna_hyp: DynaHyperParams,
-    env: gymnax.environments.CartPole,
+    env: Union[gymnax.environments.CartPole, NNCartpole],
     env_params,
     model_based: bool = False,
 ):
@@ -233,7 +235,7 @@ def make_env_step_fn(
         runner_state: DynaRunnerState, _
     ) -> Tuple[DynaRunnerState, Transition]:
         model_params, train_state, env_state, last_obs, rng = runner_state
-
+        assert_type(env, NNCartpole)
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
         action = pi.sample(seed=_rng)
@@ -272,11 +274,13 @@ def make_env_step_fn(
         runner_state: DynaRunnerState, _
     ) -> Tuple[DynaRunnerState, Transition]:
         model_params, train_state, env_state, last_obs, rng = runner_state
+        assert last_obs.shape[0] == dyna_hyp.NUM_ENVS, print(last_obs.shape)
 
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
         action = pi.sample(seed=_rng)
         log_prob = pi.log_prob(action)
+        assert action.shape[0] == dyna_hyp.NUM_ENVS, print(action.shape)
 
         rng, _rng = jax.random.split(rng)
         rng_step = jax.random.split(_rng, dyna_hyp.NUM_ENVS)

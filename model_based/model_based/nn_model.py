@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import NamedTuple
+from functools import partial
+from typing import NamedTuple, Optional, Tuple, Union
 
+import jax
 import jaxtyping as jt
 from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
@@ -25,6 +27,31 @@ class NNCartpole(cartpole.CartPole):
     def default_params(self) -> EnvParams:
         return cartpole.EnvParams()  # type: ignore
 
+    @partial(jax.jit, static_argnums=(0,))
+    def step(
+        self,
+        key: jt.PRNGKeyArray,
+        state: EnvState,
+        action: Union[int, float],
+        params: Optional[EnvParams] = None,
+        model_params: Optional[jt.PyTree] = None,
+    ) -> Tuple[jt.Array, EnvState, float, bool, dict]:
+        """Performs step transitions in the environment."""
+        # Use default env parameters if no others specified
+        if params is None:
+            params = self.default_params
+        key, key_reset = jax.random.split(key)
+        obs_st, state_st, reward, done, info = self.step_env(
+            key, state, action, params, model_params
+        )
+        obs_re, state_re = self.reset_env(key_reset, params)
+        # Auto-reset environment based on termination
+        state = jax.tree_map(
+            lambda x, y: jax.lax.select(done, x, y), state_re, state_st
+        )
+        obs = jax.lax.select(done, obs_re, obs_st)
+        return obs, state, reward, done, info
+
     def step_env(
         self,
         _: jt.PRNGKeyArray,
@@ -33,6 +60,7 @@ class NNCartpole(cartpole.CartPole):
         params: cartpole.EnvParams,
         model_params: jt.PyTree,
     ):
+        assert model_params is not None, "Model params must be provided"
         prev_terminal = self.is_terminal(env_state, params)
         reward = 1 - prev_terminal
         obs_ = self.get_obs(env_state)  # type: ignore
