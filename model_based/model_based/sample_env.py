@@ -9,9 +9,8 @@ import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+from base_rl.models import ConvActorCritic
 from gymnax import EnvState
-from meta_rl.models import ConvActorCritic
-from meta_rl.mutli_seed_script import make_train
 from orbax import checkpoint
 
 

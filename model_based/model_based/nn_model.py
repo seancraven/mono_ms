@@ -7,7 +7,7 @@ from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
 from optax._src.linear_algebra import lax
 
-from model_based.learn_trainsition_dynamics import Model
+from model_based.train import Model
 
 
 class NNCartpole(cartpole.CartPole):

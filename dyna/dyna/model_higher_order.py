@@ -5,8 +5,8 @@ from typing import Any, NamedTuple, Tuple
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+from base_rl.higher_order import Actions, Obs, Trajectory
 from flax.training.train_state import TrainState
-from meta_rl.mutli_seed_script import Actions, Obs, Trajectory
 from training import DynaHyperParams
 
 EnvModelLosses = Any

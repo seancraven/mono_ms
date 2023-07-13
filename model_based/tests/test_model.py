@@ -7,7 +7,7 @@ from model_based.nn_model import NNCartpole
 def test_nn_model():
     key = jax.random.PRNGKey(0)
     env = NNCartpole()
-    env_params = env.default_params()
+    env_params = env.default_params
     obs, env_state = env.reset(key, env_params)
     assert obs.shape == (4,)
     _, key = jax.random.split(key)

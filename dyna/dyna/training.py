@@ -7,10 +7,10 @@ import jax
 import jax.numpy as jnp
 import jaxtyping as jt
 import optax
+from base_rl.higher_order import Obs, Params
+from base_rl.models import ActorCritic
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
-from meta_rl.models import ActorCritic
-from meta_rl.mutli_seed_script import Obs, Params
 from model_based.nn_model import NNCartpole
 
 from dyna.ac_higher_order import make_actor_critic_update

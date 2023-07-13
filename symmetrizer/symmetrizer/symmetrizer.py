@@ -11,6 +11,38 @@ from jaxtyping import Array, Float, PRNGKeyArray
 from meta_rl.models import ACSequential
 
 
+class Group(Protocol):
+    """A fininte group that has a representation in a given dimension"""
+
+    size: int
+
+    def get_representation(self, dim: int) -> Tuple[Array, Array]:
+        "Returns an interable of the representation in the given dimension"
+        ...
+
+
+class C2Group(Group):
+    """Reflection group sets x = -x for the reflection operation"""
+
+    size = 2
+
+    def get_representation(self, dim: int) -> Tuple[Array, Array]:
+        return (jnp.eye(dim), -jnp.eye(dim))
+
+
+class C2PermGroup(Group):
+    """Reflection group that sets x = -x for the reflection operation
+    for all dimentions but 2. Where it permutes the elements"""
+
+    size = 2
+
+    def get_representation(self, dim: int) -> Tuple[Array, Array]:
+        if dim == 2:
+            return (jnp.eye(2), jnp.array([[0, 1], [1, 0]]))
+        else:
+            return (jnp.eye(dim), -jnp.eye(dim))
+
+
 class SymmetrizerDense(nn.Module):
     """A Jitable symmetrizer Layer to be called from inside a factory
 
@@ -186,35 +218,3 @@ def _sym(in_: Array, out: Array, mat: Array) -> Array:
 
     out_inv = jnp.linalg.inv(out)
     return jnp.einsum("ij,jk,kl->il", out_inv, mat, in_)
-
-
-class Group(Protocol):
-    """A fininte group that has a representation in a given dimension"""
-
-    size: int
-
-    def get_representation(self, dim: int) -> Tuple[Array, Array]:
-        "Returns an interable of the representation in the given dimension"
-        ...
-
-
-class C2Group(Group):
-    """Reflection group sets x = -x for the reflection operation"""
-
-    size = 2
-
-    def get_representation(self, dim: int) -> Tuple[Array, Array]:
-        return (jnp.eye(dim), -jnp.eye(dim))
-
-
-class C2PermGroup(Group):
-    """Reflection group that sets x = -x for the reflection operation
-    for all dimentions but 2. Where it permutes the elements"""
-
-    size = 2
-
-    def get_representation(self, dim: int) -> Tuple[Array, Array]:
-        if dim == 2:
-            return (jnp.eye(2), jnp.array([[0, 1], [1, 0]]))
-        else:
-            return (jnp.eye(dim), -jnp.eye(dim))

@@ -13,9 +13,9 @@ from gymnax.environments.classic_control import CartPole
 from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from meta_rl.models import (ACSequential, ConvActorCritic,
+from base_rl.models import (ACSequential, ConvActorCritic,
                             EquivariantActorCritic)
-from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
+from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
 Scalar = jt.Num[jt.Array, "*num_envs"]

@@ -1,60 +1,25 @@
-from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 import flax.linen as nn
-import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
-import matplotlib.pyplot as plt
 import optax
+from base_rl.higher_order import (
+    BatchData,
+    CartPoleRunnerState,
+    Params,
+    PerTimestepScalar,
+    Trajectory,
+    Transition,
+)
+from base_rl.models import ConvActorCritic
+from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 from flax.training.train_state import TrainState
-from gymnax import EnvState
 from gymnax.environments.classic_control import CartPole
-from meta_rl.models import ConvActorCritic
-from meta_rl.pure_jax_wrap import FlattenObservationWrapper, LogWrapper
 
 from model_based.nn_model import NNCartpole
 
-# Single timestep
-Scalar = jt.Num[jt.Array, "*num_envs"]
-Action = jt.Num[jt.Array, "*num_envs action_shape"]
-Observation = jt.Float[jt.Array, "*num_envs state_shape"]
-
-# Trajectory of timesteps
-Obs = jt.Float[jt.Array, "*num_envs num_timesteps state_shape"]
-Actions = jt.Num[jt.Array, "*num_envs num_timesteps action_shape"]
-PerTimestepScalar = jt.Num[jt.Array, "*num_envs num_timesteps"]
-
-
-WorldState = Tuple[TrainState, EnvState, Obs, jt.PRNGKeyArray]
-Params = jt.PyTree[jt.Float[jt.Array, "_"]]
-
-
-class Trajectory(NamedTuple):
-    """Set of Transistions, which can be batched."""
-
-    done: PerTimestepScalar
-    action: Actions
-    value: PerTimestepScalar
-    reward: PerTimestepScalar
-    log_prob: Actions
-    obs: Obs
-    info: Any
-
-
-class Transition(NamedTuple):
-    """Single timestep of a trajectory."""
-
-    done: Scalar
-    action: Action
-    value: Scalar
-    reward: Scalar
-    log_prob: Action
-    obs: Observation
-    info: Any
-
-
-RunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
 UpdateState = Tuple[
     TrainState,
     Tuple[Transition, Transition],
@@ -62,7 +27,6 @@ UpdateState = Tuple[
     PerTimestepScalar,
     jt.PRNGKeyArray,
 ]
-BatchData = Tuple[Trajectory, PerTimestepScalar, PerTimestepScalar]
 
 
 def make_train(
@@ -125,12 +89,12 @@ def make_train(
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset, in_axes=(0, None))(reset_rng, env_params)
 
-        def _update_step(runner_state: RunnerState, _):
+        def _update_step(runner_state: CartPoleRunnerState, _):
             """Trajectories are evaluated and performs Adam on batched trajectories."""
 
             def _val_env_step(
-                val_runner_state: RunnerState, _
-            ) -> Tuple[RunnerState, Transition]:
+                val_runner_state: CartPoleRunnerState, _
+            ) -> Tuple[CartPoleRunnerState, Transition]:
                 train_state, val_env_state, last_obs, rng = val_runner_state
 
                 rng, _rng = jax.random.split(rng)
@@ -150,8 +114,8 @@ def make_train(
                 return runner_state, transition
 
             def _env_step(
-                runner_state: RunnerState, _
-            ) -> Tuple[RunnerState, Transition]:
+                runner_state: CartPoleRunnerState, _
+            ) -> Tuple[CartPoleRunnerState, Transition]:
                 train_state, env_state, last_obs, rng = runner_state
 
                 rng, _rng = jax.random.split(rng)

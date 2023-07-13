@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "meta-rl"
+name = "base-rl"
 version = "0.1.0"
 description = ""
 authors = ["seancraven <seanpietercraven@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "meta_rl" }]
+packages = [{ include = "base_rl" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"

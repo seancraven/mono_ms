@@ -4,15 +4,20 @@ import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+from base_rl.higher_order import (
+    BatchData,
+    Obs,
+    Params,
+    PerTimestepScalar,
+    Scalar,
+    Trajectory,
+    Transition,
+)
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from meta_rl.mutli_seed_script import (BatchData, Obs, Params,
-                                       PerTimestepScalar, Scalar, Trajectory,
-                                       Transition)
 from model_based.nn_model import NNCartpoleParams
 
-from dyna.training import (ActorCriticHyperParams, DynaHyperParams,
-                           DynaRunnerState)
+from dyna.training import ActorCriticHyperParams, DynaHyperParams, DynaRunnerState
 
 
 class PartialLosses(NamedTuple):
