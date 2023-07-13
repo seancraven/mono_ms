@@ -22,6 +22,9 @@ def lower_order_fn(config):
 ```
 
 ## Jax Style: 
-use `jax.lax.scan` as much as possible. Makes expression of statefull iteration fast, as long as state is managed with tuples.
-only use one dept of scan per function. To make debugging easier.
+ - use `jax.lax.scan` as much as possible: 
+ Makes expression of statefull iteration fast, as long as state is managed with tuples. 
+ - Only use one depth of scan per function:
+ To make debugging easier, and to stop functions becoming 400+ lines.
+
 
