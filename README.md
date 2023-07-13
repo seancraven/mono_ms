@@ -9,11 +9,15 @@ All Files follow the structure of
 import 
 
 
-class Types
+class Types:
+    often_named_tuple
+    to_pass_state
 
-def highest_order_fn
+def highest_order_fn(config):
+    return fn
 
-def lower_order_fn
+def lower_order_fn(config):
+    return fn
 
 ```
 
