@@ -78,7 +78,7 @@ class LogWrapper(GymnaxWrapper):
     @partial(jax.jit, static_argnums=(0,))
     def reset(
         self, key: chex.PRNGKey, params: Optional[environment.EnvParams] = None
-    ) -> Tuple[chex.Array, environment.EnvState]:
+    ) -> Tuple[chex.Array, LogEnvState]:
         obs, env_state = self._env.reset(key, params)
         state = LogEnvState(env_state, 0, 0, 0, 0, 0)
         return obs, state
@@ -87,7 +87,7 @@ class LogWrapper(GymnaxWrapper):
     def step(
         self,
         key: chex.PRNGKey,
-        state: environment.EnvState,
+        state: LogEnvState,
         action: Union[int, float],
         params: Optional[environment.EnvParams] = None,
         model_params: Optional[environment.EnvParams] = None,

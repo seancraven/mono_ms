@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from typing import Any, NamedTuple, Optional
 
 import gymnax
+import jax.numpy as jnp
 import jaxtyping as jt
 from base_rl.higher_order import Actions, Obs, Params
 from flax.training.train_state import TrainState
@@ -13,12 +16,19 @@ class SASTuple(NamedTuple):
     action: Actions
     next_state: Obs
 
+    def join(self, other: SASTuple) -> SASTuple:
+        return SASTuple(
+            state=jnp.concatenate([self.state, other.state], axis=0),
+            action=jnp.concatenate([self.action, other.action], axis=0),
+            next_state=jnp.concatenate([self.next_state, other.next_state], axis=0),
+        )
+
 
 class ActorCriticHyperParams(NamedTuple):
     """Hyper parameters for the actor critic model."""
 
-    NUM_UPDATES: int = 10
-    NUM_EPOCHS: int = 10
+    NUM_UPDATES: int = 5
+    NUM_EPOCHS: int = 6
     MINIBATCH_SIZE: int = 64
     PRIV_NUM_TIMESTEPS: int = 128
 
@@ -42,6 +52,7 @@ class DynaHyperParams(NamedTuple):
     GAMMA: float = 0.99
     GAE_LAMBDA: float = 0.95
 
+    USE_MODEL: bool = True
     MAX_GRAD_NORM: float = 0.5
 
     @property
@@ -53,7 +64,7 @@ class DynaHyperParams(NamedTuple):
 
     @property
     def AC_BATCH_SIZE(self) -> int:
-        return self.NUM_ENVS * self.AC_NUM_TRANSITIONS
+        return self.AC_NUM_TRANSITIONS
 
     @property
     def AC_NUM_TIMESTEPS(self) -> int:
@@ -75,7 +86,14 @@ class DynaRunnerState(NamedTuple):
     last_obs: Obs
     rng: jt.PRNGKeyArray
 
+    def get_train_state(self) -> TrainState:
+        return self.train_state
+
+    def get_env_state(self) -> gymnax.EnvState:
+        return self.cartpole_env_state
+
 
 class DynaState(NamedTuple):
     dyna_runner_state: DynaRunnerState
     model_train_state: TrainState
+    model_env_state: gymnax.EnvState

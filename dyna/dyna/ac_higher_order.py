@@ -4,20 +4,11 @@ import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
-from base_rl.higher_order import (
-    BatchData,
-    Obs,
-    Params,
-    PerTimestepScalar,
-    Scalar,
-    Trajectory,
-    Transition,
-)
+from base_rl.higher_order import (BatchData, Obs, Params, PerTimestepScalar,
+                                  Scalar, Trajectory, Transition)
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from gymnax.environments.classic_control.cartpole import CartPole
 from model_based.nn_model import NNCartpole
-from typing_extensions import assert_type
 
 from dyna.types import ActorCriticHyperParams, DynaHyperParams, DynaRunnerState
 
@@ -56,7 +47,7 @@ def make_actor_critic_update(
         """
         # Changes depending on learned transition dynmaics.
         _env_step_fn = make_env_step_fn(
-            dyna_hyp, env, CartPole().default_params, model_based=model_based
+            dyna_hyp, env, env.default_params, model_based=model_based
         )
 
         def _agent_update(runner_state: DynaRunnerState, _):
@@ -64,7 +55,7 @@ def make_actor_critic_update(
                 _env_step_fn,
                 runner_state,
                 None,
-                length=dyna_hyp.AC_NUM_TRANSITIONS,
+                length=dyna_hyp.AC_NUM_TIMESTEPS,
             )
             (
                 model_params,
@@ -78,10 +69,13 @@ def make_actor_critic_update(
 
             def _ac_epoch(train_state_rng: Tuple[TrainState, jt.PRNGKeyArray], _):
                 train_state, _rng = train_state_rng
+
                 _, _rng = jax.random.split(_rng)
                 batch_size = dyna_hyp.AC_BATCH_SIZE
+
                 permutation = jax.random.permutation(_rng, batch_size)
                 batch = (trajectories, advantages, targets)
+
                 batch = jax.tree_util.tree_map(
                     lambda x: x.reshape((batch_size,) + x.shape[2:]), batch
                 )
@@ -272,13 +266,12 @@ def make_env_step_fn(
         runner_state: DynaRunnerState, _
     ) -> Tuple[DynaRunnerState, Transition]:
         model_params, train_state, env_state, last_obs, rng = runner_state
-        assert last_obs.shape[0] == dyna_hyp.NUM_ENVS, print(last_obs.shape)
 
+        assert isinstance(env._env, gymnax.environments.CartPole), type(env._env)
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
         action = pi.sample(seed=_rng)
         log_prob = pi.log_prob(action)
-        assert action.shape[0] == dyna_hyp.NUM_ENVS, print(action.shape)
 
         rng, _rng = jax.random.split(rng)
         rng_step = jax.random.split(_rng, dyna_hyp.NUM_ENVS)

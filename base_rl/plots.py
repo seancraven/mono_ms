@@ -1,12 +1,10 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import jax
 import jax.numpy as jnp
-from meta_rl.mutli_seed_script import (
-    EquivariantActorCritic,
-    ConvActorCritic,
-    SymmetrizerNet,
-)
+import matplotlib.pyplot as plt
+import numpy as np
+
+from base_rl.higher_order import (ConvActorCritic, EquivariantActorCritic,
+                                  SymmetrizerNet)
 
 
 def moving_average(x, w=10000):
