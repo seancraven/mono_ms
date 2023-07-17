@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional
 
 import gymnax
 import jax.numpy as jnp
 import jaxtyping as jt
 from base_rl.higher_order import Actions, Obs, Params
 from flax.training.train_state import TrainState
+from model_based.train import EquiModel, Model
 
 EnvModelLosses = Any
 
@@ -39,6 +40,8 @@ class ActorCriticHyperParams(NamedTuple):
 
 
 class TransitionModelHyperParams(NamedTuple):
+    USE_MODEL: bool = True
+    MODEL_FN: Callable = Model
     MINIBATCH_SIZE: int = 64
     NUM_EPOCHS: int = 10
     LR: float = 1e-3
@@ -51,9 +54,8 @@ class DynaHyperParams(NamedTuple):
     NUM_ENVS: int = 4
     GAMMA: float = 0.99
     GAE_LAMBDA: float = 0.95
-
-    USE_MODEL: bool = True
     MAX_GRAD_NORM: float = 0.5
+    PLANNING_RATIO: float = 1.0
 
     @property
     def AC_NUM_TRANSITIONS(self) -> int:
@@ -77,6 +79,28 @@ class DynaHyperParams(NamedTuple):
     @property
     def AC_NUM_MINIBATCHES(self) -> int:
         return (self.NUM_ENVS * self.AC_NUM_TIMESTEPS) // self.ac_hyp.MINIBATCH_SIZE
+
+    @property
+    def MODEL_HYP(self) -> DynaHyperParams:
+        ac_hyp = ActorCriticHyperParams(
+            NUM_UPDATES=int(self.ac_hyp.NUM_UPDATES * self.PLANNING_RATIO),
+            NUM_EPOCHS=self.ac_hyp.NUM_EPOCHS,
+            MINIBATCH_SIZE=self.ac_hyp.MINIBATCH_SIZE,
+            PRIV_NUM_TIMESTEPS=self.ac_hyp.PRIV_NUM_TIMESTEPS,
+            CLIP_EPS=self.ac_hyp.CLIP_EPS,
+            VF_COEF=self.ac_hyp.VF_COEF,
+            ENT_COEF=self.ac_hyp.ENT_COEF,
+            LR=self.ac_hyp.LR,
+        )
+        return DynaHyperParams(
+            ac_hyp=ac_hyp,
+            model_hyp=self.model_hyp,
+            NUM_UPDATES=self.NUM_UPDATES,
+            NUM_ENVS=self.NUM_ENVS,
+            GAMMA=self.GAMMA,
+            GAE_LAMBDA=self.GAE_LAMBDA,
+            MAX_GRAD_NORM=self.MAX_GRAD_NORM,
+        )
 
 
 class DynaRunnerState(NamedTuple):

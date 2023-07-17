@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from functools import partial
+from functools import partial, wraps
 from typing import NamedTuple, Optional, Tuple, Union
 
 import jax
@@ -9,7 +9,7 @@ from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
 from optax._src.linear_algebra import lax
 
-from model_based.train import Model
+from model_based.train import TransitionModel
 
 
 class NNCartpole(cartpole.CartPole):
@@ -19,14 +19,15 @@ class NNCartpole(cartpole.CartPole):
     The model default params returns the default params of the cartpole environment.
     """
 
-    def __init__(self):
+    def __init__(self, model=TransitionModel):
         super().__init__()
-        self.transition_model = Model(*self.obs_shape, 1, 64)
+        self.transition_model = model(*self.obs_shape, 1, 64)
 
     @property
     def default_params(self) -> EnvParams:
         return cartpole.EnvParams()  # type: ignore
 
+    @wraps
     @partial(jax.jit, static_argnums=(0,))
     def step(
         self,

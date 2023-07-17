@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
 
 import flax.linen as nn
@@ -42,6 +44,19 @@ class Transition(NamedTuple):
     log_prob: Action
     obs: Observation
     info: Any
+
+    def join(self, other) -> Transition:
+        return Transition(
+            done=jnp.concatenate([self.done, other.done]),
+            action=jnp.concatenate([self.action, other.action]),
+            value=jnp.concatenate([self.value, other.value]),
+            reward=jnp.concatenate([self.reward, other.reward]),
+            log_prob=jnp.concatenate([self.log_prob, other.log_prob]),
+            obs=jnp.concatenate([self.obs, other.obs]),
+            info=jax.tree_map(
+                lambda x, y: jnp.concatenate([x, y]), self.info, other.info
+            ),
+        )
 
 
 Trajectory = Transition

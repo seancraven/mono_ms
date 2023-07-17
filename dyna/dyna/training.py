@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, List, Tuple
 
 import jax
 import jax.numpy as jnp
 import optax
+from base_rl.higher_order import Transition
 from base_rl.models import ActorCritic
 from base_rl.wrappers import LogWrapper
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
+from jaxtyping import PRNGKeyArray
 from model_based.nn_model import NNCartpole
 
 from dyna.ac_higher_order import make_actor_critic_update
@@ -29,7 +31,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
     )
 
     def train(rng):
-        env_model = LogWrapper(NNCartpole())
+        env_model = LogWrapper(NNCartpole(model=dyna_hyp.model_hyp.MODEL_FN))
         env = LogWrapper(CartPole())
 
         assert env.action_space().n == env_model.action_space().n
@@ -46,12 +48,17 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             params=actor_critic.init(rng_ac, jnp.ones(state_shape)),
             tx=tx_ac,
         )
+
         model_train_state = TrainState.create(
             apply_fn=jax.vmap(env_model.transition_model.apply, in_axes=(None, 0, 0)),
             params=env_model.transition_model.init(
                 rng_model, jnp.ones(state_shape), jnp.ones(action_shape)
             ),
             tx=tx_model,
+        )
+        print(
+            "Model Params:",
+            sum(x.size for x in jax.tree_util.tree_leaves(model_train_state.params)),
         )
 
         model_free_update_fn = make_actor_critic_update(
@@ -61,7 +68,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             False,
         )
         model_based_update_fn = make_actor_critic_update(
-            dyna_hyp,
+            dyna_hyp.MODEL_HYP,
             env_model,
             ac_train_state.apply_fn,
             True,
@@ -71,12 +78,24 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             dyna_hyp,
             model_train_state.apply_fn,
         )
-        experience_step = make_experience_step(
-            dyna_hyp.USE_MODEL,
+        ex_step = make_experience_step(
+            dyna_hyp.model_hyp.USE_MODEL,
             model_free_update_fn,
             model_based_update_fn,
             env_model_update_fn,
         )
+        # gain_ex_fun = make_gain_exp(
+        #     dyna_hyp,
+        #     model_free_update_fn,
+        #     model_based_update_fn,
+        #     env_model_update_fn,
+        # )
+        # mf_ex_step = make_experience_step(
+        #     False,
+        #     model_free_update_fn,
+        #     model_based_update_fn,
+        #     env_model_update_fn,
+        # )
 
         rng_reset = jax.random.split(rng_reset, dyna_hyp.NUM_ENVS)
         first_obs, env_state = jax.vmap(env.reset, in_axes=(0, None))(
@@ -92,10 +111,24 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             last_obs=first_obs,
             rng=rng_state,
         )
+        dyna_state = DynaState(
+            dyna_runner_state,
+            model_train_state,
+            model_env_state,
+        )
+        # dyna_state, infos = mf_ex_step(
+        #     dyna_state,
+        #     None,
+        # )
+        # dyna_state, infos = gain_ex_fun(
+        #     dyna_state,
+        #     infos[1],
+        # )
+        # return dyna_state, infos
 
         final_dyna_runner, infos = jax.lax.scan(
-            experience_step,
-            DynaState(dyna_runner_state, model_train_state, model_env_state),
+            ex_step,
+            dyna_state,
             None,
             length=dyna_hyp.NUM_UPDATES,
         )
@@ -105,7 +138,16 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
 
 
 def make_experience_step(
-    use_model: bool, model_free_update_fn, model_based_update_fn, env_model_update_fn
+    use_model: bool,
+    model_free_update_fn: Callable[
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+    ],
+    model_based_update_fn: Callable[
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+    ],
+    env_model_update_fn: Callable[
+        [PRNGKeyArray, TrainState, Transition], Tuple[TrainState, Tuple]
+    ],
 ) -> Callable[[DynaState, Any], Tuple[DynaState, Tuple]]:
     def _model_free_step(dyna_state: DynaState, _) -> Tuple[DynaState, Tuple]:
         dyna_runner_state, model_train_state, model_env_state = dyna_state
@@ -186,3 +228,97 @@ def make_experience_step(
         return _experience_step
     else:
         return _model_free_step
+
+
+def make_gain_exp(
+    dyna_hyp: DynaHyperParams,
+    model_free_update_fn: Callable[
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+    ],
+    model_based_update_fn: Callable[
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+    ],
+    env_model_update_fn: Callable[
+        [PRNGKeyArray, TrainState, Transition], Tuple[TrainState, Tuple]
+    ],
+) -> Callable[[DynaState, Any], Tuple[DynaState, Tuple]]:
+    def exp_step(
+        dyna_state: DynaState, prev_traj: Transition
+    ) -> Tuple[DynaState, Tuple]:
+        dyna_runner_state, model_train_state, model_env_state = dyna_state
+
+        rng = dyna_runner_state.rng
+        rng, rng_model, rng_next = jax.random.split(rng, 3)
+        #######
+        dyna_runner_state, (losses, trajectories) = model_free_update_fn(
+            dyna_runner_state,
+            None,
+        )
+        trajectories = prev_traj.join(trajectories)
+
+        ######
+        model_train_state, model_losses = env_model_update_fn(
+            rng_model, model_train_state, trajectories
+        )
+        #######
+        dyna_runner_state = DynaRunnerState(
+            model_params=model_train_state.params,
+            train_state=dyna_runner_state.get_train_state(),
+            cartpole_env_state=model_env_state,
+            last_obs=dyna_runner_state.last_obs,
+            rng=rng_next,
+        )
+
+        #######
+        dyna_runner_state, (p_loss, p_trajectories) = model_based_update_fn(
+            dyna_runner_state,
+            None,
+        )
+        final_runner_state = DynaRunnerState(
+            model_params=model_train_state.params,
+            train_state=dyna_runner_state.train_state,
+            cartpole_env_state=dyna_runner_state.cartpole_env_state,
+            last_obs=dyna_runner_state.last_obs,
+            rng=rng_next,
+        )
+
+        final_dyna_state = DynaState(
+            final_runner_state,
+            model_train_state,
+            dyna_runner_state.get_env_state(),
+        )
+        infos = (
+            losses,
+            trajectories,
+            p_loss,
+            p_trajectories,
+            model_losses,
+        )
+        return final_dyna_state, infos
+
+    @jax.jit
+    def gain_exp(
+        dyna_state: DynaState, prev_traj: Transition
+    ) -> Tuple[DynaState, Tuple]:
+        info = None
+        for _ in range(dyna_hyp.NUM_UPDATES):
+            dyna_state, new_info = exp_step(dyna_state, prev_traj)
+            prev_traj = new_info[1]
+            if info:
+                info = jax.tree_map(
+                    lambda x, y: jnp.concatenate([x, y]), info, new_info
+                )
+            else:
+                info = new_info
+
+        return (dyna_state, info)  # type: ignore
+
+    return gain_exp
+
+
+def stack_tuple_list(tup_list):
+    items = [[] for _ in tup_list[0]]
+    for tup in tup_list:
+        for i, item in enumerate(tup):
+            items[i].append(item)
+    return tuple([jnp.stack(item) for item in items])

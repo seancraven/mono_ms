@@ -4,14 +4,18 @@ import logging
 import os
 import pickle
 import shutil
+from abc import ABC
+from functools import wraps
 from math import prod
 from typing import Any, NamedTuple, Tuple
 
 import flax.linen as nn
 import jax
 import jaxtyping as jt
+from base_rl.higher_order import Action, Observation
 from flax.linen.initializers import he_normal
 from flax.training.train_state import TrainState
+from g_conv.c2 import C2Dense, C2DenseLift, C2DenseLiftDiscrete
 from jax import numpy as jnp
 from optax import adam
 from orbax import checkpoint
@@ -57,13 +61,20 @@ class DebugData(NamedTuple):
         )
 
 
-class Model(nn.Module):
+class TransitionModel(nn.Module, ABC):
     state_dim: int
     action_dim: int
     hidden_dim: int
 
+    @wraps
     @nn.compact
-    def __call__(self, state, action):
+    def __call__(self, state: Observation, action: Action) -> Observation:
+        ...
+
+
+class Model(TransitionModel):
+    @nn.compact
+    def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
         state_embedding = nn.relu(
             nn.Dense(self.hidden_dim, kernel_init=he_normal())(state)
@@ -77,9 +88,32 @@ class Model(nn.Module):
         hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(concat))
         hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(hidden))
         next_state = nn.Dense(self.state_dim, kernel_init=he_normal())(hidden)
-        # reward_logit = nn.Dense(1, kernel_init=he_normal())(hidden)
-        # done_logit = nn.Dense(1, kernel_init=he_normal())(hidden)
 
+        return next_state
+
+
+class EquiModel(TransitionModel):
+    @nn.compact
+    def __call__(self, state: Observation, action: Observation) -> Observation:
+        action = jnp.array((action,))
+        state_embedding = nn.relu(C2DenseLift(self.hidden_dim)(state))
+        action_embedding = nn.relu(C2DenseLiftDiscrete(self.hidden_dim)(action))
+        assert (
+            state_embedding.shape == action_embedding.shape
+        ), f"{state_embedding.shape} != {action_embedding.shape}"
+        concat = jnp.concatenate(
+            [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
+        )
+        hidden = nn.relu(C2Dense(self.hidden_dim)(concat))
+        hidden = nn.relu(C2Dense(self.hidden_dim)(hidden))
+        hidden = C2Dense(
+            self.state_dim,
+        )(hidden)
+        next_state = jax.lax.cond(
+            (hidden.at[:, 0].get() > 0.0).all(),
+            hidden.at[:, 0].get,
+            hidden.at[:, 1].get,
+        )
         return next_state
 
 
