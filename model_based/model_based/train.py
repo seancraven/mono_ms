@@ -66,7 +66,6 @@ class TransitionModel(nn.Module, ABC):
     action_dim: int
     hidden_dim: int
 
-    @wraps
     @nn.compact
     def __call__(self, state: Observation, action: Action) -> Observation:
         ...

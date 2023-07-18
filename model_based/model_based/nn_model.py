@@ -27,7 +27,6 @@ class NNCartpole(cartpole.CartPole):
     def default_params(self) -> EnvParams:
         return cartpole.EnvParams()  # type: ignore
 
-    @wraps
     @partial(jax.jit, static_argnums=(0,))
     def step(
         self,
