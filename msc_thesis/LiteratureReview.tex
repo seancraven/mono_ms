@@ -45,7 +45,67 @@ In their first experiments of Drawer-Opening, Block Pulling, and Object Picking,
 
 Further they perform tests on more difficult robotic control tasks where demonstrations are provided, this enables the the agents to tackle more complex tasks such as block stacking and house building, in which they again are the only agents that are able to solve the tasks.
 
+\subsection{Continuous MDP Homomorphisms and Homomorphic Policy Gradient}
+blah blah blah....
+
 \section{Learning Models}
+In the context of exploiting symmetries in RL, there is also the opportunity, to build world models which are learned from experience. Two possible approaches are, learning a world model using an network that is equivariant to the group actions, in this case, the world model has the same state action space as the origional MDP, however, the equivariance inductive bias may improve the sample efficiency of learning the world model, and introduces better generalisation, for the agent. In some ways this is the model based extension of the equivariant model free methods discussed above.
+
+An alternative approach is to learn a world model that is invariant to the group actions, in this case, the MDP homomorphism is used to transform the state action pairs in the same orbit to a single state action pair. This produces a world model that is "simpler" than the origional MDP\ref{fig:invariant_world_model}. From the policy learned in the world model, the policy can be lifted back to the origional MDP. An example of a similar strategy is that of Approximate MDP Homomorphisms.
+\begin{figure}[h]
+	\centering
+	\begin{tikzpicture}
+		\filldraw[black, rounded corners] (-5, 0) rectangle (-3.5, 0.4);
+		\draw[black, thick] (-5 + 0.75, 0.2) -- (-3, 1.5);
+		\draw[<-, red, ultra thick] (-5.5 , 0.2) -- ( -5 + 0.75, 0.2);
+		%%%
+		\filldraw[black, rounded corners] (5, 0) rectangle (5 - 1.5, 0.4);
+		\draw[black, thick] (5 - 0.75, 0.2) -- (5 - 2, 1.5);
+		\draw[<-, red, ultra thick] (5.5 , 0.2) -- ( 5 - 0.75, 0.2);
+		%%%
+		\draw[->, ultra thick] (-3, -.5) -- (-1.5, -1.5) node [sloped, midway, above] {$f_{model}$};
+		\draw[->, ultra thick] (3, -.5) -- (1.5, -1.5) node [sloped, midway, above] {$f_{model}$};
+		%%%
+		\draw[->, ultra thick] (-1, 0.5) -- (1, 0.5) node [midway, above] {$\ell_g$};
+		%%%
+		\filldraw[black, rounded corners] (-.75, -2.4) rectangle (.75, -2);
+		\draw[->, red, ultra thick] (-0 , -2.2) -- ( -1.25, -2.2);
+		\draw[black, thick] (0, -2.2) -- (1.25,  -.9);
+
+	\end{tikzpicture}
+	\caption{Diagram of the MDP Homomorphism created by a world model, that is invariant to $\ell_g$,  the group actions .}
+	\label{fig:invariant_world_model}
+\end{figure}
+\subsection{Approximate MDP Homomorphisms}
+While they forgoe learning explcit symmetries \cite{van2020plannable}, they learn an Approximate MDP homomorphism. This approximation is exact in the case when the model fits the data perfectly.
+
+In contrast to learning symmetires, they are looking to find a state and action embedding that is equivariant to the model, such that,
+\begin{equation}
+	Z(T(s, a)) = \overline{T}(Z(s), Z_s(a))
+\end{equation}
+Where $Z$ is the state embedding function, and $Z_s(a)$, is the action embedding function. Thus they construct and abstract MDP $\omc{M}$, with state space $\mathcal{Z}$ and action space $\omc{A}$, which they can act in. Further rather than using deep RL they discretise the state action space of the abstract MDP, $Z \rightarrow \mathcal{X}$, and use Value Iteration, repeated application of the bellman optimality operator, to learn the values of all state action pairs. From here, the value function can be interpolated to any abstract state action pair. Pseudocode for this process is given below. The world model for the MDP consists of four jointly trained networks, $Z$, $Z_a$, $\overline{T}$, $R_z(z)$, which are trained to minimise a bisimulation metric. A bisimulation metric measures how different the dynamics of two MDPs are.The bisimulation metric used is a squared distance between the abstract MDP and the origional MDP;
+\begin{equation}
+	L(\theta, \phi, \xi, \psi) = \sum_{(s', s, a) \sim \tau} d(Z_\theta (s'), \overline{T}_\phi(Z_\theta(s), Z_{a_\xi}(a))) +  d(R(s'), R_{z_\psi}(Z_\theta (s))) + C(\tilde{S})
+\end{equation}
+Where $d(z, z') = 1/2 (z - z')^2$ is the squared distance between two quantities. Additionally they add a contrastive term $C(\tilde{S})$, to stop trivial embeddings. $\tilde{S}$, is a set of randomly sampled states from the trajectory. The contrastive term, with model parameter dependence supressed, is given by,
+
+\begin{equation}
+	C(\tilde{S}) = \sum_{\tilde{s} \in \tilde{S}} \tilde{d}(Z_\theta(\tilde{s}), \overline{T}_\phi(Z(s), Z_{a_\xi}(a)))
+\end{equation}
+Here, $\tilde{d}(z, z') = max(0, \epsilon - d(z, z'))$, is a distance metric that encourages the embedding to not collapse to a point.
+\begin{algorithm}
+	\caption{Approximate MDP Homomorphism Pseudocode}
+	\begin{algorithmic}
+		\State Learn $Z: \mathcal{S} \rightarrow \mathcal{Z}$, $Z_a: \mathcal{A} \rightarrow \omc{A}$
+		\State Discretise $\mathcal{Z}$ to $\mathcal{X}$.
+		\State $Q(x, a) \leftarrow $ Plan in $\mathcal{X}$.
+		\State $Q(z, a) \leftarrow$ Interpolate $Q(x, a)$
+		\State $Q(s, a) = Q(Z(s), Z_a(a))$
+	\end{algorithmic}
+\end{algorithm}
+This procedure produces impressive results, especially when limited to very few episodes of interaction with the MDP. Compared with a REINFORCE baseline, on 100 interactions of cartpole the episodice return is eight times higher. Additionally across a variety of tasks \cite{van2020plannable}, find a more structured latent space that with comparable world model methods, that use Encoder networks. There are however some limitations with the methods inability to generalise to stochastic transition dynmaics.
+
+
 \section{Meta-Learning}
 Meta Learning, is the process of learning to learn, across multiple tasks. This is a very broad field, where the goals are varied. Specifically, in this project, we are looking at parameter meta learning, where there is a single model, $f_\theta$, which is aplied to multiple different tasks, $\tau_i \sim \mathcal{T}$, drawn from a distriubtion.
 On each task, there is a per task loss, $L_{\tau_i}(\theta)$, which is a function of the parameters of the model, and may change it's functional form.
@@ -98,23 +158,37 @@ An example of the eqivalence of this to the G-CNN scheme is for $C_2$, where the
 		  -v_2 \\
 	  \end{pmatrix}.
 \end{align}
-To prove this is equivariant, we can show that the following holds, 
+To prove this is equivariant, we can show that the following holds,
 \begin{equation}
 	\begin{pmatrix}
-		0  & 1  \\
-		1  & 0  \\
+		0 & 1 \\
+		1 & 0 \\
 	\end{pmatrix} \cdot \left[
 		\begin{pmatrix}
 			v_1  & v_2  \\
 			-v_1 & -v_2 \\
 		\end{pmatrix} \cdot x \right] = \begin{pmatrix}
-		                                -v_1 x_1 - v_2 x_2 \\
-		                                v_1 x_1 + v_2 x_2  \\
-	                                \end{pmatrix}
+		-v_1 x_1 - v_2 x_2 \\
+		v_1 x_1 + v_2 x_2  \\
+	\end{pmatrix}
 	= \begin{pmatrix}
-		 v_1  & v_2  \\
-		 -v_1 & -v_2 \\
-	 \end{pmatrix} \cdot  -x
+		v_1  & v_2  \\
+		-v_1 & -v_2 \\
+	\end{pmatrix} \cdot  -x
 \end{equation}
 From this insight, they propose a method of meta-learning an equivariant parameter sharing scheme $\mat{U}$, given a set of tasks $\mathcal{T}$, that all posess the same equivarances.
 Using an adapted MAML framework, $v$ is trained on a per task loss $L_{\tau_i}$ and the training data and $\mat{U}$ is trained on the meta loss on the validation data, they demonstrate the ability to recover the equivariant parameter sharing scheme, for convolutional layers.
+
+
+\section{Other Related Works}
+Using symmetry as an inductive bias is not new, and more generally requiring equivariance to input transofrmation is a key concept in modern Deep Learning. Recently the field of Geometricy Deep Learning has emerged as a unified formalism for deep learning on structured data, such as graphs, sets, Groups, and others.
+
+Geometric Deep Learning is a field that provides a theoretical commonality for many successful network architectures, and has unified disperate architectures \cite{bronstein2021geometric}, such as Transformers and C-NNs, under a common framework. Geometric Deep learning provides a way to generalise the different inductive biases that arise from the wold. For example the translation invariance in object detection, or order permutation in Graphs.
+
+A recent success in this field is the $\text{SE}(3)$-Transformer, \cite{fuchs2020se}, provides an equivaraint architecture, to $\text{SE}(3)$ transformations. This ensures that global rotations and translations on graphs or point clouds respond in the same manner. This happens to be an impoprtant equivariance to encode when dealing with proteins and other chemical molecules.As an example this architecture was used in the Alpha Fold protein structure prediciton networks~\cite{jumper2021highly}.
+
+Nother Networks, which take inspiration from Nother's theorem demonstrate the ability to meta learn symbolic conservation laws, from real world data~\cite{alet2021noether}. An example of this is recovering the Hamiltonian of a spring, from real world data. This is particularly impressive as the spring itself does not conserve energy, due to friciton, and so the network must learn the approximate conservation law. This is achived by meta learning a conservation loss, across multiple tasks.
+
+In Recent Reinforcement Learning another approach that is related to learning an MDP homomorphism from a world model \cite{mavor2022simple}, learns transitions between states, that have the same value, and as such they learn an approximate MDP Homomorphism.
+
+
