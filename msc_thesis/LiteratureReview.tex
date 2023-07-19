@@ -45,8 +45,6 @@ In their first experiments of Drawer-Opening, Block Pulling, and Object Picking,
 
 Further they perform tests on more difficult robotic control tasks where demonstrations are provided, this enables the the agents to tackle more complex tasks such as block stacking and house building, in which they again are the only agents that are able to solve the tasks.
 
-\subsection{Continuous MDP Homomorphisms and Homomorphic Policy Gradient}
-blah blah blah....
 
 \section{Learning Models}
 In the context of exploiting symmetries in RL, there is also the opportunity, to build world models which are learned from experience. Two possible approaches are, learning a world model using an network that is equivariant to the group actions, in this case, the world model has the same state action space as the origional MDP, however, the equivariance inductive bias may improve the sample efficiency of learning the world model, and introduces better generalisation, for the agent. In some ways this is the model based extension of the equivariant model free methods discussed above.
@@ -181,7 +179,11 @@ Using an adapted MAML framework, $v$ is trained on a per task loss $L_{\tau_i}$ 
 
 
 \section{Other Related Works}
-Using symmetry as an inductive bias is not new, and more generally requiring equivariance to input transofrmation is a key concept in modern Deep Learning. Recently the field of Geometricy Deep Learning has emerged as a unified formalism for deep learning on structured data, such as graphs, sets, Groups, and others.
+In Recent Reinforcement Learning another approach that is related to learning an MDP homomorphism from a world model \cite{mavor2022simple}, learns transitions between states, that have the same value, and as such they learn an approximate MDP Homomorphism. This is achieved by learning the reverse transition from a given state, in much the same way as $T(s', s, a)$ is learned from experience in a replay buffer.  
+
+Another related recent development is that of \cite{rezaei2022continuous}, they prove that the MDP homomorphism results of Optimal Value equivalence are also found in the continuous action case. Further, they use this result in conjunction with DDPG\cite{lillicrap2015continuous} to learn a continuous action MDP Homomorphism, building a world model with a lax bisimulation metric, that is similar to the one used in \cite{van2020plannable}.
+
+In wider machine learning using symmetry as an inductive bias is not new, and more generally requiring equivariance to input transofrmation is a key concept in modern Deep Learning. Recently the field of Geometricy Deep Learning has emerged as a unified formalism for deep learning on structured data, such as graphs, sets, Groups, and others.
 
 Geometric Deep Learning is a field that provides a theoretical commonality for many successful network architectures, and has unified disperate architectures \cite{bronstein2021geometric}, such as Transformers and C-NNs, under a common framework. Geometric Deep learning provides a way to generalise the different inductive biases that arise from the wold. For example the translation invariance in object detection, or order permutation in Graphs.
 
@@ -189,6 +191,5 @@ A recent success in this field is the $\text{SE}(3)$-Transformer, \cite{fuchs202
 
 Nother Networks, which take inspiration from Nother's theorem demonstrate the ability to meta learn symbolic conservation laws, from real world data~\cite{alet2021noether}. An example of this is recovering the Hamiltonian of a spring, from real world data. This is particularly impressive as the spring itself does not conserve energy, due to friciton, and so the network must learn the approximate conservation law. This is achived by meta learning a conservation loss, across multiple tasks.
 
-In Recent Reinforcement Learning another approach that is related to learning an MDP homomorphism from a world model \cite{mavor2022simple}, learns transitions between states, that have the same value, and as such they learn an approximate MDP Homomorphism.
 
 
