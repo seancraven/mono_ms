@@ -18,9 +18,9 @@ def test_rp_buff():
 def test_rp_buff_insert():
     key = jax.random.PRNGKey(42)
     dummy_sas = SASTuple(
-        state=jnp.ones((1, 4)),
-        action=jnp.ones((1, 1)),
-        next_state=jnp.ones((1, 4)),
+        state=jnp.ones((4)),
+        action=jnp.ones((1)),
+        next_state=jnp.ones((4)),
     )
     rp_buff = ReplayBuffer.create(key, dummy_sas, 10)
 
@@ -37,9 +37,9 @@ def test_rp_buff_insert():
 def test_rp_buff_sample():
     key = jax.random.PRNGKey(42)
     dummy_sas = SASTuple(
-        state=jnp.ones((1, 4)),
-        action=jnp.ones((1, 1)),
-        next_state=jnp.ones((1, 4)),
+        state=jnp.ones((4)),
+        action=jnp.ones((1)),
+        next_state=jnp.ones((4)),
     )
     rp_buff = ReplayBuffer.create(key, dummy_sas, 10)
 
@@ -59,8 +59,22 @@ def test_rp_buff_queue():
     key = jax.random.PRNGKey(42)
     key = jax.random.PRNGKey(42)
     dummy_sas = SASTuple(
-        state=jnp.ones((1, 4)),
-        action=jnp.ones((1, 1)),
-        next_state=jnp.ones((1, 4)),
+        state=jnp.ones((4)),
+        action=jnp.ones((1)),
+        next_state=jnp.ones((4)),
     )
     rp_buff = ReplayBuffer.create(key, dummy_sas, 10)
+
+    for _ in range(5):
+        states = jnp.ones((2, 4)) * 6
+        actions = jnp.ones((2, 1)) * 7
+        next_states = jnp.ones((2, 4)) * 8
+        sas = SASTuple(state=states, action=actions, next_state=next_states)
+        rp_buff = rp_buff.insert(sas)
+
+    states = jnp.ones((2, 4)) * 10
+    actions = jnp.ones((2, 1)) * 10
+    next_states = jnp.ones((2, 4)) * 10
+
+    sas = SASTuple(state=states, action=actions, next_state=next_states)
+    rp_buff = rp_buff.insert(sas)

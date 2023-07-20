@@ -162,15 +162,34 @@ class ReplayBuffer:
         )
 
     def insert(self, new_data: SASTuple) -> ReplayBuffer:
+        raise NotImplementedError
         new_insert = (
             self.insert_position + new_data.no_transitions + 1
         ) % self.data.no_transitions
         new_sample_position = (
             self.sample_position + new_data.no_transitions
         ) % self.data.no_transitions
-        new_data = jax.tree_map(
-            lambda x, y: x.at[0:new_sample_position].set(y), self.data, new_data
+
+        len = self.sample_position + new_data.no_transitions
+        roll = min(0, self.data.no_transitions - len)  # truthy if non 0
+        assert roll <= 0
+        data = jax.lax.cond(
+            roll,
+            lambda: jax.tree_map(lambda x: jnp.roll(x, roll, axis=0), self.data),
+            lambda: self.data,
         )
+        position = new_sample_position + roll
+
+        new_data = jax.tree_map(
+            lambda x, y: jax.lax.dynamic_update_slice(
+                x,
+                y,
+                jnp.array(new_sample_position),
+            ),
+            data,
+            new_data,
+        )
+
         _, new_key = jax.random.split(self.key)
         return ReplayBuffer(
             data=new_data,
