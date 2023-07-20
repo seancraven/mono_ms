@@ -48,15 +48,12 @@ class SARSDTuple(NamedTuple):
         )
 
 
-ReplayBuffer = SARSDTuple
-
-
 def make_experience_fn(
     env_name: str, train_length: int
-) -> Callable[[jt.PRNGKeyArray], ReplayBuffer]:
+) -> Callable[[jt.PRNGKeyArray], SARSDTuple]:
     env, env_params = gymnax.make(env_name)
 
-    def experince(key) -> ReplayBuffer:
+    def experince(key) -> SARSDTuple:
         inital_obs, env_state = env.reset(key, env_params)
 
         def _step(
@@ -82,7 +79,7 @@ def make_experience_fn(
 
 def make_expert_experience_fn(
     env_name: str, train_length: int
-) -> Callable[[jt.PRNGKeyArray], ReplayBuffer]:
+) -> Callable[[jt.PRNGKeyArray], SARSDTuple]:
     env, env_params = gymnax.make(env_name)
     policy_net = ConvActorCritic(
         2,
@@ -94,7 +91,7 @@ def make_expert_experience_fn(
     # params for all random seeds are stacked.
     params = jax.tree_map(lambda x: x[0], params)
 
-    def experince(key) -> ReplayBuffer:
+    def experince(key) -> SARSDTuple:
         inital_obs, env_state = env.reset(key, env_params)
 
         def _step(

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Tuple
 
 import jax
 import jax.numpy as jnp
 import optax
-from base_rl.higher_order import Transition
+from base_rl.higher_order import Trajectory, Transition
 from base_rl.models import ActorCritic
 from base_rl.wrappers import LogWrapper
 from flax.training.train_state import TrainState
@@ -13,12 +13,14 @@ from gymnax.environments.classic_control import CartPole
 from jaxtyping import PRNGKeyArray
 from model_based.nn_model import NNCartpole
 
-from dyna.ac_higher_order import make_actor_critic_update
+from dyna.ac_higher_order import Losses, make_actor_critic_update
 from dyna.model_higher_order import make_transition_model_update
 from dyna.types import DynaHyperParams, DynaRunnerState, DynaState
 
 
 def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
+    """Higher order function to make dyna training function configured
+    with dyna hyperparams"""
     actor_critic = ActorCritic(2)
 
     tx_ac = optax.chain(
@@ -140,17 +142,22 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
 def make_experience_step(
     use_model: bool,
     model_free_update_fn: Callable[
-        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
     ],
     model_based_update_fn: Callable[
-        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
+        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
     ],
     env_model_update_fn: Callable[
         [PRNGKeyArray, TrainState, Transition], Tuple[TrainState, Tuple]
     ],
 ) -> Callable[[DynaState, Any], Tuple[DynaState, Tuple]]:
+    """
+    Function factory for agent and/or model training steps.
+    Returns a scannable function.
+    """
+
     def _model_free_step(dyna_state: DynaState, _) -> Tuple[DynaState, Tuple]:
-        dyna_runner_state, model_train_state, model_env_state = dyna_state
+        dyna_runner_state, model_train_state, model_env_state, rp_buf = dyna_state
 
         dyna_runner_state, (losses, trajectories) = model_free_update_fn(
             dyna_runner_state,
@@ -161,6 +168,7 @@ def make_experience_step(
             dyna_runner_state,
             model_train_state,
             model_env_state,
+            rp_buf,
         )
         infos = (
             losses,
@@ -171,10 +179,10 @@ def make_experience_step(
         )
         return dyna_state, infos
 
-    def _experience_step(dyna_state: DynaState, _) -> Tuple[DynaState, Tuple]:
+    def _dyna_step(dyna_state: DynaState, _) -> Tuple[DynaState, Tuple]:
         # Note: State Passing is Horrible. Abstractions are bad.
         # Would do a rewrite but worried about break.
-        dyna_runner_state, model_train_state, model_env_state = dyna_state
+        dyna_runner_state, model_train_state, model_env_state, rp_buf = dyna_state
 
         rng = dyna_runner_state.rng
         rng, rng_model, rng_next = jax.random.split(rng, 3)
@@ -183,6 +191,8 @@ def make_experience_step(
             dyna_runner_state,
             None,
         )
+        sas_tup = trajectories.to_sas_tuple()
+        rp_buf = rp_buf.insert(sas_tup)
 
         ######
         model_train_state, model_losses = env_model_update_fn(
@@ -225,100 +235,6 @@ def make_experience_step(
         return final_dyna_state, infos
 
     if use_model:
-        return _experience_step
+        return _dyna_step
     else:
         return _model_free_step
-
-
-def make_gain_exp(
-    dyna_hyp: DynaHyperParams,
-    model_free_update_fn: Callable[
-        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
-    ],
-    model_based_update_fn: Callable[
-        [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple]
-    ],
-    env_model_update_fn: Callable[
-        [PRNGKeyArray, TrainState, Transition], Tuple[TrainState, Tuple]
-    ],
-) -> Callable[[DynaState, Any], Tuple[DynaState, Tuple]]:
-    def exp_step(
-        dyna_state: DynaState, prev_traj: Transition
-    ) -> Tuple[DynaState, Tuple]:
-        dyna_runner_state, model_train_state, model_env_state = dyna_state
-
-        rng = dyna_runner_state.rng
-        rng, rng_model, rng_next = jax.random.split(rng, 3)
-        #######
-        dyna_runner_state, (losses, trajectories) = model_free_update_fn(
-            dyna_runner_state,
-            None,
-        )
-        trajectories = prev_traj.join(trajectories)
-
-        ######
-        model_train_state, model_losses = env_model_update_fn(
-            rng_model, model_train_state, trajectories
-        )
-        #######
-        dyna_runner_state = DynaRunnerState(
-            model_params=model_train_state.params,
-            train_state=dyna_runner_state.get_train_state(),
-            cartpole_env_state=model_env_state,
-            last_obs=dyna_runner_state.last_obs,
-            rng=rng_next,
-        )
-
-        #######
-        dyna_runner_state, (p_loss, p_trajectories) = model_based_update_fn(
-            dyna_runner_state,
-            None,
-        )
-        final_runner_state = DynaRunnerState(
-            model_params=model_train_state.params,
-            train_state=dyna_runner_state.train_state,
-            cartpole_env_state=dyna_runner_state.cartpole_env_state,
-            last_obs=dyna_runner_state.last_obs,
-            rng=rng_next,
-        )
-
-        final_dyna_state = DynaState(
-            final_runner_state,
-            model_train_state,
-            dyna_runner_state.get_env_state(),
-        )
-        infos = (
-            losses,
-            trajectories,
-            p_loss,
-            p_trajectories,
-            model_losses,
-        )
-        return final_dyna_state, infos
-
-    @jax.jit
-    def gain_exp(
-        dyna_state: DynaState, prev_traj: Transition
-    ) -> Tuple[DynaState, Tuple]:
-        info = None
-        for _ in range(dyna_hyp.NUM_UPDATES):
-            dyna_state, new_info = exp_step(dyna_state, prev_traj)
-            prev_traj = new_info[1]
-            if info:
-                info = jax.tree_map(
-                    lambda x, y: jnp.concatenate([x, y]), info, new_info
-                )
-            else:
-                info = new_info
-
-        return (dyna_state, info)  # type: ignore
-
-    return gain_exp
-
-
-def stack_tuple_list(tup_list):
-    items = [[] for _ in tup_list[0]]
-    for tup in tup_list:
-        for i, item in enumerate(tup):
-            items[i].append(item)
-    return tuple([jnp.stack(item) for item in items])

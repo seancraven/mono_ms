@@ -5,7 +5,6 @@ import os
 import pickle
 import shutil
 from abc import ABC
-from functools import wraps
 from math import prod
 from typing import Any, NamedTuple, Tuple
 
@@ -20,7 +19,7 @@ from jax import numpy as jnp
 from optax import adam
 from orbax import checkpoint
 
-from model_based.sample_env import ReplayBuffer, SARSDTuple
+from model_based.sample_env import SARSDTuple
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +122,13 @@ class HyperParams(NamedTuple):
     hidden_dim: int = 64
     epochs: int = 100
 
-    def get_train_size(self, data: ReplayBuffer) -> int:
+    def get_train_size(self, data: SARSDTuple) -> int:
         """Returns the number of samples to use for training."""
         batch_count = self.get_batch_count(data)
         train_size = int(batch_count * self.batch_size)
         return train_size
 
-    def get_batch_count(self, data: ReplayBuffer) -> int:
+    def get_batch_count(self, data: SARSDTuple) -> int:
         data_size = prod(data.reward.shape)  # type: ignore
         return int((data_size * self.train_frac) // self.batch_size)
 
@@ -152,7 +151,7 @@ def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
 
 
 def make_train(hyper_params: HyperParams):
-    data: ReplayBuffer = pickle.load(open("replay_buffer.pickle", "rb"))
+    data: SARSDTuple = pickle.load(open("replay_buffer.pickle", "rb"))
     data = SARSDTuple(*jax.tree_map(lambda x: x.astype(jnp.float32), data))
     non_term_index = data.done == 0
     data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)

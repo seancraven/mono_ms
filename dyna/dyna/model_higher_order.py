@@ -8,7 +8,7 @@ import jaxtyping as jt
 from base_rl.higher_order import Trajectory
 from flax.training.train_state import TrainState
 
-from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
+from dyna.types import DynaHyperParams, EnvModelLosses, ReplayBuffer, SASTuple
 
 
 def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
@@ -17,10 +17,10 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     def tm_update_fn(
         rng: jt.PRNGKeyArray,
         train_state: TrainState,
-        trajectories: Trajectory,
+        rp_buff: ReplayBuffer,
     ) -> Tuple[TrainState, EnvModelLosses]:
         no_mini_batch = hyper_params.M_NUM_MINIBATCHES
-        data = trajectory_to_sas_tuple(trajectories)
+        data = rp_buff.sample_sas()
 
         perm = jax.random.permutation(rng, data.state.shape[0])
         data = jax.tree_map(lambda x: x.at[perm].get(), data)

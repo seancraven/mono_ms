@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
+from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, Union
 
 import flax.linen as nn
 import gymnax
@@ -15,8 +15,7 @@ from gymnax.environments.classic_control import CartPole
 from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from base_rl.models import (ACSequential, ConvActorCritic,
-                            EquivariantActorCritic)
+from base_rl.models import ACSequential, ConvActorCritic, EquivariantActorCritic
 from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -46,6 +45,7 @@ class Transition(NamedTuple):
     info: Any
 
     def join(self, other) -> Transition:
+        """Join two transitions into a single transition, along leading axis."""
         return Transition(
             done=jnp.concatenate([self.done, other.done]),
             action=jnp.concatenate([self.action, other.action]),
@@ -59,7 +59,7 @@ class Transition(NamedTuple):
         )
 
 
-Trajectory = Transition
+Trajectory = TypeVar("Trajectory", bound=Transition)
 CartPoleRunnerState = Tuple[TrainState, gymnax.EnvState, Obs, jt.PRNGKeyArray]
 UpdateState = Tuple[
     TrainState, Trajectory, PerTimestepScalar, PerTimestepScalar, jt.PRNGKeyArray
