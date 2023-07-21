@@ -1,6 +1,6 @@
 import jax
 import matplotlib.pyplot as plt
-from model_based.nn_model import Model
+from model_based.train import Model
 
 from dyna.ac_higher_order import ActorCriticHyperParams, DynaHyperParams
 from dyna.training import make_dyna_train_fn
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     hyp = DynaHyperParams(ac_hyp=ac_hyp, NUM_ENVS=4, NUM_UPDATES=10)
     rng = jax.random.PRNGKey(42)
     dyna_train_fn = make_dyna_train_fn(hyp)
-    with jax.disable_jit():
+    with jax.disable_jit(False) and jax.checking_leaks():
         running_state, loss_info = dyna_train_fn(rng)
     mf_loss, mf_traj, p_loss, p_traj, m_loss = loss_info
     # plt.plot(mf_traj.info["returned_episode_returns"].mean(axis=-1).reshape(-1))

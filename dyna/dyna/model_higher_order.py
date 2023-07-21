@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Callable, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -11,21 +11,26 @@ from flax.training.train_state import TrainState
 from dyna.types import DynaHyperParams, EnvModelLosses, ReplayBuffer, SASTuple
 
 
-def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
+def make_transition_model_update(
+    hyper_params: DynaHyperParams, apply_fn
+) -> Callable[
+    [jt.PRNGKeyArray, TrainState, ReplayBuffer],
+    Tuple[TrainState, EnvModelLosses, ReplayBuffer],
+]:
     mini_batch_fn = make_mini_batch_fn(apply_fn)
 
     def tm_update_fn(
         rng: jt.PRNGKeyArray,
         train_state: TrainState,
         rp_buff: ReplayBuffer,
-    ) -> Tuple[TrainState, EnvModelLosses]:
+    ) -> Tuple[TrainState, EnvModelLosses, ReplayBuffer]:
         no_mini_batch = hyper_params.M_NUM_MINIBATCHES
-        data = rp_buff.sample_sas()
+        rp_buff, data = rp_buff.sample()
 
-        perm = jax.random.permutation(rng, data.state.shape[0])
+        perm = jax.random.permutation(rng, data.no_transitions)
         data = jax.tree_map(lambda x: x.at[perm].get(), data)
         batched_data = jax.tree_map(
-            lambda x: x.reshape(no_mini_batch, -1, *x.shape[2:]), data
+            lambda x: x.reshape(no_mini_batch, -1, x.shape[-1]), data
         )
 
         def _epoch(
@@ -38,7 +43,7 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
         train_state, losses = jax.lax.scan(
             _epoch, train_state, None, length=hyper_params.model_hyp.NUM_EPOCHS
         )
-        return train_state, losses
+        return train_state, losses, rp_buff
 
     return tm_update_fn
 

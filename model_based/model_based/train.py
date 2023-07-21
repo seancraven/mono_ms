@@ -67,7 +67,7 @@ class TransitionModel(nn.Module, ABC):
 
     @nn.compact
     def __call__(self, state: Observation, action: Action) -> Observation:
-        ...
+        return state
 
 
 class Model(TransitionModel):

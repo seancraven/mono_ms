@@ -4,6 +4,7 @@ from typing import Any, Callable, Tuple
 
 import jax
 import jax.numpy as jnp
+import jaxtyping as jt
 import optax
 from base_rl.higher_order import Trajectory, Transition
 from base_rl.models import ActorCritic
@@ -14,8 +15,18 @@ from jaxtyping import PRNGKeyArray
 from model_based.nn_model import NNCartpole
 
 from dyna.ac_higher_order import Losses, make_actor_critic_update
-from dyna.model_higher_order import make_transition_model_update
-from dyna.types import DynaHyperParams, DynaRunnerState, DynaState
+from dyna.model_higher_order import (
+    EnvModelLosses,
+    make_transition_model_update,
+    trajectory_to_sas_tuple,
+)
+from dyna.types import (
+    DynaHyperParams,
+    DynaRunnerState,
+    DynaState,
+    ReplayBuffer,
+    SASTuple,
+)
 
 
 def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
@@ -44,7 +55,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
         state_shape = env.observation_space(env.default_params).shape
         action_shape = env.action_space().shape
 
-        rng, rng_ac, rng_reset, rng_model, rng_state = jax.random.split(rng, 5)
+        rng, rng_ac, rng_reset, rng_model, rng_state, rng_buf = jax.random.split(rng, 6)
         ac_train_state = TrainState.create(
             apply_fn=jax.vmap(actor_critic.apply, in_axes=(None, 0)),
             params=actor_critic.init(rng_ac, jnp.ones(state_shape)),
@@ -113,10 +124,21 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             last_obs=first_obs,
             rng=rng_state,
         )
+        dummy_data = SASTuple(
+            jnp.ones(state_shape),
+            jnp.ones(action_shape),
+            jnp.ones(state_shape),
+        )
+        rp_buff = ReplayBuffer.create(
+            rng_buf,
+            dummy_data,
+            dyna_hyp.BUF_SIZE,
+        )
         dyna_state = DynaState(
             dyna_runner_state,
             model_train_state,
             model_env_state,
+            rp_buff,
         )
         # dyna_state, infos = mf_ex_step(
         #     dyna_state,
@@ -148,7 +170,12 @@ def make_experience_step(
         [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
     ],
     env_model_update_fn: Callable[
-        [PRNGKeyArray, TrainState, Transition], Tuple[TrainState, Tuple]
+        [jt.PRNGKeyArray, TrainState, ReplayBuffer],
+        Tuple[
+            TrainState,
+            EnvModelLosses,
+            ReplayBuffer,
+        ],
     ],
 ) -> Callable[[DynaState, Any], Tuple[DynaState, Tuple]]:
     """
@@ -191,12 +218,12 @@ def make_experience_step(
             dyna_runner_state,
             None,
         )
-        sas_tup = trajectories.to_sas_tuple()
+        sas_tup = trajectory_to_sas_tuple(trajectories)
         rp_buf = rp_buf.insert(sas_tup)
 
         ######
-        model_train_state, model_losses = env_model_update_fn(
-            rng_model, model_train_state, trajectories
+        model_train_state, model_losses, rp_buf = env_model_update_fn(
+            rng_model, model_train_state, rp_buf
         )
         #######
         dyna_runner_state = DynaRunnerState(
@@ -224,6 +251,7 @@ def make_experience_step(
             final_runner_state,
             model_train_state,
             dyna_runner_state.get_env_state(),
+            rp_buf,
         )
         infos = (
             losses,

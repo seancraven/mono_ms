@@ -38,6 +38,20 @@ class SASTuple(NamedTuple):
             next_state=transition.obs.at[1:].get(),
         )
 
+    def flatten(self) -> SASTuple:
+        return SASTuple(
+            state=self.state.reshape((-1, 4)),
+            action=self.action.reshape((-1, 1)),
+            next_state=self.next_state.reshape((-1, 4)),
+        )
+
+    def get(self) -> SASTuple:
+        return SASTuple(
+            state=self.state.at[:].get(),
+            action=self.action.at[:].get(),
+            next_state=self.next_state.at[:].get(),
+        )
+
 
 class ActorCriticHyperParams(NamedTuple):
     """Hyper parameters for the actor critic model."""
@@ -70,6 +84,15 @@ class DynaHyperParams(NamedTuple):
     GAE_LAMBDA: float = 0.95
     MAX_GRAD_NORM: float = 0.5
     PLANNING_RATIO: float = 1.0
+
+    @property
+    def BUF_SIZE(self) -> int:
+        return (
+            self.AC_NUM_TRANSITIONS
+            * self.NUM_UPDATES
+            * self.NUM_ENVS
+            * self.ac_hyp.NUM_UPDATES
+        )
 
     @property
     def AC_NUM_TRANSITIONS(self) -> int:
@@ -141,7 +164,7 @@ class DynaState(NamedTuple):
 @dataclass
 class ReplayBuffer:
     data: SASTuple
-    insert_position: int = field(pytree_node=False)
+    insert_position: jt.Array = field(pytree_node=False)
     key: jt.PRNGKeyArray = field(pytree_node=False)
 
     @classmethod
@@ -150,21 +173,21 @@ class ReplayBuffer:
     ) -> ReplayBuffer:
         null_data = SASTuple(
             state=jnp.zeros((queue_size,) + dummy_data.state.shape),
-            action=jnp.zeros((queue_size,) + dummy_data.action.shape),
+            action=jnp.zeros((queue_size, 1), dtype=jnp.int32),
             next_state=jnp.zeros((queue_size,) + dummy_data.next_state.shape),
         )
         return ReplayBuffer(
             data=null_data,
-            insert_position=0,
+            insert_position=jnp.zeros((), dtype=jnp.int32),
             key=key,
         )
 
     def insert(self, update_data: SASTuple) -> ReplayBuffer:
+        update_data = update_data.flatten()
         total_no_transitions = self.insert_position + update_data.no_transitions
         roll = jnp.minimum(
             0, self.data.no_transitions - total_no_transitions
         )  # truthy if non 0
-        assert roll <= 0
         data = jax.lax.cond(
             roll,
             lambda: jax.tree_map(lambda x: jnp.roll(x, roll, axis=0), self.data),
@@ -183,31 +206,29 @@ class ReplayBuffer:
             update_data,
         )
 
-        _, new_key = jax.random.split(self.key)
-
         # Update the positions
-        new_insert_position = int(
-            (position + update_data.no_transitions) % (self.__len__() + 1)
+        new_insert_position = (position + update_data.no_transitions) % (
+            self.data.no_transitions + 1
         )
 
         return ReplayBuffer(
             data=new_data,
             insert_position=new_insert_position,
-            key=new_key,
+            key=self.key,
         )
-
-    def __len__(self):
-        return self.data.no_transitions
 
     def sample(self) -> Tuple[ReplayBuffer, SASTuple]:
         """Samples Uniformally from the replay buffer."""
-        idx = jax.random.randint(
-            self.key, (self.data.no_transitions,), 0, self.insert_position
-        )
         _, new_key = jax.random.split(self.key)
+        idx = jax.random.randint(
+            new_key,
+            (self.data.no_transitions,),
+            minval=0,
+            maxval=self.insert_position,
+        )
         sample = jax.tree_map(lambda x: x.at[idx].get(), self.data)
         new_buffer = ReplayBuffer(
-            data=self.data,
+            data=self.data.get(),
             insert_position=self.insert_position,
             key=new_key,
         )
