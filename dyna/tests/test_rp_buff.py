@@ -49,10 +49,11 @@ def test_rp_buff_sample():
     sas = SASTuple(state=states, action=actions, next_state=next_states)
     rp_buff = rp_buff.insert(sas)
 
-    buff, sample = rp_buff.sample()
-    assert (sample.state == jnp.ones((10, 4)) * 6).all()
-    assert (sample.next_state == jnp.ones((10, 4)) * 8).all()
-    assert (sample.action == jnp.ones((10, 1)) * 7).all()
+    for _ in range(5):
+        buff, sample = rp_buff.sample()
+        assert (sample.state == jnp.ones((10, 4)) * 6).all()
+        assert (sample.next_state == jnp.ones((10, 4)) * 8).all()
+        assert (sample.action == jnp.ones((10, 1)) * 7).all()
 
 
 def test_rp_buff_queue():
@@ -78,3 +79,6 @@ def test_rp_buff_queue():
 
     sas = SASTuple(state=states, action=actions, next_state=next_states)
     rp_buff = rp_buff.insert(sas)
+    assert (
+        rp_buff.data.state.at[-2:].get() == states
+    ).all(), f"{actions}, {rp_buff.data.action}"

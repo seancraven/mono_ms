@@ -142,7 +142,6 @@ class DynaState(NamedTuple):
 class ReplayBuffer:
     data: SASTuple
     insert_position: int = field(pytree_node=False)
-    sample_position: int = field(pytree_node=False)
     key: jt.PRNGKeyArray = field(pytree_node=False)
 
     @classmethod
@@ -157,58 +156,59 @@ class ReplayBuffer:
         return ReplayBuffer(
             data=null_data,
             insert_position=0,
-            sample_position=0,
             key=key,
         )
 
-    def insert(self, new_data: SASTuple) -> ReplayBuffer:
-        raise NotImplementedError
-        new_insert = (
-            self.insert_position + new_data.no_transitions + 1
-        ) % self.data.no_transitions
-        new_sample_position = (
-            self.sample_position + new_data.no_transitions
-        ) % self.data.no_transitions
-
-        len = self.sample_position + new_data.no_transitions
-        roll = min(0, self.data.no_transitions - len)  # truthy if non 0
+    def insert(self, update_data: SASTuple) -> ReplayBuffer:
+        total_no_transitions = self.insert_position + update_data.no_transitions
+        roll = jnp.minimum(
+            0, self.data.no_transitions - total_no_transitions
+        )  # truthy if non 0
         assert roll <= 0
         data = jax.lax.cond(
             roll,
             lambda: jax.tree_map(lambda x: jnp.roll(x, roll, axis=0), self.data),
             lambda: self.data,
         )
-        position = new_sample_position + roll
+        position = roll + self.insert_position
 
         new_data = jax.tree_map(
-            lambda x, y: jax.lax.dynamic_update_slice(
+            lambda x, y: jax.lax.dynamic_update_slice_in_dim(
                 x,
                 y,
-                jnp.array(new_sample_position),
+                position,
+                axis=0,
             ),
             data,
-            new_data,
+            update_data,
         )
 
         _, new_key = jax.random.split(self.key)
+
+        # Update the positions
+        new_insert_position = int(
+            (position + update_data.no_transitions) % (self.__len__() + 1)
+        )
+
         return ReplayBuffer(
             data=new_data,
-            insert_position=new_insert,
-            sample_position=new_sample_position,
+            insert_position=new_insert_position,
             key=new_key,
         )
+
+    def __len__(self):
+        return self.data.no_transitions
 
     def sample(self) -> Tuple[ReplayBuffer, SASTuple]:
         """Samples Uniformally from the replay buffer."""
         idx = jax.random.randint(
-            self.key, (self.data.no_transitions,), 0, self.sample_position
+            self.key, (self.data.no_transitions,), 0, self.insert_position
         )
         _, new_key = jax.random.split(self.key)
         sample = jax.tree_map(lambda x: x.at[idx].get(), self.data)
         new_buffer = ReplayBuffer(
             data=self.data,
             insert_position=self.insert_position,
-            sample_position=self.sample_position,
             key=new_key,
         )
         return new_buffer, sample
