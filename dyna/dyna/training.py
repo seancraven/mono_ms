@@ -130,7 +130,7 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             jnp.ones(state_shape),
         )
         rp_buff = ReplayBuffer.create(
-            rng_buf,
+            # rng_buf,
             dummy_data,
             dyna_hyp.BUF_SIZE,
         )

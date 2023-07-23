@@ -25,7 +25,9 @@ def make_transition_model_update(
         rp_buff: ReplayBuffer,
     ) -> Tuple[TrainState, EnvModelLosses, ReplayBuffer]:
         no_mini_batch = hyper_params.M_NUM_MINIBATCHES
-        rp_buff, data = rp_buff.sample()
+
+        rng, buff_rng = jax.random.split(rng)
+        rp_buff, data = rp_buff.sample(buff_rng)
 
         perm = jax.random.permutation(rng, data.no_transitions)
         data = jax.tree_map(lambda x: x.at[perm].get(), data)

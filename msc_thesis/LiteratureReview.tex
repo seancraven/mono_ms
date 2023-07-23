@@ -37,7 +37,7 @@ In much the same vein as that of \cite{vanderpol2020mdp}, \cite{mondal2020group}
 
 One of the key downsides of this is it doesn't exploit the homomorphism of the MDP, which exists also in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over two baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in Snake. However, they only see a minor improvement in sample efficiency in Pacman, which also possesses the same $C_4$ group symmetry.
 
-\subsection{$\mathrm{SO}(2)$ Equivariant Reinforcement Learning}
+\subsection{$\mathbf{\text{SO}(2)}$ Equivariant Reinforcement Learning}
 
 In much the same way as the above methods,~\cite{wang2022so2} also exploit the equivariance property, in the context of robotic control in the PyBullet suite\cite{coumans2021}. They use steerable G-CNNs\cite{weiler2019general}, which provide $\text{SE}(2)$ equivariance, in robotic control environments. In contrast to previous papers where finite groups were exploited, the continuous Lie group $\text{SO}2$ constrains the degrees of freedom of the problem much more than the finite groups. Utilising this they are able to achieve impressive improvements in sample efficiency and robustness over conventional DQN and SAC methods.
 

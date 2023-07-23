@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import copy
 from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import gymnax
@@ -161,16 +162,13 @@ class DynaState(NamedTuple):
     replay_buffer: ReplayBuffer
 
 
-@dataclass
-class ReplayBuffer:
+class ReplayBuffer(NamedTuple):
     data: SASTuple
     insert_position: jt.Array = field(pytree_node=False)
-    key: jt.PRNGKeyArray = field(pytree_node=False)
+    queue_size: int = field(pytree_node=False)
 
     @classmethod
-    def create(
-        cls, key: jt.PRNGKeyArray, dummy_data: SASTuple, queue_size: int
-    ) -> ReplayBuffer:
+    def create(cls, dummy_data: SASTuple, queue_size: int) -> ReplayBuffer:
         null_data = SASTuple(
             state=jnp.zeros((queue_size,) + dummy_data.state.shape),
             action=jnp.zeros((queue_size, 1), dtype=jnp.int32),
@@ -179,21 +177,24 @@ class ReplayBuffer:
         return ReplayBuffer(
             data=null_data,
             insert_position=jnp.zeros((), dtype=jnp.int32),
-            key=key,
+            queue_size=queue_size,
         )
 
     def insert(self, update_data: SASTuple) -> ReplayBuffer:
         update_data = update_data.flatten()
-        total_no_transitions = self.insert_position + update_data.no_transitions
-        roll = jnp.minimum(
-            0, self.data.no_transitions - total_no_transitions
-        )  # truthy if non 0
+
+        insert_pos = self.insert_position
+        buf_dim = self.queue_size
+        update_dim = update_data.no_transitions
+
+        total_no_transitions = insert_pos + update_dim
+        roll = jnp.minimum(0, buf_dim - total_no_transitions)  # truthy if non 0
         data = jax.lax.cond(
             roll,
             lambda: jax.tree_map(lambda x: jnp.roll(x, roll, axis=0), self.data),
             lambda: self.data,
         )
-        position = roll + self.insert_position
+        position = roll + insert_pos
 
         new_data = jax.tree_map(
             lambda x, y: jax.lax.dynamic_update_slice_in_dim(
@@ -207,21 +208,18 @@ class ReplayBuffer:
         )
 
         # Update the positions
-        new_insert_position = (position + update_data.no_transitions) % (
-            self.data.no_transitions + 1
-        )
+        new_insert_pos = (position + update_dim) % (buf_dim + 1)
 
         return ReplayBuffer(
             data=new_data,
-            insert_position=new_insert_position,
-            key=self.key,
+            insert_position=new_insert_pos,
+            queue_size=buf_dim,
         )
 
-    def sample(self) -> Tuple[ReplayBuffer, SASTuple]:
+    def sample(self, key) -> Tuple[ReplayBuffer, SASTuple]:
         """Samples Uniformally from the replay buffer."""
-        _, new_key = jax.random.split(self.key)
         idx = jax.random.randint(
-            new_key,
+            key,
             (self.data.no_transitions,),
             minval=0,
             maxval=self.insert_position,
@@ -230,6 +228,6 @@ class ReplayBuffer:
         new_buffer = ReplayBuffer(
             data=self.data.get(),
             insert_position=self.insert_position,
-            key=new_key,
+            queue_size=self.queue_size,
         )
         return new_buffer, sample
