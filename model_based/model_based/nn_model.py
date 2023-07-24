@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from functools import partial, wraps
+from functools import partial
 from typing import NamedTuple, Optional, Tuple, Union
 
 import jax
@@ -21,7 +21,7 @@ class NNCartpole(cartpole.CartPole):
 
     def __init__(self, model=TransitionModel):
         super().__init__()
-        self.transition_model = model(*self.obs_shape, 1, 32)
+        self.transition_model = model(*self.obs_shape, 1, 64)
 
     @property
     def default_params(self) -> EnvParams:
