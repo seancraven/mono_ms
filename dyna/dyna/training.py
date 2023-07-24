@@ -183,6 +183,8 @@ def make_experience_step(
             dyna_runner_state,
             None,
         )
+        final_obs = dyna_runner_state.last_obs
+        final_env_state = dyna_runner_state.cartpole_env_state
 
         ######
         model_train_state, model_losses = env_model_update_fn(
@@ -205,8 +207,8 @@ def make_experience_step(
         final_runner_state = DynaRunnerState(
             model_params=model_train_state.params,
             train_state=dyna_runner_state.train_state,
-            cartpole_env_state=dyna_runner_state.cartpole_env_state,
-            last_obs=dyna_runner_state.last_obs,
+            cartpole_env_state=final_env_state,
+            last_obs=final_obs,
             rng=rng_next,
         )
 
@@ -255,6 +257,8 @@ def make_gain_exp(
             None,
         )
         trajectories = prev_traj.join(trajectories)
+        final_env_state = dyna_runner_state.cartpole_env_state
+        final_obs = dyna_runner_state.last_obs
 
         ######
         model_train_state, model_losses = env_model_update_fn(
@@ -277,8 +281,8 @@ def make_gain_exp(
         final_runner_state = DynaRunnerState(
             model_params=model_train_state.params,
             train_state=dyna_runner_state.train_state,
-            cartpole_env_state=dyna_runner_state.cartpole_env_state,
-            last_obs=dyna_runner_state.last_obs,
+            cartpole_env_state=final_env_state,
+            last_obs=final_obs,
             rng=rng_next,
         )
 
