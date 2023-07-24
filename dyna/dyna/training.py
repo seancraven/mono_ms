@@ -7,26 +7,18 @@ import jax.numpy as jnp
 import jaxtyping as jt
 import optax
 from base_rl.higher_order import Trajectory, Transition
-from base_rl.models import ActorCritic
+from base_rl.models import ActorCritic, EquivariantActorCritic
 from base_rl.wrappers import LogWrapper
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
-from jaxtyping import PRNGKeyArray
 from model_based.nn_model import NNCartpole
 
 from dyna.ac_higher_order import Losses, make_actor_critic_update
-from dyna.model_higher_order import (
-    EnvModelLosses,
-    make_transition_model_update,
-    trajectory_to_sas_tuple,
-)
-from dyna.types import (
-    DynaHyperParams,
-    DynaRunnerState,
-    DynaState,
-    ReplayBuffer,
-    SASTuple,
-)
+from dyna.model_higher_order import (EnvModelLosses,
+                                     make_transition_model_update,
+                                     trajectory_to_sas_tuple)
+from dyna.types import (DynaHyperParams, DynaRunnerState, DynaState,
+                        ReplayBuffer, SASTuple)
 
 
 def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
@@ -218,6 +210,8 @@ def make_experience_step(
             dyna_runner_state,
             None,
         )
+        final_obs = dyna_runner_state.last_obs
+        final_env_state = dyna_runner_state.cartpole_env_state
         sas_tup = trajectory_to_sas_tuple(trajectories)
         rp_buf = rp_buf.insert(sas_tup)
 
@@ -242,8 +236,8 @@ def make_experience_step(
         final_runner_state = DynaRunnerState(
             model_params=model_train_state.params,
             train_state=dyna_runner_state.train_state,
-            cartpole_env_state=dyna_runner_state.cartpole_env_state,
-            last_obs=dyna_runner_state.last_obs,
+            cartpole_env_state=final_env_state,
+            last_obs=final_obs,
             rng=rng_next,
         )
 
