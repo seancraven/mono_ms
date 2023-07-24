@@ -1,12 +1,13 @@
 from typing import Tuple
 
 import distrax
+import jax
 import jax.numpy as jnp
 import numpy as np
 from distrax import Categorical
 from flax import linen as nn
 from flax.linen.initializers import constant, orthogonal
-from g_conv.c2 import C2Conv
+from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
 from jaxtyping import Array
 
 
@@ -76,6 +77,33 @@ class ActorCritic(nn.Module):
 
 
 class EquivariantActorCritic(nn.Module):
+    action_dim: int
+
+    @nn.compact
+    def __call__(self, x):
+        actor_mean = nn.relu(C2DenseLift(features=64)(x))
+        actor_mean = nn.relu(C2Dense(features=64)(actor_mean))
+        actor_mean = nn.relu(C2Dense(features=self.action_dim)(actor_mean))
+        actor_mean = jax.lax.cond(
+            (actor_mean.at[:, 0].get() > 0.0).all(),
+            actor_mean.at[:, 0].get,
+            actor_mean.at[:, 1].get,
+        )
+        pi = distrax.Categorical(logits=actor_mean)
+
+        critic = nn.relu(C2DenseLift(features=64)(x))
+        critic = nn.relu(C2Dense(features=64)(critic))
+        critic = C2Dense(features=1)(critic)
+        critic = jax.lax.cond(
+            (critic.at[:, 0].get() > 0.0).all(),
+            critic.at[:, 0].get,
+            critic.at[:, 1].get,
+        )
+
+        return pi, critic.squeeze()
+
+
+class EquivariantConvActorCritic(nn.Module):
     action_dim: int
     activaton: str = "tanh"
 

@@ -4,8 +4,15 @@ import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
-from base_rl.higher_order import (BatchData, Obs, Params, PerTimestepScalar,
-                                  Scalar, Trajectory, Transition)
+from base_rl.higher_order import (
+    BatchData,
+    Obs,
+    Params,
+    PerTimestepScalar,
+    Scalar,
+    Trajectory,
+    Transition,
+)
 from distrax import Categorical
 from flax.training.train_state import TrainState
 from model_based.nn_model import NNCartpole

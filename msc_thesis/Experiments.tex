@@ -1,3 +1,38 @@
-\chapter{Equivariant Actor-Critics}
+\chapter{Experiments}
+\section{Motivation}
+With the ultimate aim of leveraging equivariance for model-based RL. A series of Experiments were carried out, in a sequential fashion, to progressively investigate how to exploit known symmetries in a model based environment.
+
+Model-Based RL, is inherently more complex than Actor-Critic or Value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be calculated.
+
+Due to the increased complexity of Model based methods, and the benifit of implementing existing methods, while also providing a baseline for further experimentation a model free implementation was created.
+
 \section{Baseline}
-The baseline chosen was that of the purejaxrl by \cite{lu2022discovered}, which provides a reference implementation of a PPO actor critic implementation on Cartpole. This provides an environment with an established baseline, to test the properties of equivariance against, while also begin very efficient.
+The baseline that was chosen was a proximal policy optimisation agent from PureJaxRL,~\cite{lu2022discovered}. This baseline provides a training framework, that trains a single agent concurrently on multiple environments.
+
+The Training regime is outlined below in pseudo code.
+\begin{algorithm}
+	\caption{PureJaxRL PPO Agent Training Structure}
+	\begin{algorithmic}
+		\State Initialise Agent: Actor-Critic $\pi_\theta$, $v_\phi$
+		\State Initialise Replay Buffer: $\mathcal{D}$
+		\For{Num Updates}
+		\State Gain Experience For Num Timestep
+		\State Store trajectories: $\mathcal{D}$.append($(S, A, S', R))$
+		\State Calculate GAE Estimate From timesteps
+		\For{ Num Epochs}
+		\State{ Split GAE Estimates into minibatches}
+		\State{ Mini-Batch SGD with Adam on $\pi_\theta, v_\phi$}
+		\Comment{ See~\ref{alg:PPO} for Losses to optimize}
+		\EndFor
+		\EndFor
+		\State Returns($\mathcal{D}$)
+
+	\end{algorithmic}
+\end{algorithm}
+
+For the baseline, an MLP with two hidden layers of 64 units each were used in both the actor and the critic network. All of the other training hyperparameters can be found in the appendix. To ensure that the learning curves were reproducable, 256 random seeds were averaged across. This ensures that the estimate of the baseline model is reliable.
+
+\section{Equivariant Actor-Critics}
+The first novel contribution from this work is to use a C2 equivariant G-CNN, in order to learn a policy in the cartpole system
+
+
