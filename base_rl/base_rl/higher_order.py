@@ -15,8 +15,7 @@ from gymnax.environments.classic_control import CartPole
 from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from base_rl.models import (ACSequential, ConvActorCritic,
-                            EquivariantActorCritic)
+from base_rl.models import ACSequential, ActorCritic, EquivariantActorCritic
 from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -306,7 +305,7 @@ def SymmetrizerNet(action_dim: int) -> ACSequential:
     layer_list = [
         4,
         64,
-        100,
+        64,
     ]
     sym_key = jax.random.PRNGKey(0)
     return ac_symmmetrizer_factory(
@@ -348,7 +347,7 @@ if __name__ == "__main__":
         layer_list = [
             4,
             64,
-            100,
+            64,
         ]
         return ac_symmmetrizer_factory(
             sym_key,
@@ -357,7 +356,7 @@ if __name__ == "__main__":
             [True] * (len(layer_list) + 1),
         )
 
-    for net_init in [SymmetrizerNet, EquivariantActorCritic, ConvActorCritic]:
+    for net_init in [SymmetrizerNet, EquivariantActorCritic, ActorCritic]:
         print(net_init.__name__)
         jit_train = jax.jit(make_train(CONFIG, net_init))
         results = jax.vmap(jit_train)(keys)
@@ -365,11 +364,3 @@ if __name__ == "__main__":
             (num_seeds, -1)
         )
         jnp.save(f"{net_init.__name__}.npy", episodic_returns)
-
-        if net_init == ConvActorCritic:
-            runner_state = results["runner_state"]
-
-            train_state = runner_state[0]
-            network_params = train_state.params
-            chk = checkpoint.PyTreeCheckpointer()
-            chk.save("expert_actor_critic_tree/", network_params)

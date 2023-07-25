@@ -3,11 +3,11 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from base_rl.higher_order import (ConvActorCritic, EquivariantActorCritic,
-                                  SymmetrizerNet)
+from base_rl.higher_order import SymmetrizerNet
+from base_rl.models import ActorCritic, EquivariantActorCritic
 
 
-def moving_average(x, w=10000):
+def moving_average(x, w=100):
     return np.convolve(x, np.ones(w), "valid") / w
 
 
@@ -15,10 +15,13 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
     colors = ["blue", "black", "purple"]
     for c, init_fn in zip(
-        colors, [EquivariantActorCritic, ConvActorCritic, SymmetrizerNet]
+        colors, [EquivariantActorCritic, ActorCritic, SymmetrizerNet]
     ):
-        model = init_fn(4)
-        params = model.init(jax.random.PRNGKey(0), jnp.zeros((1, 4)))
+        model = init_fn(2)
+        if init_fn == SymmetrizerNet:
+            params = model.init(jax.random.PRNGKey(0), jnp.zeros((1, 4)))
+        else:
+            params = model.init(jax.random.PRNGKey(0), jnp.zeros((4)))
         print("Name:", init_fn.__name__)
         # print("Param Count:", jax.tree_util.tree_map(lambda x: x.shape, params))
         print("Param Size:", sum(x.size for x in jax.tree_util.tree_leaves(params)))
