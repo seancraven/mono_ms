@@ -2,10 +2,11 @@ import random
 
 import distrax
 import jax
+from base_rl.models import EquivariantActorCritic
 from flax import linen as nn
 from jax import numpy as jnp
 
-from g_conv.c2 import C2Conv
+from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
 
 # def test_shaping():
 #     mod = C2Conv(features=3, kernel_size=(1, 4))
@@ -20,13 +21,36 @@ class TwoLayer(nn.Module):
 
     @nn.compact
     def __call__(self, input):
-        layer = C2Conv(features=self.features, kernel_size=((input.shape[1],)))
-        out = layer(input)
-        layer_2 = C2Conv(features=self.features, kernel_size=((input.shape[1],)))
+        layer = C2Conv(features=self.features, kernel_size=((1,)))
+        out = nn.tanh(layer(input))
+        layer_2 = C2Conv(features=self.features, kernel_size=((1,)))
         out = layer_2(out)
-        layer_3 = C2Conv(features=1, kernel_size=((input.shape[1],)))
+        layer_3 = C2Conv(features=1, kernel_size=((1,)))
         out = layer_3(out)
         return out
+
+
+class Dense(nn.Module):
+    features: int
+
+    @nn.compact
+    def __call__(self, input):
+        layer = nn.Dense(self.features, use_bias=False)
+        out = nn.tanh(layer(input))
+        layer_2 = nn.Dense(self.features, use_bias=False)
+        out = nn.tanh(layer_2(out))
+        layer_3 = C2DenseLift(features=1)
+        out = layer_3(out)
+        return distrax.Categorical(logits=out)
+
+
+def test_dense():
+    model = Dense(features=64)
+    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
+    input = jax.random.normal(jax.random.PRNGKey(4), (4,))
+    out = model.apply(params, input)
+    r_out = model.apply(params, -input)
+    assert out.log_prob(0) == r_out.log_prob(1)
 
 
 def mock_model():

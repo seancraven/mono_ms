@@ -1,14 +1,40 @@
-from typing import Tuple
+from typing import Callable, Tuple
 
 import distrax
-import jax
 import jax.numpy as jnp
-import numpy as np
 from distrax import Categorical
 from flax import linen as nn
-from flax.linen.initializers import constant, orthogonal
+from flax.linen.initializers import he_normal
 from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
 from jaxtyping import Array
+
+
+class BaseCritic(nn.Module):
+    act: Callable
+    h_dim: int = 64
+    bias: bool = True
+
+    @nn.compact
+    def __call__(self, x):
+        critic = self.act(
+            nn.Dense(
+                self.h_dim,
+                kernel_init=he_normal(),
+                use_bias=self.bias,
+            )(x)
+        )
+        critic = self.act(
+            nn.Dense(
+                self.h_dim,
+                kernel_init=he_normal(),
+                use_bias=self.bias,
+            )(critic)
+        )
+        critic = nn.Dense(1, kernel_init=he_normal(), use_bias=True)(critic)
+        return critic.squeeze()
+
+
+Critic = lambda h_dim: BaseCritic(act=nn.relu, h_dim=h_dim)
 
 
 class ACSequential(nn.Module):
@@ -38,123 +64,88 @@ class ACSequential(nn.Module):
         return Categorical(logits=action_logits), state_value.squeeze()
 
 
-class ActorCritic(nn.Module):
-    action_dim: int
-    activation: str = "tanh"
-
-    @nn.compact
-    def __call__(self, x):
-        if self.activation == "relu":
-            activation = nn.relu
-        else:
-            activation = nn.tanh
-        actor_mean = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Dense(
-            self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0)
-        )(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
-        )
-
-        return pi, jnp.squeeze(critic, axis=-1)
-
-
 class EquivariantActorCritic(nn.Module):
-    action_dim: int
+    a_dim: int
+    h_dim: int = 64
+    act: Callable = nn.tanh
 
     @nn.compact
     def __call__(self, x):
-        actor_mean = nn.relu(C2DenseLift(features=64)(x))
-        actor_mean = nn.relu(C2Dense(features=64)(actor_mean))
-        actor_mean = nn.relu(C2Dense(features=self.action_dim)(actor_mean))
-        actor_mean = jax.lax.cond(
-            (actor_mean.at[:, 0].get() > 0.0).all(),
-            actor_mean.at[:, 0].get,
-            actor_mean.at[:, 1].get,
+        actor_mean = self.act(
+            nn.Dense(self.h_dim, kernel_init=he_normal(), use_bias=False)(x)
         )
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.relu(C2DenseLift(features=64)(x))
-        critic = nn.relu(C2Dense(features=64)(critic))
-        critic = C2Dense(features=1)(critic)
-        critic = jax.lax.cond(
-            (critic.at[:, 0].get() > 0.0).all(),
-            critic.at[:, 0].get,
-            critic.at[:, 1].get,
+        actor_mean = self.act(
+            nn.Dense(self.h_dim, kernel_init=he_normal(), use_bias=False)(actor_mean)
         )
+        actor_mean = C2DenseLift(self.a_dim // 2)(actor_mean)
+        pi = distrax.Categorical(logits=actor_mean.squeeze())
 
-        return pi, critic.squeeze()
+        critic = Critic(self.h_dim)(x)
+        return pi, critic
 
 
-class EquivariantConvActorCritic(nn.Module):
-    action_dim: int
-    activaton: str = "tanh"
+class ActorCritic(nn.Module):
+    a_dim: int
+    h_dim: int = 64
+    act: Callable = nn.relu
 
-    ## TODO: Indexing of the layer kernel shapes needs to get fixed
     @nn.compact
     def __call__(self, x):
-        activation = nn.relu
-        actor_mean = C2Conv(features=64, kernel_size=((1,)))(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=64, kernel_size=((1,)))(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = C2Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
+        actor_mean = self.act(nn.Dense(self.h_dim, kernel_init=he_normal())(x))
+        actor_mean = self.act(nn.Dense(self.h_dim, kernel_init=he_normal())(actor_mean))
+        actor_mean = nn.Dense(2, kernel_init=he_normal())(actor_mean)
+        pi = distrax.Categorical(logits=actor_mean.squeeze())
 
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
+        critic = Critic(self.h_dim)(x)
+        return pi, critic
+
+
+class ConvEquivariantActorCritic(nn.Module):
+    """Equiariant Convolutional Actor Critic Network."""
+
+    a_dim: int
+    h_dim: int = 64
+    act: Callable = nn.tanh
+
+    @nn.compact
+    def __call__(self, x):
+        actor_mean = self.act(C2Conv(features=self.h_dim, kernel_size=((1,)))(x))
+        actor_mean = self.act(
+            C2Conv(features=self.h_dim // 2, kernel_size=((1,)))(actor_mean)
         )
-        return pi, jnp.squeeze(critic, axis=-1)
+        actor_mean = C2Conv(features=self.a_dim, kernel_size=((1,)))(actor_mean)
+        pi = distrax.Categorical(logits=actor_mean.squeeze())
+
+        critic = Critic(self.h_dim)(x)
+        return pi, critic
 
 
 class ConvActorCritic(nn.Module):
-    action_dim: int
-    activaton: str = "tanh"
+    a_dim: int
+    h_dim: int = 64
+    act: Callable = nn.tanh
 
     @nn.compact
     def __call__(self, x):
-        activation = nn.relu
-        actor_mean = nn.Conv(features=64, kernel_size=((1,)))(x)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Conv(features=128, kernel_size=((1,)))(actor_mean)
-        actor_mean = activation(actor_mean)
-        actor_mean = nn.Conv(features=self.action_dim, kernel_size=((1,)))(actor_mean)
-        pi = distrax.Categorical(logits=actor_mean)
-
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
+        actor_mean = nn.Conv(
+            features=self.h_dim,
+            kernel_size=((1,)),
+            kernel_init=he_normal(),
         )(x)
-        critic = activation(critic)
-        critic = nn.Dense(
-            64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(critic)
-        critic = activation(critic)
-        critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
-            critic
-        )
-        return pi, jnp.squeeze(critic, axis=-1)
+        actor_mean = self.act(actor_mean)
+        actor_mean = nn.Conv(
+            features=self.h_dim,
+            kernel_size=((1,)),
+            kernel_init=he_normal(),
+        )(actor_mean)
+        actor_mean = self.act(actor_mean)
+        actor_mean = nn.Conv(
+            features=self.a_dim,
+            kernel_size=((1,)),
+            kernel_init=he_normal(),
+        )(actor_mean)
+        pi = distrax.Categorical(logits=actor_mean.squeeze())
+
+        critic = Critic(self.h_dim)(x)
+
+        return pi, critic

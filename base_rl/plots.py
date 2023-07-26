@@ -7,18 +7,23 @@ from base_rl.higher_order import SymmetrizerNet
 from base_rl.models import ActorCritic, EquivariantActorCritic
 
 
-def moving_average(x, w=100):
+def moving_average(x, w=1000):
     return np.convolve(x, np.ones(w), "valid") / w
 
 
 if __name__ == "__main__":
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-    colors = ["blue", "black", "purple"]
+    colors = ["blue", "black", "purple", "red", "green"]
     for c, init_fn in zip(
-        colors, [EquivariantActorCritic, ActorCritic, SymmetrizerNet]
+        colors,
+        [
+            ActorCritic,
+            SymmetrizerNet,
+            EquivariantActorCritic,
+        ],
     ):
         model = init_fn(2)
-        if init_fn == SymmetrizerNet:
+        if init_fn in [SymmetrizerNet]:
             params = model.init(jax.random.PRNGKey(0), jnp.zeros((1, 4)))
         else:
             params = model.init(jax.random.PRNGKey(0), jnp.zeros((4)))
@@ -38,7 +43,6 @@ if __name__ == "__main__":
         ax[0].set_ylabel("Episodic Return")
 
         cumulative_returns = np.cumsum(episodic_returns, axis=1)[:, -1]
-        assert cumulative_returns.shape == (256,), f"{cumulative_returns.shape}"
         worst_decile = np.quantile(cumulative_returns, 0.1)
         worst_mean = episodic_returns[cumulative_returns < worst_decile].mean(axis=0)
         worst_std = episodic_returns[cumulative_returns < worst_decile].std(
@@ -65,4 +69,5 @@ if __name__ == "__main__":
 
     ax[0].legend()
     ax[1].legend()
+    plt.show()
     fig.savefig("plots.png")
