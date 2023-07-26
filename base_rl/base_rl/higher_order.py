@@ -12,10 +12,10 @@ import optax
 from flax.training.train_state import TrainState
 from gymnax import EnvState
 from gymnax.environments.classic_control import CartPole
-from orbax import checkpoint
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from base_rl.models import ACSequential, ActorCritic, EquivariantActorCritic
+from base_rl.models import (ACSequential, ActorCritic, ConvActorCritic,
+                            ConvEquivariantActorCritic, EquivariantActorCritic)
 from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 
 # Single timestep
@@ -336,8 +336,8 @@ CONFIG = {
 }
 
 if __name__ == "__main__":
-    num_seeds = 256
-    key = jax.random.PRNGKey(0)
+    num_seeds = 128
+    key = jax.random.PRNGKey(42)
     sym_key, key = jax.random.split(key)
 
     keys = jax.random.split(key, num_seeds)
@@ -356,11 +356,16 @@ if __name__ == "__main__":
             [True] * (len(layer_list) + 1),
         )
 
-    for net_init in [SymmetrizerNet, EquivariantActorCritic, ActorCritic]:
+    for net_init in [
+        ActorCritic,
+        EquivariantActorCritic,
+        SymmetrizerNet,
+    ]:
         print(net_init.__name__)
-        jit_train = jax.jit(make_train(CONFIG, net_init))
-        results = jax.vmap(jit_train)(keys)
+        jit_train = jax.vmap(jax.jit(make_train(CONFIG, net_init)))
+        results = jit_train(keys)
         episodic_returns = results["metrics"]["returned_episode_returns"].reshape(
             (num_seeds, -1)
         )
         jnp.save(f"{net_init.__name__}.npy", episodic_returns)
+        del jit_train
