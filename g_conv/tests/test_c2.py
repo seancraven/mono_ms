@@ -6,7 +6,7 @@ from base_rl.models import EquivariantActorCritic
 from flax import linen as nn
 from jax import numpy as jnp
 
-from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
+from g_conv.c2 import ActionEquiv, C2Conv, C2Dense, C2DenseLift
 
 # def test_shaping():
 #     mod = C2Conv(features=3, kernel_size=(1, 4))
@@ -14,6 +14,15 @@ from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
 #     params = mod.init(jax.random.PRNGKey(0), dummy_state)
 #     out = mod.apply(params, dummy_state)
 #     assert out.shape == (1, 2, 3), f"Expected shape (1, 2, 3), got {out.shape}"
+
+
+def test_action_equiv():
+    layer = ActionEquiv(features=3)
+    params = layer.init(jax.random.PRNGKey(0), jnp.ones((1,)))
+    out = layer.apply(params, jnp.ones((1,)))
+    inv = layer.apply(params, jnp.zeros((1,)))
+    print(out, inv)
+    assert jnp.allclose(out, -inv)
 
 
 class TwoLayer(nn.Module):

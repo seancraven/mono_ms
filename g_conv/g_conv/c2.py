@@ -50,5 +50,18 @@ class C2DenseLiftDiscrete(nn.Module):
         return jnp.stack([layer(input), layer(1 - input)], axis=1).squeeze()
 
 
+class ActionEquiv(nn.Module):
+    features: int
+
+    @nn.compact
+    def __call__(self, input):
+        layer = nn.Dense(
+            features=self.features,
+            kernel_init=nn.initializers.he_normal(),
+            use_bias=False,
+        )
+        return layer(2 * input - 1)
+
+
 if __name__ == "__main__":
     pass
