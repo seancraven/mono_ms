@@ -1,11 +1,10 @@
 from typing import Callable, Tuple
 
 import distrax
-import jax.numpy as jnp
 from distrax import Categorical
 from flax import linen as nn
 from flax.linen.initializers import he_normal
-from g_conv.c2 import C2Conv, C2Dense, C2DenseLift
+from g_conv.c2 import C2Conv, C2Dense
 from jaxtyping import Array
 
 
@@ -77,7 +76,7 @@ class EquivariantActorCritic(nn.Module):
         actor_mean = self.act(
             nn.Dense(self.h_dim, kernel_init=he_normal(), use_bias=False)(actor_mean)
         )
-        actor_mean = C2DenseLift(self.a_dim // 2)(actor_mean)
+        actor_mean = C2Dense(self.a_dim // 2)(actor_mean)
         pi = distrax.Categorical(logits=actor_mean.squeeze())
 
         critic = Critic(self.h_dim)(x)
