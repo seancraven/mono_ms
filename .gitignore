@@ -467,4 +467,4 @@ cython_debug/
 **_tree/
 **.pickle
 **.pdf
-
+.vscode/
