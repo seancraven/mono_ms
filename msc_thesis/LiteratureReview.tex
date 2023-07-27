@@ -5,7 +5,7 @@ As discussed previously In Chapter \ref{chap:background} the idea of learning a 
 \subsection{MDP Homomorphic Networks}
 \cite{vanderpol2020mdp} introduces the idea of performing policy-based learning that respects the symmetry of the environment, by constraining the possible policies that can be represented by a neural network.
 
-This is achieved by using a network equivariant to Group Structured transformations, on discrete action spaces. When the input to the network is transformed by a group-structured operation, the output policy is also transformed by this operation, due to the equivariance property of the network, as it exploits the Group Structured MDP Homomorphism.
+This is achieved by using a network equivariant to Group Structured transformations on discrete action spaces. When a group-structured operation transforms the input to the network, the output policy is also transformed by this operation due to the equivariance property of the network, as it exploits the Group Structured MDP Homomorphism.
 
 The equivariance in the deep network uses many of the same ideas as that of the G-CNNs\cite{cohen2016group}. In that, the only requirement for a network to be equivariant to a discrete group action is that the individual layers of the network are equivariant to the group's actions. Despite the similarity, their method of achieving the equivariance is quite different. The Authors propose the "symmetrizer layer". In contrast to the group convolution formulation, the symmetrizer layer achieves equivaraince by finding weight matrices that are solutions to,
 \begin{equation}
@@ -15,41 +15,41 @@ The equivariance in the deep network uses many of the same ideas as that of the 
 Where if $f(\vec{x}) = \mat{W}\vec{x}$, $f: \mathcal{X} \rightarrow {\mathcal{X}'}$ and $\pi_g^{\mathcal{X}}$ is the representation of $g$ in $\mathcal{X}$, then $\pi_g^{\mathcal{X}'}$ is the representation of $g$ in $\mathcal{X}'$. In order to find such linear systems of equations in a general manner for a group $G$, the authors sample many matrices randomly from the space of all possible matrices of that size $\mathcal{W}_{total}$. Then apply the symmetrizer operation, $S$, to all of the sampled matrices.
 
 
-From this point, because the symmetrizer operation is linear there exists a set of solutions to that linear equation,$\mathcal{W}$, and to form solutions to it, they vectorise and stack the found matrices, This forms a new matrix, which the singular value decomposition's basis vectors are orthogonal vectors of the equivariant subspace! These vectors $\{\mat{V}_i\}$ are all solutions to the above equation\ref{eqn:symmetrizer}. As such any linear combination of them is also a solution. Using the first $r$ vectors of the SVD, where $r= \text{rank}(\mathcal{W})$. An equivariant layer can b3 formed by,
+Because the symmetrizer operation is linear, $\mathcal{W}$ is a set of solutions to the linear equation defined by the symmetrizer equation~\ref{eqn:symmetrizer}. To find this, many weight matrices are vectorised and stacked. This forms a new matrix in which the singular value decomposition's basis vectors are orthogonal vectors of the equivariant subspace! These vectors $\{\mat{V}_i\}$ are all solutions to the above equation\ref{eqn:symmetrizer}. As such, any linear combination of them is also a solution. Using the first $r$ vectors of the SVD, where $r= \text{rank}(\mathcal{W})$. An equivariant layer can b3 formed by,
 
 \begin{equation}
 	\mat{W} = \sum_{i=1}^{r}{\alpha_i\mat{V}_i}
 \end{equation}
 
-These layers have interesting properties in that the size of the subspace defines how many parameters when using this framework, there is no current closed-form solution to the question of how many parameters each layer will have.
+These layers have interesting properties in that the size of the subspace defines how many parameters when using this framework; there is no current closed-form solution to the question of how many parameters each layer will have.
 
-This scheme of producing equivariant layers, has some notable upsides, in that you only need to know how to transform the input and output of the layer, $\mat{W} \rightarrow \mat{W}\pi_g^\mathcal{X}$ and $\mat{W} \rightarrow {\pi_g^{\mathcal{X}'}}^{-1} \mat{W}$ respectively. However, the scheme does require, expensive SVD calculations, in addition to the sampling of many matrices, which is expensive, but this only needs to be done once at the start of training per layer. However, there is no closed-form solution to how many parameters the matrices will have, and as such the number of parameters in the network is not known until the SVD is performed.
+This scheme of producing equivariant layers has some notable upsides, in that you only need to know how to transform the input and output of the layer, $\mat{W} \rightarrow \mat{W}\pi_g^\mathcal{X}$ and $\mat{W} \rightarrow {\pi_g^{\mathcal{X}'}}^{-1} \mat{W}$ respectively. However, the scheme does require expensive SVD calculations, in addition to the sampling of many matrices, which is expensive, but this only needs to be done once at the start of training per layer. However, there is no closed-form solution to how many parameters the matrices will have, and as such, the number of parameters in the network is not known until the SVD is performed.
 
-The larger problems with this approach are that the homomorphisms must be exact, and known apriori. This limits the possible scenarios in which this approach can be used, as it is not always possible to know the exact symmetry. In addtion, to this in many cases generalising to continuous actions spaces is not possible with the current methodology.
+The larger problems with this approach are that the homomorphisms must be exact and known apriori. This limits the possible scenarios in which this approach can be used, as it is not always possible to know the exact symmetry. In addition, in many cases, generalising to continuous action spaces is impossible with the current methodology.
 
 
 \subsection{Group Equivariant Deep Reinforcement Leanrning}
-In much the same vein as that of \cite{vanderpol2020mdp}, \cite{mondal2020group} proposes a method of exploiting equivariant networks for Deep RL, in comparison to \cite{vanderpol2020mdp}, they propose using G-CNNs \cite{cohen2016group} to achieve equivariance, rather than the symmetrizer layer. In contrast to learning a policy, they have a network structure such that the states are mapped to an equivariant Latent space of dimension 256, This results in a network architecture that can be thought of as an equivariant embedding function, $f(s)$, and a Q-Value function, $Q(s_{eqv}, a)$, acting on this space.
+In much the same vein as that of \cite{vanderpol2020mdp}, \cite{mondal2020group} proposes a method of exploiting equivariant networks for Deep RL, in comparison to \cite{vanderpol2020mdp}, they propose using G-CNNs \cite{cohen2016group} to achieve equivariance, rather than the symmetrizer layer. In contrast to learning a policy, they have a network structure such that the states are mapped to an equivariant Latent space of dimension 256. This results in a network architecture that can be thought of as an equivariant embedding function, $f(s)$, and a Q-Value function, $Q(s_{eqv}, a)$, acting on this space.
 \begin{align}
 	f: & \mathcal{S} \rightarrow \mathcal{S}_{eqv}      \\
 	Q: & \mathcal{S}_{eqv} \rightarrow \mathbb{R}^{|A|}
 \end{align}
 
-One of the key downsides of this is it doesn't exploit the homomorphism of the MDP, which exists also in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over two baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in Snake. However, they only see a minor improvement in sample efficiency in Pacman, which also possesses the same $C_4$ group symmetry.
+One of the key downsides of this is that it doesn't exploit the MDP's homomorphism, which also exists in the action space. Despite this \cite{mondal2020group} still demonstrate an improvement in sample efficiency over two baselines of DDQN~\cite{van2016deep} and DQN~\cite{mnih2013playing} in Snake. However, they only see a minor improvement in sample efficiency in Pacman, which also possesses the same $C_4$ group symmetry.
 
 \subsection{$\mathbf{\text{SO}(2)}$ Equivariant Reinforcement Learning}
 
-In much the same way as the above methods,~\cite{wang2022so2} also exploit the equivariance property, in the context of robotic control in the PyBullet suite\cite{coumans2021}. They use steerable G-CNNs\cite{weiler2019general}, which provide $\text{SE}(2)$ equivariance, in robotic control environments. In contrast to previous papers where finite groups were exploited, the continuous Lie group $\text{SO}2$ constrains the degrees of freedom of the problem much more than the finite groups. Utilising this they are able to achieve impressive improvements in sample efficiency and robustness over conventional DQN and SAC methods.
+In much the same way as the above methods,~\cite{wang2022so2} also exploit the equivariance property in the context of robotic control in the PyBullet suite\cite{coumans2021}. They use steerable G-CNNs\cite{weiler2019general}, which provide $\text{SE}(2)$ equivariance, in robotic control environments. In contrast to previous papers where finite groups were exploited, the continuous Lie group $\text{SO}2$ constrains the degrees of freedom of the problem much more than the finite groups. They can achieve impressive improvements in sample efficiency and robustness over conventional DQN and SAC methods.
 
-In their first experiments of Drawer-Opening, Block Pulling, and Object Picking, the equivariant networks outperform all other DQN methods, and when applied to the SAC formulation, In Object picking and Drawer Opening, they are the only methods that can solve the task.
+In Drawer-Opening, Block Pulling, and Object Picking experiments, the equivariant networks outperform all other DQN methods. When applied to the SAC formulation, In Object picking and Drawer Opening are the only methods to solve the task.
 
-Further, they perform tests on more difficult robotic control tasks where demonstrations are provided, this enables the agents to tackle more complex tasks such as block stacking and house building, in which they again are the only successful agents.
+Further, they perform tests on more difficult robotic control tasks where demonstrations are provided; this enables the agents to tackle more complex tasks such as block stacking and house building, in which they are the only successful agents again. Due to the ability to generalise to states not seen in the demonstrations but that are in the orbit of the states seen in the demonstrations.
 
 
 \section{Learning Models}
-In the context of exploiting symmetries in RL, there is also the opportunity, to build world models which are learned from experience. Two possible approaches are, learning a world model using a network that is equivariant to the group actions, in this case, the world model has the same state action space as the original MDP, however, the equivariance inductive bias may improve the sample efficiency of learning the world model, and introduces better generalisation, for the agent. In some ways, this is the model-based extension of the equivariant model-free methods discussed above.
+In the context of exploiting symmetries in RL, there is also the opportunity to build world models learned from experience. Two possible approaches are learning a group equivariant world model. In this case, the world model has the same state action space as the original MDP. However, the equivariance inductive bias may improve the sample efficiency of learning the world model and introduces better generalisation for the agent. In some ways, this is the model-based extension of the equivariant model-free methods discussed above.
 
-An alternative approach is to learn a world model that is invariant to the group actions, in this case, the MDP homomorphism is used to transform the state action pairs in the same orbit to a single state action pair. This produces a world model that is "simpler" than the original MDP\ref{fig:invariant_world_model}. From the policy learned in the world model, the policy can be lifted back to the original MDP. An example of a similar strategy is that of Approximate MDP Homomorphisms.
+An alternative approach is to learn a group invariant model, in this case, the MDP homomorphism is used to transform the state action pairs in the same orbit to a single state action pair. This produces a world model that is "simpler" than the original MDP\ref{fig:invariant_world_model}. From the policy learned in the world model, the policy can be lifted back to the original MDP. An example of a similar strategy is that of Approximate MDP Homomorphisms.
 \begin{figure}[h]
 	\centering
 	\begin{tikzpicture}
@@ -81,11 +81,11 @@ In contrast to learning symmetries, they are looking to find a state and action 
 \begin{equation}
 	Z(T(s, a)) = \overline{T}(Z(s), Z_s(a))
 \end{equation}
-Where $Z$ is the state embedding function, and $Z_s(a)$, is the action embedding function. Thus they construct and abstract MDP $\omc{M}$, with state space $\mathcal{Z}$ and action space $\omc{A}$, which they can act in. Further rather than using deep RL they discretise the state action space of the abstract MDP, $Z \rightarrow \mathcal{X}$, and use Value Iteration, repeated application of the bellman optimality operator, to learn the values of all state action pairs. From here, the value function can be interpolated to any abstract state action pair. Pseudocode for this process is given below. The world model for the MDP consists of four jointly trained networks, $Z$, $Z_a$, $\overline{T}$,$R_z(z)$, which are trained to minimise a bisimulation metric. A bisimulation metric measures how different the dynamics of two MDPs are. The bisimulation metric used is a squared distance between the abstract MDP and the original MDP;
+Where $Z$ is the state embedding function, and $Z_s(a)$ is the action embedding function. Thus they construct and abstract MDP $\omc{M}$, with state space $\mathcal{Z}$ and action space $\omc{A}$, which they can act in. Further, rather than using deep RL, they discretise the state action space of the abstract MDP, $Z \rightarrow \mathcal{X}$, and use Value Iteration, repeated application of the bellman optimality operator, to learn the values of all state-action pairs. The value function can be interpolated from here to any abstract state-action pair. Pseudocode for this process is given below. The world model for the MDP consists of four jointly trained networks, $Z$, $Z_a$, $\overline{T}$,$R_z(z)$, which are trained to minimise a bisimulation metric. A bisimulation metric measures how different the dynamics of two MDPs are. The bisimulation metric used is a squared distance between the abstract MDP and the original MDP;
 \begin{equation}
 	L(\theta, \phi, \xi, \psi) = \sum_{(s', s, a) \sim \tau} d(Z_\theta (s'), \overline{T}_\phi(Z_\theta(s), Z_{a_\xi}(a))) +  d(R(s'), R_{z_\psi}(Z_\theta (s))) + C(\tilde{S})
 \end{equation}
-Where $d(z, z') = 1/2 (z - z')^2$ is the squared distance between two quantities. Additionally, they add a contrastive term $C(\tilde{S})$, to stop trivial embeddings. $\tilde{S}$, is a set of randomly sampled states from the trajectory. The contrastive term, with model parameter dependence suppressed, is given by,
+Where $d(z, z') = 1/2 (z - z')^2$ is the squared distance between two quantities. Additionally, they add a contrastive term, $C(\tilde{S})$, to stop trivial embeddings. $\tilde{S}$ is a set of randomly sampled states from the trajectory. The contrastive term, with model parameter dependence suppressed, is given by,
 
 \begin{equation}
 	C(\tilde{S}) = \sum_{\tilde{s} \in \tilde{S}} \tilde{d}(Z_\theta(\tilde{s}), \overline{T}_\phi(Z(s), Z_{a_\xi}(a)))
@@ -101,15 +101,33 @@ Here, $\tilde{d}(z, z') = \max(0, \epsilon - d(z, z'))$, is a distance metric th
 		\State $Q(s, a) = Q(Z(s), Z_a(a))$
 	\end{algorithmic}
 \end{algorithm}
-This procedure produces impressive results, especially when limited to very few episodes of interaction with the MDP. Compared with a REINFORCE baseline, on 100 interactions of Cartpole, the episodic return is eight times higher. Additionally across a variety of tasks \cite{van2020plannable}, find a more structured latent space with comparable world model methods, that use Encoder networks. There are however some limitations with the method's inability to generalise to stochastic transition dynamics.
+This procedure produces impressive results, especially when limited to very few episodes of interaction with the MDP. Compared with a REINFORCE baseline, on 100 interactions of Cartpole, the episodic return is eight times higher. Additionally, across various tasks \cite{van2020plannable}, find a more structured latent space with comparable world model methods that use Encoder networks. There are, however, some limitations with the method's inability to generalise to stochastic transition dynamics.
+
+\subsection{A Simple Approach To Learning State-Action Abstraction using a Learned MDP Homomorphism}
+In Recent Reinforcement Learning, another approach that is related to learning an MDP homomorphism from a world model \cite{mavor2022simple} not only learns the forward transition from a given state, $T_\theta(s_t, a_t)$ but also learns the reverse transition dynamics, $B_\phi(s_{t+1}, a_t)$. Where $T$ predicts the next state $s_{t+1}$ and $B$, predicts $s_t$, the previous state. These two models are used to find state action pairs, $((s_t, a_t), (s'_t, \overline{a}))$,  that have the same next state, which in many MDPs are states with the same value—producing an MDP homomorphism between the two sets of states with equivalent effects.
+
+If the action $a_t$ transitions the agent from $s_t$ to $s_{t+1}$, $T(s_t, a_t) = s_{t+1}$, then there may exists an action $\overline{a}$ such that,
+\begin{equation}
+	B(T(s_t, a_t), \overline{a}) = s_t
+\end{equation}
+This is the canonical action. There may not always be a canonical action, however.
+
+In the case of MDPs, where the reward is only a function of the state and the transition dynamics are deterministic, then an MDP homomorphism can be found. By choosing a single canonical action, $\overline{a}$ and a start state, $s_t$. Equivalent effect state action pairs can be found to have the same value. Consider the set of next states $\{s_{t+1}\}$ defined by the set of actions $\{a_t\}$, such that,
+\begin{equation}
+	\{T(s_t, a_i)\}_{i \in |A| }= {s_{t+1}}.
+\end{equation}
+The the set state with the value $Q(s_t, a_j)$ for the cannonical action is given by $B(s_{t+1}, \overline{a}) = s'_t$. Thus $Q(s_t, a_j) = Q(s'_t, \overline{a})$, which defines a MDP homomorphism between the state action pairs $\{s_t, a_j\}$ and $\{s'_t, \overline{a}\}$. The $Q$ values of only one set of these states need to be learned for the agent to be able to act optimally in the MDP. This reduces the sample complexity of learning in the MDP. \cite{mavor2022simple} Show this method's effectiveness in various environments.
+
+This technique, however, becomes non-trivial to apply in stochastic environments due to the challenge of learning stochastic transition dynamics. Further, the method is not applicable if the actions define the reward.
+
 
 
 \section{Meta-Learning}
-Meta Learning, is the process of learning to learn, across multiple tasks. This is a very broad field, where the goals are varied. Specifically, in this project, we are looking at parameter meta learning, where there is a single model, $f_\theta$, which is aplied to multiple different tasks, $\tau_i \sim \mathcal{T}$, drawn from a distriubtion.
-On each task, there is a per task loss, $L_{\tau_i}(\theta)$, which is a function of the parameters of the model, and may change it's functional form.
+Meta-Learning is the process of learning to learn across multiple tasks. This is a vast field where the goals are varied. Specifically, in this project, we are looking at parameter meta-learning, where a single model, $f_\theta$, is applied to multiple different tasks, $\tau_i \sim \mathcal{T}$, drawn from a distribution.
+Each task has a per task loss, $L_{\tau_i}(\theta)$, a function of the model's parameters and may change its functional form.
 
 
-The Model-Agnostic Meta-Learning(MAML) algorithm~\ref{alg:maml}, is the cannonical example of these methods. It works by performing a gradient based update on each task, storing the parameters,$\theta_i'$, of the model after each task's update, and then performs a gradient update on the meta loss, which is usually the sum of the per task losses $L_{\tau_i}(\theta_i')$, evaluated with their new parameters $\theta_i'$. This is then repeated till convergence. Pseudocode is given below.
+The Model-Agnostic Meta-Learning(MAML) algorithm~\ref{alg:maml} is the canonical example of these methods. It works by performing a gradient-based update on each task, storing the parameters,$\theta_i'$, of the model after each task's update, and then performs a gradient update on the meta loss, which is usually the sum of the per task losses $L_{\tau_i}(\theta_i')$, evaluated with their new parameters $\theta_i'$. This is then repeated till convergence. Pseudocode is given below.
 
 
 \begin{algorithm}
@@ -129,14 +147,14 @@ The Model-Agnostic Meta-Learning(MAML) algorithm~\ref{alg:maml}, is the cannonic
 
 
 \subsection{Meta-Learning Symmetries By Reparametrisation}
-~\cite{zhou2020meta}, proposes a method to learn approximately equivariant networks, using the Model Agnostic Meta-Leaning~(MAML) framework~\cite{finn2017model}. MAML provides gradient updates to one set of parameters. However,~\cite{zhou2020meta} proposes a method of learning group convolutional layers~\ref{sec:G-CNNs}. This is achieved by breaking the model into two sets of parameters, the convolutional filters which are the conventionally trainable weights, and then the parameter sharing scheme. This is the non-trainable part of a general $G-CNN$.
+~\cite{zhou2020meta}, proposes a method to learn approximately equivariant networks, using the Model Agnostic Meta-Leaning~(MAML) framework~\cite{finn2017model}. MAML provides gradient updates to one set of parameters. However,~\cite{zhou2020meta} proposes a method of learning group convolutional layers~\ref{sec:G-CNNs}. This is achieved by breaking the model into two sets of parameters, the convolutional filters, which are the conventionally trainable weights, and then the parameter sharing scheme. This is the non-trainable part of a general $G-CNN$.
 
 By reparameterising $\mat{W} \in \mathbb{R}^{m \times n}$ of a feedforward network, into a filter $v$ and a parameter sharing scheme $\mat{U}$;
 \begin{equation}
 	\text{vec}(\mat{W}) = \mat{U}v
 \end{equation}
-One can see this in the case of a group specific $\mat{U}_g$, is a way of representing a group convolutional layer.
-An example of the eqivalence of this to the G-CNN scheme is for $C_2$, where the network is equivariant to an inversion of the input,
+One can see this in the case of a group-specific $\mat{U}_g$, which represents a group convolutional layer.
+An example of the equivalence of this to the G-CNN scheme is for $C_2$, where the network is equivariant to an inversion of the input,
 \begin{align}
 	\mat{U_{C_2}}   & \cdot v  = [\oplus_{g \in C_2} \pi_g] \cdot v, \\
 	\begin{pmatrix}
@@ -174,22 +192,21 @@ To prove this is equivariant, we can show that the following holds,
 		-v_1 & -v_2 \\
 	\end{pmatrix} \cdot  -x
 \end{equation}
-From this insight, they propose a method of meta-learning an equivariant parameter sharing scheme $\mat{U}$, given a set of tasks $\mathcal{T}$, that all possess the same equivariance.
-Using an adapted MAML framework, $v$ is trained on a per task loss $L_{\tau_i}$ and the training data and $\mat{U}$ is trained on the meta loss on the validation data, they demonstrate the ability to recover the equivariant parameter sharing scheme, for convolutional layers.
+From this insight, they propose a method of meta-learning an equivariant parameter sharing scheme $\mat{U}$, given a set of tasks $\mathcal{T}$, all possessing the same equivariance.
+Using an adapted MAML framework, $v$ is trained on a per task loss $L_{\tau_i}$ and the training data and $\mat{U}$ is trained on the meta loss on the validation data; they demonstrate the ability to recover the equivariant parameter sharing scheme, for convolutional layers.
 
 
 \section{Other Related Works}
-In Recent Reinforcement Learning another approach that is related to learning an MDP homomorphism from a world model \cite{mavor2022simple}, learns transitions between states, that have the same value, and as such they learn an approximate MDP Homomorphism. This is achieved by learning the reverse transition from a given state, in much the same way as $T(s', s, a)$ is learned from experience in a replay buffer.
 
-Another related recent development is that of \cite{rezaei2022continuous}, they prove that the MDP homomorphism results of Optimal Value equivalence are also found in the continuous action case. Further, they use this result in conjunction with DDPG\cite{lillicrap2015continuous} to learn a continuous action MDP Homomorphism, building a world model with a lax bisimulation metric, that is similar to the one used in \cite{van2020plannable}.
+Another recent development is that of \cite{rezaei2022continuous}, which proves that the MDP homomorphism results of Optimal Value equivalence are also found in the continuous action case. Further, they use this result in conjunction with DDPG\cite{lillicrap2015continuous} to learn a continuous action MDP Homomorphism, building a world model with a lax bisimulation metric that is similar to the one used in \cite{van2020plannable}. While an interesting theoretical result, the method is just a generalisation of an MDP homomorphism and does not exploit the symmetry of the MDP.
 
-In wider machine learning using symmetry as an inductive bias is not new, and more generally requiring equivariance to input transformation is a key concept in modern Deep Learning. Recently the field of Geometric Deep Learning has emerged as a unified formalism for deep learning on structured data, such as graphs, sets, Groups, and others.
+In wider machine learning, symmetry as an inductive bias is not new, and more generally, requiring equivariance to input transformation is a key concept in modern Deep Learning. Geometric Deep Learning has recently emerged as a unified formalism for deep learning on structured data, such as graphs, sets, Groups, and others.
 
-Geometric Deep Learning is a field that provides a theoretical commonality for many successful network architectures, and has unified disparate architectures \cite{bronstein2021geometric}, such as Transformers and C-NNs, under a common framework. Geometric Deep learning provides a way to generalise the different inductive biases that arise from the world. For example the translation invariance in object detection, or order permutation in Graphs.
+Geometric Deep Learning is a field that provides a theoretical commonality for many successful network architectures and has unified disparate architectures \cite{bronstein2021geometric}, such as Transformers and C-NNs, under a common framework. Geometric Deep learning provides a way to generalise the different inductive biases that arise from the world. For example, the translation invariance in object detection or order permutation in Graphs.
 
-A recent success in this field is the $\text{SE}(3)$-Transformer, \cite{fuchs2020se}, provides an equivaraint architecture, to $\text{SE}(3)$ transformations. This ensures that global rotations and translations on graphs or point clouds respond in the same manner. This happens to be an important equivariance to encode when dealing with proteins and other chemical molecules. As an example, this architecture was used in the Alpha Fold protein structure prediction networks~\cite{jumper2021highly}.
+A recent success in this field is the $\text{SE}(3)$-Transformer, \cite{fuchs2020se}, provides an equivaraint architecture, to $\text{SE}(3)$ transformations. This ensures that global rotations and translations on graphs or point clouds respond similarly. This is an important equivariance to encode when dealing with proteins and other chemical molecules. For example, this architecture was used in the Alpha Fold protein structure prediction networks~\cite{jumper2021highly}.
 
-Nother Networks, which take inspiration from Nother's theorem demonstrate the ability to meta-learn symbolic conservation laws, from real-world data~\cite{alet2021noether}. An example of this is recovering the Hamiltonian of a spring, from real-world data. This is particularly impressive as the spring itself does not conserve energy, due to friction, and so the network must learn the approximate conservation law. This is achieved by meta-learning a conservation loss, across multiple tasks.
+Nother Networks, which take inspiration from Nother's theorem, demonstrate the ability to meta-learn symbolic conservation laws from real-world data~\cite{alet2021noether}. An example of this is recovering the Hamiltonian of spring from real-world data. This is particularly impressive as the spring itself does not conserve energy due to friction, and so the network must learn the approximate conservation law. This is achieved by meta-learning a conservation loss across multiple tasks.
 
 
 
