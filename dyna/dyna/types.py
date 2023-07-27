@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jaxtyping as jt
 from base_rl.higher_order import Actions, Obs, Params
 from flax.training.train_state import TrainState
-from model_based.train import EquiModel, Model
+from model_based.train import Model
 
 EnvModelLosses = Any
 

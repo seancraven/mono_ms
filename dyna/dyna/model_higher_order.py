@@ -5,14 +5,21 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+import numpy as np
 from base_rl.higher_order import Trajectory
 from flax.training.train_state import TrainState
+from model_based.sample_env import make_experience_fn
+from model_based.train import SARSDTuple
 
 from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
 
 
 def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     mini_batch_fn = make_mini_batch_fn(apply_fn)
+    exp_fn = make_experience_fn("CartPole-v1", 10_000)
+    exp_fn = jax.jit(exp_fn)
+    exp = exp_fn(jax.random.PRNGKey(0))
+    base_sas = sarsd_to_sas_tuple(exp)
 
     def tm_update_fn(
         rng: jt.PRNGKeyArray,
@@ -21,11 +28,11 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     ) -> Tuple[TrainState, EnvModelLosses]:
         no_mini_batch = hyper_params.M_NUM_MINIBATCHES
         data = trajectory_to_sas_tuple(trajectories)
-
+        data.join(base_sas)
         perm = jax.random.permutation(rng, data.state.shape[0])
         data = jax.tree_map(lambda x: x.at[perm].get(), data)
         batched_data = jax.tree_map(
-            lambda x: x.reshape(no_mini_batch, -1, *x.shape[2:]), data
+            lambda x: x.reshape(no_mini_batch, -1, x.shape[-1]), data
         )
 
         def _epoch(
@@ -60,8 +67,17 @@ def make_mini_batch_fn(apply_fn):
 
 
 def trajectory_to_sas_tuple(trajectory: Trajectory) -> SASTuple:
+    len_ = np.prod(trajectory.done.shape)
+    state = trajectory.obs.reshape(len_, -1)
+    action = trajectory.action.reshape(len_, 1)
+    next_state = jnp.roll(state, shift=1, axis=0)
+    return SASTuple(state, action, next_state)
+
+
+def sarsd_to_sas_tuple(sarsd: SARSDTuple) -> SASTuple:
+    len_ = np.prod(sarsd.done.shape)
     return SASTuple(
-        state=trajectory.obs.at[:-1].get().reshape(-1, *trajectory.obs.shape[2:]),
-        action=trajectory.action.reshape(-1, *trajectory.action.shape[2:]),
-        next_state=trajectory.obs.at[1:].get().reshape(-1, *trajectory.obs.shape[2:]),
+        state=sarsd.state.reshape(len_, -1).at[:-1, ...].get(),
+        action=sarsd.action.reshape(len_, -1).at[:-1, ...].get(),
+        next_state=sarsd.next_state.reshape(len_, -1).at[1:, ...].get(),
     )
