@@ -19,35 +19,24 @@ class C2Dense(nn.Module):
 
     @nn.compact
     def __call__(self, input):
-        assert input.shape[1] == 2
         layer = nn.Dense(
             features=self.features,
-            kernel_init=nn.initializers.he_normal(),
+            use_bias=False,
         )
-        return jnp.stack([layer(input[:, 0]), layer(-input[:, 1])], axis=1)
+
+        return jnp.stack([layer(input), layer(-input)], axis=-1).squeeze()
 
 
-class C2DenseLift(nn.Module):
+class C2DenseDiscrete(nn.Module):
     features: int
 
     @nn.compact
     def __call__(self, input):
         layer = nn.Dense(
             features=self.features,
-            kernel_init=nn.initializers.he_normal(),
+            use_bias=False,  # Affine Transformation is Equivariant to Action inversion
         )
-        return jnp.stack([layer(input), layer(-input)], axis=1)
-
-
-class C2DenseLiftDiscrete(nn.Module):
-    features: int
-
-    @nn.compact
-    def __call__(self, input):
-        layer = nn.Dense(
-            features=self.features,
-        )
-        return jnp.stack([layer(input), layer(1 - input)], axis=1).squeeze()
+        return jnp.stack([layer(input), layer(1 - input)], axis=-1).squeeze()
 
 
 class ActionEquiv(nn.Module):
@@ -57,7 +46,6 @@ class ActionEquiv(nn.Module):
     def __call__(self, input):
         layer = nn.Dense(
             features=self.features,
-            kernel_init=nn.initializers.he_normal(),
             use_bias=False,
         )
         return layer(2 * input - 1)

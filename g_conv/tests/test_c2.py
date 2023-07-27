@@ -6,7 +6,7 @@ from base_rl.models import EquivariantActorCritic
 from flax import linen as nn
 from jax import numpy as jnp
 
-from g_conv.c2 import ActionEquiv, C2Conv, C2Dense, C2DenseLift
+from g_conv.c2 import ActionEquiv, C2Conv, C2Dense
 
 # def test_shaping():
 #     mod = C2Conv(features=3, kernel_size=(1, 4))
@@ -48,9 +48,52 @@ class Dense(nn.Module):
         out = nn.tanh(layer(input))
         layer_2 = nn.Dense(self.features, use_bias=False)
         out = nn.tanh(layer_2(out))
-        layer_3 = C2DenseLift(features=1)
+        layer_3 = C2Dense(features=1)
         out = layer_3(out)
         return distrax.Categorical(logits=out)
+
+
+def test_dense_equiv():
+    layer = C2Dense(features=3)
+
+    params = layer.init(jax.random.PRNGKey(0), jnp.ones((1, 2)))
+    out = layer.apply(params, jnp.ones((1, 2)))
+    inv = layer.apply(params, -jnp.ones((1, 2)))
+
+    assert jnp.allclose(out, -inv)
+
+
+def scrach_choice(x, hidden):
+    normal, mirror = hidden.at[..., 0].get(), hidden.at[..., 1].get()
+    dis = ((normal - x) ** 2).sum()
+    dis_mirror = ((mirror - x) ** 2).sum()
+    cond = dis < dis_mirror
+    return jax.lax.cond(cond, lambda: normal, lambda: mirror)
+
+
+class DenseDeep(nn.Module):
+    h_dim: int
+
+    @nn.compact
+    def __call__(self, x):
+        out = x.squeeze().reshape(-1)
+
+        out = C2Dense(self.h_dim)(x)
+        out = nn.tanh(x.reshape(-1))
+        out = C2Dense(self.h_dim)(x)
+        out = nn.tanh(x.reshape(-1))
+        out = C2Dense(1)(x)
+        return scrach_choice(x, out)
+
+
+def test_dense_equiv_deep():
+    model = DenseDeep(h_dim=64)
+    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
+    input = jax.random.normal(jax.random.PRNGKey(4), (100, 4))
+    v_app = jax.vmap(model.apply, in_axes=(None, 0))
+    out = v_app(params, input)
+    r_out = v_app(params, -input)
+    assert jnp.alltrue(out == -r_out)
 
 
 def test_dense():
