@@ -9,9 +9,8 @@ import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
-from base_rl.models import ConvActorCritic
+from base_rl.higher_order import ActorCritic
 from gymnax import EnvState
-from orbax import checkpoint
 
 
 class SARSDTuple(NamedTuple):
@@ -23,18 +22,18 @@ class SARSDTuple(NamedTuple):
 
     def partition(self, first_partition) -> Tuple[SARSDTuple, SARSDTuple]:
         one = SARSDTuple(
-            self.state[:first_partition],
-            self.action[:first_partition],
-            self.reward[:first_partition],
-            self.next_state[:first_partition],
-            self.done[:first_partition],
+            self.state.at[:first_partition, ...].get(),
+            self.action.at[:first_partition, ...].get(),
+            self.reward.at[:first_partition, ...].get(),
+            self.next_state.at[:first_partition, ...].get(),
+            self.done.at[:first_partition, ...].get(),
         )
         two = SARSDTuple(
-            self.state[first_partition:],
-            self.action[first_partition:],
-            self.reward[first_partition:],
-            self.next_state[first_partition:],
-            self.done[first_partition:],
+            self.state.at[first_partition:, ...].get(),
+            self.action.at[first_partition:, ...].get(),
+            self.reward.at[first_partition:, ...].get(),
+            self.next_state.at[first_partition:, ...].get(),
+            self.done.at[first_partition:, ...].get(),
         )
         return one, two
 
@@ -47,16 +46,23 @@ class SARSDTuple(NamedTuple):
             jnp.concatenate([self.done.squeeze(), other.done.squeeze()]),
         )
 
-
-ReplayBuffer = SARSDTuple
+    def filter_by_action(self, act) -> SARSDTuple:
+        idx = (self.action == act).squeeze()
+        return SARSDTuple(
+            self.state.at[idx, ...].get(),
+            self.action.at[idx, ...].get(),
+            self.reward.at[idx, ...].get(),
+            self.next_state.at[idx, ...].get(),
+            self.done.at[idx, ...].get(),
+        )
 
 
 def make_experience_fn(
     env_name: str, train_length: int
-) -> Callable[[jt.PRNGKeyArray], ReplayBuffer]:
+) -> Callable[[jt.PRNGKeyArray], SARSDTuple]:
     env, env_params = gymnax.make(env_name)
 
-    def experince(key) -> ReplayBuffer:
+    def experince(key) -> SARSDTuple:
         inital_obs, env_state = env.reset(key, env_params)
 
         def _step(
@@ -81,20 +87,12 @@ def make_experience_fn(
 
 
 def make_expert_experience_fn(
-    env_name: str, train_length: int
-) -> Callable[[jt.PRNGKeyArray], ReplayBuffer]:
+    env_name: str, train_length: int, expert_params: jt.PyTree
+) -> Callable[[jt.PRNGKeyArray], SARSDTuple]:
     env, env_params = gymnax.make(env_name)
-    policy_net = ConvActorCritic(
-        2,
-    )
+    policy_net = ActorCritic(2)
 
-    params = checkpoint.PyTreeCheckpointer().restore(
-        "/home/sean/ms_mono/meta_rl/expert_actor_critic_tree/"
-    )
-    # params for all random seeds are stacked.
-    params = jax.tree_map(lambda x: x[0], params)
-
-    def experince(key) -> ReplayBuffer:
+    def experince(key) -> SARSDTuple:
         inital_obs, env_state = env.reset(key, env_params)
 
         def _step(
@@ -103,7 +101,7 @@ def make_expert_experience_fn(
         ) -> Tuple[Tuple[jt.Array, EnvState, jt.Array], SARSDTuple]:
             obs, env_state, rng = joint_state
             _, action_rng, step_rng = jax.random.split(rng, 3)
-            sample_action_dist, _ = policy_net.apply(params, obs.reshape((1, 4)))
+            sample_action_dist, _ = policy_net.apply(expert_params, obs.reshape((1, 4)))
             sample_action = sample_action_dist.sample(seed=action_rng)
             next_obs, env_state, reward, done, _ = env.step(
                 step_rng, env_state, sample_action.squeeze()
@@ -120,10 +118,18 @@ def make_expert_experience_fn(
 
 
 if __name__ == "__main__":
+    from base_rl.higher_order import CONFIG, make_train
+
+    print("Training Expert")
+    train_fn = jax.jit(make_train(CONFIG, ActorCritic))
+    rng = jax.random.PRNGKey(42)
+
+    result = train_fn(rng)
+    train_state = result["runner_state"][0]
+    expert_params = train_state.params
+
     experience_fn = make_experience_fn("CartPole-v1", 500)
-    expert_experience_fn = make_expert_experience_fn("CartPole-v1", 500)
-    with jax.disable_jit():
-        expert_experience_fn(jax.random.PRNGKey(42))
+    expert_experience_fn = make_expert_experience_fn("CartPole-v1", 500, expert_params)
     vmap_experience_fn = jax.vmap(experience_fn, in_axes=0, out_axes=0)
     vmap_expert_experience_fn = jax.vmap(expert_experience_fn, in_axes=0, out_axes=0)
     rng = jax.random.PRNGKey(42)

@@ -13,7 +13,7 @@ from base_rl.higher_order import (
     Trajectory,
     Transition,
 )
-from base_rl.models import ConvActorCritic
+from base_rl.models import ActorCritic
 from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     key = jax.random.PRNGKey(42)
     sym_key, key = jax.random.split(key)
 
-    model = ConvActorCritic
+    model = ActorCritic
 
     keys = jax.random.split(key, num_seeds)
 

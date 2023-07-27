@@ -5,7 +5,6 @@ import os
 import pickle
 import shutil
 from abc import ABC
-from functools import wraps
 from math import prod
 from typing import Any, NamedTuple, Tuple
 
@@ -13,14 +12,13 @@ import flax.linen as nn
 import jax
 import jaxtyping as jt
 from base_rl.higher_order import Action, Observation
-from flax.linen.initializers import he_normal
 from flax.training.train_state import TrainState
-from g_conv.c2 import C2Dense, C2DenseLift, C2DenseLiftDiscrete
+from g_conv.c2 import ActionEquiv, C2Dense
 from jax import numpy as jnp
 from optax import adam
 from orbax import checkpoint
 
-from model_based.sample_env import ReplayBuffer, SARSDTuple
+from model_based.sample_env import SARSDTuple
 
 logger = logging.getLogger(__name__)
 
@@ -75,61 +73,75 @@ class Model(TransitionModel):
     @nn.compact
     def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
-        state_embedding = nn.relu(
-            nn.Dense(self.hidden_dim, kernel_init=he_normal())(state)
-        )
-        action_embedding = nn.relu(
-            nn.Dense(self.hidden_dim, kernel_init=he_normal())(action)
-        )
+        state_embedding = nn.sigmoid(nn.Dense(self.hidden_dim)(state))
+        action_embedding = nn.sigmoid(nn.Dense(self.hidden_dim)(action))
         concat = jnp.concatenate(
             [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
         )
-        hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(concat))
-        hidden = nn.relu(nn.Dense(self.hidden_dim, kernel_init=he_normal())(hidden))
-        next_state = nn.Dense(self.state_dim, kernel_init=he_normal())(hidden)
+        hidden = nn.sigmoid(nn.Dense(self.hidden_dim)(concat))
+        hidden = nn.sigmoid(nn.Dense(self.hidden_dim)(hidden))
+        next_state = nn.Dense(self.state_dim)(hidden)
 
         return next_state
+
+
+def proximal_state(state, next_states):
+    assert next_states.shape[-1] == 2, f"{next_states.shape}"
+    normal_state = next_states.at[..., 0].get()
+    morror_state = next_states.at[..., 1].get()
+    distance_next = ((normal_state.squeeze() - state.squeeze()) ** 2).sum()
+    distance_mirror = ((morror_state.squeeze() - state.squeeze()) ** 2).sum()
+    next_is_proximal = distance_next < distance_mirror
+    return jax.lax.cond(next_is_proximal, lambda: normal_state, lambda: morror_state)
 
 
 class EquiModel(TransitionModel):
     @nn.compact
     def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
-        state_embedding = nn.relu(C2DenseLift(self.hidden_dim)(state))
-        action_embedding = nn.relu(C2DenseLiftDiscrete(self.hidden_dim)(action))
-        assert (
-            state_embedding.shape == action_embedding.shape
-        ), f"{state_embedding.shape} != {action_embedding.shape}"
+        state_embedding = nn.tanh(C2Dense(self.hidden_dim // 2)(state))
+        action_embedding = nn.tanh(ActionEquiv(self.hidden_dim)(action))
+
+        # assert (
+        #     state_embedding.shape == action_embedding.shape
+        # ), f"{state_embedding.shape} != {action_embedding.shape}"
+
         concat = jnp.concatenate(
-            [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
+            [state_embedding.reshape(-1), action_embedding.reshape(-1)], axis=0
         )
-        hidden = nn.relu(C2Dense(self.hidden_dim)(concat))
-        hidden = nn.relu(C2Dense(self.hidden_dim)(hidden))
-        hidden = C2Dense(
-            self.state_dim,
-        )(hidden)
-        next_state = jax.lax.cond(
-            (hidden.at[:, 0].get() > 0.0).all(),
-            hidden.at[:, 0].get,
-            hidden.at[:, 1].get,
-        )
+        hidden = nn.tanh(C2Dense(self.hidden_dim)(concat))
+        hidden = nn.tanh(C2Dense(self.hidden_dim)(hidden.reshape(-1)))
+        hidden = C2Dense(self.state_dim)(hidden.reshape(-1))
+        next_state = proximal_state(state, hidden)
+        # action = jnp.array((action,))
+        # state_embedding = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(state))
+        # action_embedding = nn.tanh(ActionEquiv(self.hidden_dim)(action))
+        #
+        # equiv_embedding = jnp.concatenate(
+        #     [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
+        # )
+        #
+        # next_state = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(equiv_embedding))
+        # next_state = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(state))
+        # next_state = nn.Dense(self.state_dim, use_bias=False)(state)
         return next_state
 
 
 class HyperParams(NamedTuple):
     batch_size: int = 256
-    learning_rate: float = 1e-3
+    learning_rate: float = 1e-5
     train_frac: float = 0.8
     hidden_dim: int = 64
     epochs: int = 100
+    model: Any = Model
 
-    def get_train_size(self, data: ReplayBuffer) -> int:
+    def get_train_size(self, data: SARSDTuple) -> int:
         """Returns the number of samples to use for training."""
         batch_count = self.get_batch_count(data)
         train_size = int(batch_count * self.batch_size)
         return train_size
 
-    def get_batch_count(self, data: ReplayBuffer) -> int:
+    def get_batch_count(self, data: SARSDTuple) -> int:
         data_size = prod(data.reward.shape)  # type: ignore
         return int((data_size * self.train_frac) // self.batch_size)
 
@@ -151,16 +163,15 @@ def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
     return bce
 
 
-def make_train(hyper_params: HyperParams):
-    data: ReplayBuffer = pickle.load(open("replay_buffer.pickle", "rb"))
-    data = SARSDTuple(*jax.tree_map(lambda x: x.astype(jnp.float32), data))
-    non_term_index = data.done == 0
+def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple):
+    non_term_index = (data.done == 0).squeeze()
     data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
-
     train_size = hyper_params.get_train_size(data)
-    flattened_data = jax.tree_map(lambda x: x.reshape(-1, *x.shape[1:]), data)
-    train_data, val_data = flattened_data.partition(train_size)
-    val_data = jax.tree_map(lambda x: expand_scalar(x), val_data)
+
+    train_data, _ = data.partition(train_size)
+
+    non_term_index = (val_data.done == 0).squeeze()
+    val_data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), val_data)
 
     def train(rng, train_data, val_data):
         rng = jax.random.PRNGKey(42)
@@ -168,15 +179,17 @@ def make_train(hyper_params: HyperParams):
         batch_count = hyper_params.get_batch_count(data)
         state_dim = data.state.shape[-1]
         action_dim = 1
-        network = Model(state_dim, action_dim, hyper_params.hidden_dim)
+        network = hyper_params.model(state_dim, action_dim, hyper_params.hidden_dim)
 
         optimizer = adam(hyper_params.learning_rate)
 
         _, params_key = jax.random.split(rng)
         params = network.init(
-            params_key, jnp.ones((state_dim,)), jnp.ones((action_dim,))
+            params_key,
+            jnp.ones((state_dim,)),
+            jnp.ones((action_dim,)),
         )
-        apply_network = jax.vmap(network.apply, in_axes=(None, 0, 0), out_axes=0)
+        apply_network = jax.vmap(network.apply, in_axes=(None, 0, 0))
 
         train_state = TrainState.create(
             apply_fn=apply_network,
@@ -230,7 +243,7 @@ def make_train(hyper_params: HyperParams):
             indecies = jax.random.permutation(rng, train_size)
 
             shuffle_train_data = jax.tree_map(
-                lambda x: (x.at[indecies].get()).reshape(
+                lambda x: (x.at[indecies, ...].get()).reshape(
                     (batch_count, hyper_params.batch_size, -1)
                 ),
                 train_data,
@@ -260,8 +273,12 @@ def make_train(hyper_params: HyperParams):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    hyper_params = HyperParams()
-    train = make_train(hyper_params)
+    hyper_params = HyperParams(model=EquiModel)
+    data = pickle.load(open("replay_buffer.pickle", "rb"))
+    len_data = prod(data.reward.shape)
+    data = jax.tree_map(lambda x: x.reshape((len_data, -1)), data)
+    train_data, val_data = data.partition(hyper_params.train_frac(data))
+    train = make_train(hyper_params, train_data, val_data)
     final_state, losses = train(jax.random.PRNGKey(42))
     final_train_state = final_state[1]
     checkpointer = checkpoint.PyTreeCheckpointer()
@@ -269,8 +286,22 @@ if __name__ == "__main__":
     if os.path.exists("transition_model_tree/"):
         shutil.rmtree("transition_model_tree/")
     checkpointer.save("transition_model_tree/", final_train_state.params)
+
     train_loss, debug_loss, val_debug_loss = losses
-    jnp.save("transition_model_train_loss.npy", train_loss.train_loss.flatten())
-    jnp.save("transition_model_val_loss.npy", train_loss.val_loss.flatten())
-    pickle.dump(debug_loss, open("transition_model_debug_loss.pickle", "wb"))
-    pickle.dump(val_debug_loss, open("transition_model_val_debug_loss.pickle", "wb"))
+    m_name = hyper_params.model.__name__
+    jnp.save(
+        f"transition_{m_name}_train_loss.npy",
+        train_loss.train_loss.flatten(),
+    )
+    jnp.save(
+        f"transition_{m_name}_val_loss.npy",
+        train_loss.val_loss.flatten(),
+    )
+    pickle.dump(
+        debug_loss,
+        open(f"transition_{m_name}_debug_loss.pickle", "wb"),
+    )
+    pickle.dump(
+        val_debug_loss,
+        open(f"transition_{m_name}_val_debug_loss.pickle", "wb"),
+    )
