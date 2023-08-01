@@ -13,7 +13,7 @@ import jax
 import jaxtyping as jt
 from base_rl.higher_order import Action, Observation
 from flax.training.train_state import TrainState
-from g_conv.c2 import ActionEquiv, C2Dense
+from g_conv.c2 import C2Dense, C2DenseBinary
 from jax import numpy as jnp
 from optax import adam
 from orbax import checkpoint
@@ -100,30 +100,16 @@ class EquiModel(TransitionModel):
     def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
         state_embedding = nn.tanh(C2Dense(self.hidden_dim // 2)(state))
-        action_embedding = nn.tanh(ActionEquiv(self.hidden_dim)(action))
-
-        # assert (
-        #     state_embedding.shape == action_embedding.shape
-        # ), f"{state_embedding.shape} != {action_embedding.shape}"
+        action_embedding = nn.tanh(C2DenseBinary(self.hidden_dim // 2)(action))
 
         concat = jnp.concatenate(
             [state_embedding.reshape(-1), action_embedding.reshape(-1)], axis=0
         )
+
         hidden = nn.tanh(C2Dense(self.hidden_dim)(concat))
-        hidden = nn.tanh(C2Dense(self.hidden_dim)(hidden.reshape(-1)))
+        hidden = nn.tanh(C2Dense(self.hidden_dim // 2)(hidden.reshape(-1)))
         hidden = C2Dense(self.state_dim)(hidden.reshape(-1))
         next_state = proximal_state(state, hidden)
-        # action = jnp.array((action,))
-        # state_embedding = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(state))
-        # action_embedding = nn.tanh(ActionEquiv(self.hidden_dim)(action))
-        #
-        # equiv_embedding = jnp.concatenate(
-        #     [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
-        # )
-        #
-        # next_state = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(equiv_embedding))
-        # next_state = nn.tanh(nn.Dense(self.hidden_dim, use_bias=False)(state))
-        # next_state = nn.Dense(self.state_dim, use_bias=False)(state)
         return next_state
 
 
@@ -164,14 +150,14 @@ def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
 
 
 def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple):
-    non_term_index = (data.done == 0).squeeze()
-    data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
+    # non_term_index = (data.done == 0).squeeze()
+    # data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
     train_size = hyper_params.get_train_size(data)
 
     train_data, _ = data.partition(train_size)
 
-    non_term_index = (val_data.done == 0).squeeze()
-    val_data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), val_data)
+    # non_term_index = (val_data.done == 0).squeeze()
+    # val_data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), val_data)
 
     def train(rng, train_data, val_data):
         rng = jax.random.PRNGKey(42)

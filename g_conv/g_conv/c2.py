@@ -10,7 +10,10 @@ class C2Conv(nn.Module):
 
     @nn.compact
     def __call__(self, input):
-        layer = nn.Conv(features=self.features, kernel_size=self.kernel_size)
+        layer = nn.Conv(
+            features=self.features,
+            kernel_size=self.kernel_size,
+        )
         return jnp.concatenate([layer(input), layer(-input)], axis=-1)
 
 
@@ -27,28 +30,25 @@ class C2Dense(nn.Module):
         return jnp.stack([layer(input), layer(-input)], axis=-1).squeeze()
 
 
-class C2DenseDiscrete(nn.Module):
+# class C2DenseDiscrete(nn.Module):
+#     features: int
+#
+#     @nn.compact
+#     def __call__(self, input):
+#         layer = nn.Dense(
+#             features=self.features,
+#             use_bias=False,  # Affine Transformation is Equivariant to Action inversion
+#         )
+#         return jnp.stack([layer(input), layer(1 - input)], axis=-1).squeeze()
+
+
+class C2DenseBinary(nn.Module):
     features: int
 
     @nn.compact
     def __call__(self, input):
-        layer = nn.Dense(
-            features=self.features,
-            use_bias=False,  # Affine Transformation is Equivariant to Action inversion
-        )
-        return jnp.stack([layer(input), layer(1 - input)], axis=-1).squeeze()
-
-
-class ActionEquiv(nn.Module):
-    features: int
-
-    @nn.compact
-    def __call__(self, input):
-        layer = nn.Dense(
-            features=self.features,
-            use_bias=False,
-        )
-        return layer(2 * input - 1)
+        map_input = 2 * input - 1
+        return C2Dense(features=self.features)(map_input)
 
 
 if __name__ == "__main__":

@@ -317,7 +317,7 @@ def SymmetrizerNet(action_dim: int) -> ACSequential:
 
 
 CONFIG = {
-    "LR": 2.5e-4,
+    "LR": 3.5e-4,
     "NUM_ENVS": 4,
     "NUM_STEPS": 128,
     "TOTAL_TIMESTEPS": 5e5,
