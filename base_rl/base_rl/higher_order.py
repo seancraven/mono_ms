@@ -285,7 +285,7 @@ def make_train(
                 _update_epoch, update_state, None, config["UPDATE_EPOCHS"]  # type: ignore
             )
             train_state = update_state[0]
-            metric = traj_batch.info
+            metric = (traj_batch.info, loss_info)
             rng = update_state[-1]
 
             runner_state = (train_state, env_state, last_obs, rng)

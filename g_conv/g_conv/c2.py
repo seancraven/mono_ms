@@ -1,12 +1,14 @@
-from typing import Tuple
+from typing import Callable, Tuple
 
 import jax.numpy as jnp
+import jaxtyping as jt
 from flax import linen as nn
 
 
 class C2Conv(nn.Module):
     features: int
     kernel_size: Tuple[int, ...]
+    transform: Callable[[jt.Array], jt.Array] = lambda x: -x
 
     @nn.compact
     def __call__(self, input):
@@ -14,32 +16,25 @@ class C2Conv(nn.Module):
             features=self.features,
             kernel_size=self.kernel_size,
         )
-        return jnp.concatenate([layer(input), layer(-input)], axis=-1)
+        return jnp.concatenate([layer(input), layer(self.transform(input))], axis=-1)
 
 
 class C2Dense(nn.Module):
     features: int
+    transform: Callable[[jt.Array], jt.Array] = lambda x: -x
+    use_bias: bool = False
 
     @nn.compact
     def __call__(self, input):
         layer = nn.Dense(
             features=self.features,
-            use_bias=False,
+            use_bias=self.use_bias,
         )
 
-        return jnp.stack([layer(input), layer(-input)], axis=-1).squeeze()
-
-
-# class C2DenseDiscrete(nn.Module):
-#     features: int
-#
-#     @nn.compact
-#     def __call__(self, input):
-#         layer = nn.Dense(
-#             features=self.features,
-#             use_bias=False,  # Affine Transformation is Equivariant to Action inversion
-#         )
-#         return jnp.stack([layer(input), layer(1 - input)], axis=-1).squeeze()
+        return jnp.stack(
+            [layer(input), layer(self.transform(input))],
+            axis=-1,
+        ).squeeze()
 
 
 class C2DenseBinary(nn.Module):

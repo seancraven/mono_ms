@@ -1,6 +1,7 @@
 from typing import Callable, Tuple
 
 import distrax
+import jax.numpy as jnp
 from distrax import Categorical
 from flax import linen as nn
 from flax.linen.initializers import he_normal
@@ -70,6 +71,9 @@ class EquivariantActorCritic(nn.Module):
 
     @nn.compact
     def __call__(self, x):
+        """
+        Network equivarint to -1 transformation.
+        """
         actor_mean = self.act(
             nn.Dense(self.h_dim, kernel_init=he_normal(), use_bias=False)(x)
         )
@@ -78,6 +82,64 @@ class EquivariantActorCritic(nn.Module):
         )
         actor_mean = C2Dense(self.a_dim // 2)(actor_mean)
         pi = distrax.Categorical(logits=actor_mean.squeeze())
+
+        critic = Critic(self.h_dim)(x)
+        return pi, critic
+
+
+def catch_transform(input):
+    input_shape = input.shape
+    input = input.reshape((-1, 10, 5))
+    transformation = jnp.array(
+        [
+            [0, 0, 0, 0, 1],
+            [0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0],
+            [0, 1, 0, 0, 0],
+            [1, 0, 0, 0, 0],
+        ]
+    )
+    out = input @ transformation
+    return out.reshape(input_shape)
+
+
+def hidden_transform(input):
+    input_shape = input.shape
+    input = input.reshape((-1, 2))
+    out = jnp.roll(input, axis=-1, shift=1)
+    assert (input[..., 0] == out[..., 1]).all()
+    return out.reshape(input_shape)
+
+
+class EquivariantCatchActorCritic(nn.Module):
+    a_dim: int
+    h_dim: int = 4
+    act: Callable = nn.relu
+
+    @nn.compact
+    def __call__(self, x):
+        actor_mean = self.act(
+            C2Dense(self.h_dim, transform=catch_transform, use_bias=True)(x)
+        )
+        actor_mean = actor_mean.reshape(-1)
+
+        actor_mean = C2Dense(self.h_dim, transform=hidden_transform, use_bias=True)(
+            actor_mean
+        )
+        actor_mean = self.act(actor_mean.reshape(-1))
+
+        actor_mean = C2Dense(1, transform=hidden_transform, use_bias=True)(actor_mean)
+
+        actor_mean_0 = (
+            C2Dense(1, transform=hidden_transform, use_bias=True)(actor_mean)
+            .mean()
+            .reshape(1)
+        )
+        logits = jnp.concatenate(
+            [actor_mean[0].reshape((1,)), actor_mean_0, actor_mean[1].reshape((1,))]
+        )
+
+        pi = distrax.Categorical(logits=logits.squeeze())
 
         critic = Critic(self.h_dim)(x)
         return pi, critic
@@ -92,7 +154,7 @@ class ActorCritic(nn.Module):
     def __call__(self, x):
         actor_mean = self.act(nn.Dense(self.h_dim, kernel_init=he_normal())(x))
         actor_mean = self.act(nn.Dense(self.h_dim, kernel_init=he_normal())(actor_mean))
-        actor_mean = nn.Dense(2, kernel_init=he_normal())(actor_mean)
+        actor_mean = nn.Dense(self.a_dim, kernel_init=he_normal())(actor_mean)
         pi = distrax.Categorical(logits=actor_mean.squeeze())
 
         critic = Critic(self.h_dim)(x)
