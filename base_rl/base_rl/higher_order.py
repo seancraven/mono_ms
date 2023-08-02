@@ -106,8 +106,9 @@ def make_train(
                 optax.adam(config["LR"], eps=1e-5),
             )
 
+        apply_fn = jax.vmap(network.apply, in_axes=(None, 0))
         train_state = TrainState.create(
-            apply_fn=network.apply,
+            apply_fn=apply_fn,
             params=network_params,
             tx=tx,
         )
@@ -129,7 +130,7 @@ def make_train(
 
                 # SELECT ACTION
                 rng, _rng = jax.random.split(rng)
-                pi, value = network.apply(train_state.params, last_obs)
+                pi, value = train_state.apply_fn(train_state.params, last_obs)
                 action = pi.sample(seed=_rng)
                 log_prob = pi.log_prob(action)
 
@@ -151,7 +152,7 @@ def make_train(
 
             # CALCULATE ADVANTAGE
             train_state, env_state, last_obs, rng = runner_state
-            _, last_val = network.apply(train_state.params, last_obs)
+            _, last_val = train_state.apply_fn(train_state.params, last_obs)
 
             def _calculate_gae(
                 traj_batch: Trajectory,
@@ -211,7 +212,7 @@ def make_train(
                         targets: PerTimestepScalar,
                     ) -> Tuple[jt.Array, Tuple[jt.Array, jt.Array, jt.Array]]:
                         # RERUN NETWORK
-                        pi, value = network.apply(params, traj_batch.obs)
+                        pi, value = train_state.apply_fn(params, traj_batch.obs)
                         log_prob = pi.log_prob(traj_batch.action)
 
                         # CALCULATE VALUE LOSS

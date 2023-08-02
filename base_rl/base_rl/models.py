@@ -107,13 +107,12 @@ def hidden_transform(input):
     input_shape = input.shape
     input = input.reshape((-1, 2))
     out = jnp.roll(input, axis=-1, shift=1)
-    assert (input[..., 0] == out[..., 1]).all()
     return out.reshape(input_shape)
 
 
 class EquivariantCatchActorCritic(nn.Module):
     a_dim: int
-    h_dim: int = 4
+    h_dim: int = 32
     act: Callable = nn.relu
 
     @nn.compact

@@ -82,10 +82,14 @@ def test_catch_equiv():
 
 
 def test_catch_ac():
+    env = Catch()
+    env = FlattenObservationWrapper(env)
     model = EquivariantCatchActorCritic(3)
     rng = jax.random.PRNGKey(42)
     catch_obs = mock_catch_obs()
-    params = model.init(rng, catch_obs[0])
+    params = model.init(
+        rng, jnp.ones((1, *env.observation_space(env.default_params).shape))
+    )
     catch_obs = catch_obs[0]
     # apply_fn = jax.vmap(model.apply, in_axes=(None, 0))
     pi, _ = model.apply(params, catch_obs)
