@@ -11,7 +11,9 @@ from typing import Any, NamedTuple, Tuple
 import flax.linen as nn
 import jax
 import jaxtyping as jt
+import optax
 from base_rl.higher_order import Action, Observation
+from base_rl.models import catch_transform
 from flax.training.train_state import TrainState
 from g_conv.c2 import C2Dense, C2DenseBinary
 from jax import numpy as jnp
@@ -97,7 +99,7 @@ def proximal_state(state, next_states):
 
 class EquiModel(TransitionModel):
     @nn.compact
-    def __call__(self, state: Observation, action: Observation) -> Observation:
+    def __call__(self, state: Observation, action: Action) -> Observation:
         action = jnp.array((action,))
         state_embedding = nn.tanh(C2Dense(self.hidden_dim // 2)(state))
         action_embedding = nn.tanh(C2DenseBinary(self.hidden_dim // 2)(action))
@@ -111,6 +113,34 @@ class EquiModel(TransitionModel):
         hidden = C2Dense(self.state_dim)(hidden.reshape(-1))
         next_state = proximal_state(state, hidden)
         return next_state
+
+
+class CatchModel(TransitionModel):
+    @nn.compact
+    def __call__(self, state: Observation, action: Action) -> Observation:
+        action = jnp.array((action,))
+        state_embedding = nn.relu(nn.Dense(self.hidden_dim // 2))(state)
+        action_embedding = nn.relu(nn.Dense(self.hidden_dim // 2))(action)
+
+        concat = jnp.concatenate([state_embedding, action_embedding], axis=0)
+        hidden = nn.relu(nn.Dense(self.hidden_dim)(concat))
+        hidden = nn.relu(nn.Dense(self.hidden_dim)(hidden))
+        next_state = nn.Dense(self.state_dim)(hidden)
+        return next_state
+
+
+def catch_action_transform(action: Action) -> Action:
+    action_inv = jax.lax.select(action == 1, jnp.array(1), jnp.abs(2 - action))
+    return action_inv
+
+
+class CatchEquiModel(TransitionModel):
+    @nn.compact
+    def __call__(self, state: Observation, action: Action) -> Observation:
+        action = jnp.array((action,))
+        state_embedding = nn.relu(
+            C2Dense(self.hidden_dim // 2, transform=catch_transform)(state)
+        )
 
 
 class HyperParams(NamedTuple):
@@ -138,18 +168,67 @@ def expand_scalar(x: jt.Array) -> jt.Array:
     return x
 
 
-def bce_from_logit(pred_logit: jt.Array, target: jt.Array) -> jt.Array:
-    negative_relu = -nn.relu(pred_logit)
-    bce = (
-        (1 - target) * pred_logit
-        + negative_relu
-        + jnp.log(jnp.exp(-negative_relu) + jnp.exp(-pred_logit - negative_relu) + 1e-3)
-    )
+def make_mse_loss_fn(apply_fn):
+    def _loss_fn(
+        params: jt.PyTree, sarsd_tuple: SARSDTuple
+    ) -> Tuple[jt.Array, DebugData]:
+        state, action, _, next_state, _ = sarsd_tuple
+        next_state_pred = apply_fn(params, state, action)
 
-    return bce
+        next_state_loss = jnp.mean((next_state - next_state_pred) ** 2, axis=0)
+
+        debug_loss = DebugData(
+            next_state_loss[0],
+            next_state_loss[1],
+            next_state_loss[2],
+            next_state_loss[3],
+        )
+
+        # reward_loss = jnp.mean(bce_from_logit(reward_pred_logit, reward))
+        # done_loss = jnp.mean(bce_from_logit(done_pred_logit, done))
+
+        return next_state_loss.mean(), debug_loss  # + reward_loss + done_loss
+
+    return _loss_fn
 
 
-def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple):
+def make_bce_loss_fn(apply_fn):
+    def _loss_fn(
+        params: jt.PyTree, sarsd_tuple: SARSDTuple
+    ) -> Tuple[jt.Array, DebugData]:
+        state, action, _, next_state, _ = sarsd_tuple
+        next_state_pred_logits = apply_fn(params, state, action)
+        return (
+            jnp.mean(
+                optax.sigmoid_binary_cross_entropy(next_state_pred_logits, next_state)
+            ),
+            None,
+        )
+
+    return _loss_fn
+
+
+def make_accuracy_loss_fn(apply_fn):
+    def _loss_fn(
+        params: jt.PyTree, sarsd_tuple: SARSDTuple
+    ) -> Tuple[jt.Array, DebugData]:
+        state, action, _, next_state, _ = sarsd_tuple
+        next_state_pred_logits = apply_fn(params, state, action)
+        next_state_pred = jnp.round(nn.softmax(next_state_pred_logits)).astype(
+            jnp.int32
+        )
+
+        jax.debug.breakpoint()
+        return jnp.mean(jnp.logical_and(next_state_pred, next_state)), None
+
+
+def make_train(
+    hyper_params: HyperParams,
+    data: SARSDTuple,
+    val_data: SARSDTuple,
+    loss_function_ho=make_mse_loss_fn,
+    val_loss_function_ho=make_mse_loss_fn,
+):
     # non_term_index = (data.done == 0).squeeze()
     # data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
     train_size = hyper_params.get_train_size(data)
@@ -182,6 +261,8 @@ def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple
             params=params,
             tx=optimizer,
         )
+        _loss_fn = loss_function_ho(train_state.apply_fn)
+        val_loss_fn = val_loss_function_ho(train_state.apply_fn)
 
         logger.debug(f"state.shape: {data.state.shape}")
         logger.debug(f"state_dim: {state_dim}")
@@ -193,26 +274,6 @@ def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple
             Tuple[jt.PRNGKeyArray, TrainState, SARSDTuple, SARSDTuple],
             Tuple[LossData, DebugData, DebugData],
         ]:
-            def _loss_fn(
-                params: jt.PyTree, sarsd_tuple: SARSDTuple
-            ) -> Tuple[jt.Array, DebugData]:
-                state, action, _, next_state, _ = sarsd_tuple
-                next_state_pred = train_state.apply_fn(params, state, action)
-
-                next_state_loss = jnp.mean((next_state - next_state_pred) ** 2, axis=0)
-
-                debug_loss = DebugData(
-                    next_state_loss[0],
-                    next_state_loss[1],
-                    next_state_loss[2],
-                    next_state_loss[3],
-                )
-
-                # reward_loss = jnp.mean(bce_from_logit(reward_pred_logit, reward))
-                # done_loss = jnp.mean(bce_from_logit(done_pred_logit, done))
-
-                return next_state_loss.mean(), debug_loss  # + reward_loss + done_loss
-
             def _mini_batch(
                 train_state: TrainState, mini_batch: Any
             ) -> Tuple[TrainState, Tuple[jt.Array, DebugData]]:
@@ -240,7 +301,7 @@ def make_train(hyper_params: HyperParams, data: SARSDTuple, val_data: SARSDTuple
                 train_state,
                 shuffle_train_data,
             )
-            val_loss, val_debug_data = _loss_fn(train_state.params, val_data)
+            val_loss, val_debug_data = val_loss_fn(train_state.params, val_data)
 
             return (rng, train_state, train_data, val_data), (
                 LossData(train_loss, val_loss),
