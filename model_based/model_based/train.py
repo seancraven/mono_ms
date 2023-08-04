@@ -6,8 +6,9 @@ import pickle
 import shutil
 from abc import ABC
 from math import prod
-from typing import Any, NamedTuple, Tuple
+from typing import Any, NamedTuple, Optional, Tuple
 
+import distrax
 import flax.linen as nn
 import jax
 import jaxtyping as jt
@@ -115,18 +116,29 @@ class EquiModel(TransitionModel):
         return next_state
 
 
-class CatchModel(TransitionModel):
-    @nn.compact
-    def __call__(self, state: Observation, action: Action) -> Observation:
-        action = jnp.array((action,))
-        state_embedding = nn.relu(nn.Dense(self.hidden_dim // 2))(state)
-        action_embedding = nn.relu(nn.Dense(self.hidden_dim // 2))(action)
+class CatchModel(nn.Module):
+    state_dim: int = 50
+    action_dim: int = 3
+    hidden_dim: int = 64
 
-        concat = jnp.concatenate([state_embedding, action_embedding], axis=0)
+    @nn.compact
+    def __call__(
+        self, state: Observation, action: Action
+    ) -> Tuple[distrax.Categorical, distrax.Categorical]:
+        action = jnp.array((action,))
+        state_embedding = nn.relu(nn.Dense(self.hidden_dim // 2)(state))
+        action_embedding = nn.relu(nn.Dense(self.hidden_dim // 2)(action))
+
+        concat = jnp.concatenate(
+            [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
+        )
         hidden = nn.relu(nn.Dense(self.hidden_dim)(concat))
         hidden = nn.relu(nn.Dense(self.hidden_dim)(hidden))
-        next_state = nn.Dense(self.state_dim)(hidden)
-        return next_state
+        next_state_ball_logit = nn.Dense(45)(hidden)
+        next_state_paddel_logit = nn.Dense(5)(hidden)
+        ball_dist = distrax.Categorical(logits=next_state_ball_logit)
+        paddel_dist = distrax.Categorical(logits=next_state_paddel_logit)
+        return ball_dist, paddel_dist
 
 
 def catch_action_transform(action: Action) -> Action:
@@ -141,6 +153,7 @@ class CatchEquiModel(TransitionModel):
         state_embedding = nn.relu(
             C2Dense(self.hidden_dim // 2, transform=catch_transform)(state)
         )
+        raise NotImplementedError
 
 
 class HyperParams(NamedTuple):
@@ -192,57 +205,77 @@ def make_mse_loss_fn(apply_fn):
     return _loss_fn
 
 
-def make_bce_loss_fn(apply_fn):
+def make_catch_bce_loss_fn(apply_fn):
     def _loss_fn(
         params: jt.PyTree, sarsd_tuple: SARSDTuple
-    ) -> Tuple[jt.Array, DebugData]:
+    ) -> Tuple[jt.Array, Optional[DebugData]]:
         state, action, _, next_state, _ = sarsd_tuple
-        next_state_pred_logits = apply_fn(params, state, action)
-        return (
-            jnp.mean(
-                optax.sigmoid_binary_cross_entropy(next_state_pred_logits, next_state)
-            ),
-            None,
-        )
+        ball_dist, paddle_dist = apply_fn(params, state, action)
+        ball_logits = ball_dist.logits
+        paddle_logits = paddle_dist.logits
+        ball_loss = optax.softmax_cross_entropy(
+            ball_logits, next_state.at[..., :45].get()
+        ).mean()
+        paddle_loss = optax.softmax_cross_entropy(
+            paddle_logits, next_state.at[..., 45:].get()
+        ).mean()
+        return ball_loss + paddle_loss, None
 
     return _loss_fn
 
 
-def make_accuracy_loss_fn(apply_fn):
+def make_catch_accuracy_loss_fn(apply_fn):
     def _loss_fn(
         params: jt.PyTree, sarsd_tuple: SARSDTuple
-    ) -> Tuple[jt.Array, DebugData]:
+    ) -> Tuple[jt.Array, Optional[DebugData]]:
         state, action, _, next_state, _ = sarsd_tuple
-        next_state_pred_logits = apply_fn(params, state, action)
-        next_state_pred = jnp.round(nn.softmax(next_state_pred_logits)).astype(
-            jnp.int32
-        )
+        ball_dist, paddle_dist = apply_fn(params, state, action)
 
-        jax.debug.breakpoint()
-        return jnp.mean(jnp.logical_and(next_state_pred, next_state)), None
+        def _accuracy(ball_dist, paddle_dist, next_state):
+            ball_pred = jnp.zeros_like(ball_dist.probs).at[ball_dist.mode()].set(1.0)
+            paddle_pred = (
+                jnp.zeros_like(paddle_dist.probs).at[paddle_dist.mode()].set(1.0)
+            )
+            pred = jnp.concatenate(
+                [
+                    ball_pred.reshape(45),
+                    paddle_pred.reshape(5),
+                ],
+                axis=0,
+            )
+            accuracy = jnp.mean(jnp.all(pred == next_state))
+            return accuracy
+
+        accuracy = jax.vmap(_accuracy)(ball_dist, paddle_dist, next_state).mean()
+
+        return accuracy, None
+
+    return _loss_fn
 
 
 def make_train(
     hyper_params: HyperParams,
-    data: SARSDTuple,
+    train_data: SARSDTuple,
     val_data: SARSDTuple,
     loss_function_ho=make_mse_loss_fn,
     val_loss_function_ho=make_mse_loss_fn,
 ):
-    # non_term_index = (data.done == 0).squeeze()
-    # data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), data)
-    train_size = hyper_params.get_train_size(data)
+    ## Shitty bodge should defo change this
+    train_size = hyper_params.get_train_size(train_data)
 
-    train_data, _ = data.partition(train_size)
+    train_data, _ = train_data.partition(train_size)
 
-    # non_term_index = (val_data.done == 0).squeeze()
-    # val_data = jax.tree_map(lambda x: x.at[non_term_index, ...].get(), val_data)
+    if hyper_params.model == CatchModel:
+        assert loss_function_ho == make_catch_bce_loss_fn, "Catch model needs bce loss"
+        assert (
+            val_loss_function_ho == make_catch_accuracy_loss_fn
+        ), "Catch model needs accuracy Validation"
 
-    def train(rng, train_data, val_data):
+    def train(rng):
         rng = jax.random.PRNGKey(42)
-        train_size = hyper_params.get_train_size(data)
-        batch_count = hyper_params.get_batch_count(data)
-        state_dim = data.state.shape[-1]
+        train_size = hyper_params.get_train_size(train_data)
+        batch_count = hyper_params.get_batch_count(train_data)
+        state_dim = train_data.state.shape[-1]
         action_dim = 1
         network = hyper_params.model(state_dim, action_dim, hyper_params.hidden_dim)
 
@@ -264,7 +297,7 @@ def make_train(
         _loss_fn = loss_function_ho(train_state.apply_fn)
         val_loss_fn = val_loss_function_ho(train_state.apply_fn)
 
-        logger.debug(f"state.shape: {data.state.shape}")
+        logger.debug(f"state.shape: {train_data.state.shape}")
         logger.debug(f"state_dim: {state_dim}")
         logger.debug(f"action_dim: {action_dim}")
 
@@ -315,7 +348,7 @@ def make_train(
 
         return final_state, losses
 
-    return lambda x: train(x, train_data, val_data)
+    return train
 
 
 if __name__ == "__main__":
