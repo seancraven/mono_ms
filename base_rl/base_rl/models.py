@@ -145,6 +145,7 @@ class EquivariantCatchActorCritic(nn.Module):
 
 
 class ActorCritic(nn.Module):
+    
     a_dim: int
     h_dim: int = 64
     act: Callable = nn.relu
@@ -157,6 +158,7 @@ class ActorCritic(nn.Module):
         pi = distrax.Categorical(logits=actor_mean.squeeze())
 
         critic = Critic(self.h_dim)(x)
+
         return pi, critic
 
 
