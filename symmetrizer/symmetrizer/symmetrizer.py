@@ -74,7 +74,7 @@ class SymmetrizerDense(nn.Module):
             "ijk,il->jkl", self.basis, self.basis_coef
         ).squeeze()
 
-        out = jnp.einsum("ij,bj->bi", symmetrizer_mat, input)
+        out = jnp.einsum("ij,...j->...i", symmetrizer_mat, input)
         if self.bias_basis is not None:
             bias = jnp.einsum("ijk,il->jkl", self.bias_basis, self.bias_coef).squeeze()
             return out + bias
