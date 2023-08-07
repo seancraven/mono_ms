@@ -243,8 +243,8 @@ def make_catch_accuracy_loss_fn(apply_fn):
                 ],
                 axis=0,
             )
-            accuracy = jnp.mean(jnp.all(pred == next_state))
-            return accuracy
+            accuracy = pred == next_state
+            return accuracy.all()
 
         accuracy = jax.vmap(_accuracy)(ball_dist, paddle_dist, next_state).mean()
 
