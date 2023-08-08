@@ -1,10 +1,10 @@
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from g_conv.c2 import ActionEquiv, C2Dense, C2DenseDiscrete
+from g_conv.c2 import C2Dense, C2DenseBinary
 
 from model_based.nn_model import NNCartpole
-from model_based.train import EquiModel, Model
+from model_based.transition_models import EquiModel, Model
 
 
 def test_nn_model():
@@ -40,7 +40,7 @@ class Equi(nn.Module):
     def __call__(self, state, action):
         action = jnp.array((action,))
         state_embedding = nn.tanh(C2Dense(self.hidden_dim)(state))
-        action_embedding = nn.tanh(C2DenseDiscrete(self.hidden_dim)(action))
+        action_embedding = nn.tanh(C2DenseBinary(self.hidden_dim)(action))
 
         # assert (
         #     state_embedding.shape == action_embedding.shape

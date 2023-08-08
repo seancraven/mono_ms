@@ -12,7 +12,6 @@ gymnax = "^0.0.6"
 jaxtyping = "^0.2.20"
 
 [tool.ruff]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 select = ["E", "F", "I", "PL", "D"]
 ignore = []
 

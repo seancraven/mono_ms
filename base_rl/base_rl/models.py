@@ -34,7 +34,8 @@ class BaseCritic(nn.Module):
         return critic.squeeze()
 
 
-Critic = lambda h_dim: BaseCritic(act=nn.relu, h_dim=h_dim)
+def Critic(h_dim):
+    return BaseCritic(act=nn.relu, h_dim=h_dim)
 
 
 class ACSequential(nn.Module):
@@ -43,6 +44,7 @@ class ACSequential(nn.Module):
     Call function returns a tuple of (action_logits, state_value).
 
     Args:
+    ----
         actor_layers: A tuple of actor layers.
         critic_layers: A tuple of critic layers.
     __call__ Args:
@@ -71,9 +73,7 @@ class EquivariantActorCritic(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        """
-        Network equivarint to -1 transformation.
-        """
+        """Network equivarint to -1 transformation."""
         actor_mean = self.act(
             nn.Dense(self.h_dim, kernel_init=he_normal(), use_bias=False)(x)
         )
@@ -88,6 +88,7 @@ class EquivariantActorCritic(nn.Module):
 
 
 def catch_transform(input):
+    """Reflection transform in the catch environment."""
     input_shape = input.shape
     input = input.reshape((-1, 10, 5))
     transformation = jnp.array(
@@ -104,6 +105,7 @@ def catch_transform(input):
 
 
 def hidden_transform(input):
+    """Permutation of axis one."""
     input_shape = input.shape
     input = input.reshape((-1, 2))
     out = jnp.roll(input, axis=-1, shift=1)
@@ -145,7 +147,6 @@ class EquivariantCatchActorCritic(nn.Module):
 
 
 class ActorCritic(nn.Module):
-    
     a_dim: int
     h_dim: int = 64
     act: Callable = nn.relu

@@ -4,7 +4,6 @@ import logging
 import os
 import pickle
 import shutil
-from abc import ABC
 from math import prod
 from typing import Any, NamedTuple, Optional, Tuple
 
@@ -17,7 +16,7 @@ from optax import adam
 from orbax import checkpoint
 
 from model_based.sample_env import SARSDTuple
-from model_based.transition_models import Model, CatchModel, EquiModel
+from model_based.transition_models import Model, CatchModel
 
 logger = logging.getLogger(__name__)
 

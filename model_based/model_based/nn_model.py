@@ -9,12 +9,11 @@ from gymnax.environments.classic_control import cartpole
 from gymnax.environments.environment import EnvParams, EnvState
 from optax._src.linear_algebra import lax
 
-from model_based.train import TransitionModel
+from model_based.transition_models import TransitionModel
 
 
 class NNCartpole(cartpole.CartPole):
-    """
-    A neural network model of the cartpole environment.
+    """A neural network model of the cartpole environment.
 
     The model default params returns the default params of the cartpole environment.
     """
