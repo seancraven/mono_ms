@@ -16,7 +16,7 @@ from optax import adam
 from orbax import checkpoint
 
 from model_based.sample_env import SARSDTuple
-from model_based.transition_models import Model, CatchModel
+from model_based.transition_models import CatchModel, Model
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,6 @@ class DebugData(NamedTuple):
             ],
             axis=-1,
         )
-
 
 
 class HyperParams(NamedTuple):
@@ -179,7 +178,7 @@ def make_train(
         batch_count = hyper_params.get_batch_count(train_data)
         state_dim = train_data.state.shape[-1]
         action_dim = 1
-        network = hyper_params.model(state_dim, action_dim, hyper_params.hidden_dim)
+        network = hyper_params.model(state_dim, hyper_params.hidden_dim)
 
         optimizer = adam(hyper_params.learning_rate)
 

@@ -4,8 +4,11 @@ import numpy as np
 from g_conv.c2 import C2Dense
 from gymnax.environments.bsuite import Catch
 
-from base_rl.models import (EquivariantActorCritic,
-                            EquivariantCatchActorCritic, catch_transform)
+from base_rl.models import (
+    EquivariantActorCritic,
+    EquivariantCatchActorCritic,
+    catch_transform,
+)
 from base_rl.wrappers import FlattenObservationWrapper
 
 

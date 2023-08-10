@@ -122,7 +122,7 @@ def assert_equiv_of(model):
 
 
 def test_model():
-    assert_equiv_of(EquiModel(4, 1, 10))
+    assert_equiv_of(EquiModel(4, 64))
 
 
 if __name__ == "__main__":

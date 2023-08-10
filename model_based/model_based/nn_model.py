@@ -20,7 +20,7 @@ class NNCartpole(cartpole.CartPole):
 
     def __init__(self, model=TransitionModel):
         super().__init__()
-        self.transition_model = model(*self.obs_shape, 1, 64)
+        self.transition_model = model(*self.obs_shape, 64)
 
     @property
     def default_params(self) -> EnvParams:

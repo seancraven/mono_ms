@@ -70,11 +70,12 @@ def test_proximal_catch_pool():
 
 
 def test_model():
-    model = tm.CatchEquiModel()
+    model = tm.SimpleCatchEqui()
     key = jax.random.PRNGKey(10)
-    state_gen = mock_catch(10)
+    state_gen = mock_catch(5)
     obs, action = next(state_gen)
     model_params = model.init(key, obs, action)
+    sol = []
     for obs, action in state_gen:
         ball_dist, pad_dist = model.apply(model_params, obs, action)
         pred = model.dist_to_obs(ball_dist, pad_dist).reshape(10, 5)
@@ -83,6 +84,13 @@ def test_model():
         inv_obs = catch_transform(obs)
 
         inv_ball, inv_pad = model.apply(model_params, inv_obs, inv_action)
-        inv_pred = model.dist_to_obs(inv_ball, inv_pad).reshape(10, 5)
+        inv_pred = model.dist_to_obs(inv_ball, inv_pad)
+        inv_pred = catch_transform(inv_pred).reshape(10, 5)
 
-        assert pretty_compare(pred, inv_pred)
+        sol.append(pretty_compare(pred, inv_pred))
+    print(sum(sol) / len(sol))
+    assert all(sol)
+
+
+if __name__ == "__main__":
+    test_model()

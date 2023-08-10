@@ -99,8 +99,7 @@ This G-CNN network for policy learning is the first novel contribution of this r
 Further, this network architecture has advantages over Symmetrizer networks, \cite{vanderpol2020mdp}, in that it does not require a large matrix inversions to solve for the parameters of the network, while still maintaining the same equivariance qualities.
 
 \subsection{Training Dynamics On the Cart-Pole Benchmark}
-
-With the networks structure defined, the benchmark task is to learn an expert policy on the Cart-pole environment. In the default setting Cart-pole has a maximum episode length of 500 interactions. All non-terminal states garner a reward of +1. As such, the maximum episodic return is 500. As in all conventional RL problems, in Cart-pole the aim is to maximize the episodic return of the agent. It is straightforward to find an expert policy in Cart-pole, with conventional deep learning methods, and serves only as an implementation benchmark. For an equivariant network structure to improve the learned policy quality it should approach the goal of 500 episodic return with fewer MDP interactions.
+The networks structure defined, the benchmark task is to learn an expert policy on the Cart-pole environment. In the default setting Cart-pole has a maximum episode length of 500 interactions. All non-terminal states garner a reward of +1. As such, the maximum episodic return is 500. As in all conventional RL problems, in Cart-pole the aim is to maximize the episodic return of the agent. It is straightforward to find an expert policy in Cart-pole, with conventional deep learning methods, and serves only as an implementation benchmark. For an equivariant network structure to improve the learned policy quality it should approach the goal of 500 episodic return with fewer MDP interactions.
 
 When comparing policy agent's learning dynamics it is not only important that, the agent achieves expertise in the task but also that, the policy learning procedure is stable across many random seeds. Where a random seed is the random initial state that the agent and environment start in. With training stability in mind looking at the worst performing random seeds is informative, as if the algorithm is very sensitive to initialization, then this performance may be heavily affected.
 
@@ -125,17 +124,22 @@ The G-CNN does compare favourably with the baseline implementation of an MLP, ha
 	\centering
 	\begin{tabular}{|c|c|c|c|}
 		\hline
-		Time-steps & Baseline     & Symmetrizer  & G-CNN        \\
+		Time-steps & Baseline     & Symmetrizer          & G-CNN                 \\
 		\hline
-		$10, 000$  & $102 \pm 5$  & $116 \pm 6$  & $158 \pm 8$  \\
-		$100, 000  & $260 \pm 10$ & $240 \pm$ 10 & $330 \pm 10$ \\
-		$500,000$  & $497 \pm 1$  & $500 \pm 1$  & $499 \pm 1$  \\
+		$10, 000$  & $102 \pm 5$  & $116 \pm 6$          & $\mathbf{158 \pm 8}$  \\
+		$100, 000$ & $260 \pm 10$ & $240 \pm$ 10         & $\mathbf{330 \pm 10}$ \\
+		$500,000$  & $497 \pm 1$  & $\mathbf{500 \pm 1}$ & $499 \pm 1$           \\
 		\hline
 	\end{tabular}
 	\caption{Cumulative episodic returns tabulated for the three network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\label{tab:actor-critic}
 \end{table}
 
+Additionally, the mean Episodic returns across all random seeds are tabulated at $10,000$, $100,000$ and $500,000$ time-steps in Table: \ref{tab:actor-critic}. On closer inspection, the G-CNN agent that includes the equivariant inductive bias vastly outperforms the baseline.
 
+Despite the similar parameter count, because of the structure of the G-CNNs the forward passes are more expensive to compute, requiring the number of group actions times more operations in a forward pass due to the G-CNN architecture. In a problem like Cart-Pole where the networks themselves are small and cheap to evaluate and, the computation can be parallelized, both models train across 128 random seeds in under minute, using the hyperparameters found in the Appendix, on a modern Graphics Card.
+
+\subsection{Catch}
 
 
 
