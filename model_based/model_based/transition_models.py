@@ -125,27 +125,41 @@ class CatchModel(BaseCatchModel):
 
 
 class SimpleCatchInv(BaseCatchModel):
+    """Invariant transition Model.
+
+    The model produces two distributions that are related to each other by the group
+    inversion action for cartpole.
+    """
+
     @nn.compact
     def __call__(self, state: Observation, action: Action) -> Observation:
-        action = jnp.array((action,)).reshape(1)
-        state_embedding_layer = C2Dense(self.hidden_dim // 2, transform=catch_transform)
-        action_embedding_layer = C2Dense(
-            self.hidden_dim // 2, transform=catch_action_transform
+        state_embedding_layer = C2Dense(
+            self.hidden_dim // 2,
+            transform=catch_transform,
         )
-
-        state_embedding = nn.relu(state_embedding_layer(state))
-        action_embedding = nn.relu(action_embedding_layer(action))
-
-        invariant_embedding = jnp.concatenate(
-            [state_embedding.mean(axis=-1), action_embedding.mean(axis=-1)], axis=0
+        action_embedding_layer = C2Dense(
+            self.hidden_dim // 2,
+            transform=catch_action_transform,
         )
         hidden_layer = nn.Dense(self.hidden_dim)
         hidden_layer_2 = nn.Dense(self.hidden_dim)
         out_layer = nn.Dense(self.state_dim)
+
+        ## State/ Action embedding are equivariant to group action.
+        ## the application of group action permutes the -1 axis.
+        state_embedding = nn.relu(state_embedding_layer(state))
+        action_embedding = nn.relu(action_embedding_layer(action))
+
+        ## Take the mean along the embeddings to make it invariant embedding.
+        invariant_embedding = jnp.concatenate(
+            [state_embedding.mean(axis=-1), action_embedding.mean(axis=-1)], axis=0
+        )
+
         hidden = nn.relu(hidden_layer(invariant_embedding))
         hidden = nn.relu(hidden_layer_2(hidden))
 
         logits = out_layer(hidden)
+        # Transform the invariant output state.
         logits_inv = catch_transform(logits)
         stacked_logits = jnp.stack(
             [logits.reshape(-1), logits_inv.reshape(-1)], axis=-1
@@ -155,6 +169,8 @@ class SimpleCatchInv(BaseCatchModel):
 
 
 class CatchEquiModel(BaseCatchModel):
+    """Currently Nearly Equivariant model apart from some edge cases."""
+
     @nn.compact
     def __call__(self, state: Observation, action: Action):
         action = action.reshape(1)
@@ -169,6 +185,15 @@ class CatchEquiModel(BaseCatchModel):
 
 
 def catch_pool(stacked_logits, state) -> jt.Array:
+    """Pooling layer, to make prediction equivariant.
+
+    Assumes that it is given two distributions for the next state of catch related by
+    the group action of catch.
+    stacked_logits[0] = catch_transform(stacked_logits[1])
+    where stacked_logits[0] describes one of the two possible predicted next states.
+    Finds which logits describe a state that is closer to the initial state (state).
+    """
+
     def _ball_l1(pred_logits: jt.Array, state: jt.Array):
         """Find L1 distance between predicted state ball and previous state."""
         pred_ball_y, pred_ball_x = divmod(
@@ -177,7 +202,7 @@ def catch_pool(stacked_logits, state) -> jt.Array:
         ball_loc_y, ball_loc_x = divmod(distrax.Categorical(logits=state).mode(), 5)
 
         return jnp.sqrt(
-            (pred_ball_x - 0.00001 - ball_loc_x) ** 2 + (pred_ball_y - ball_loc_y) ** 2
+            (pred_ball_x - ball_loc_x) ** 2 + (pred_ball_y - ball_loc_y) ** 2
         )
 
     def _paddel_l1(pred_logits: jt.Array, state: jt.Array):
@@ -185,10 +210,14 @@ def catch_pool(stacked_logits, state) -> jt.Array:
         assert pred_logits.shape == state.shape
         pad_loc = distrax.Categorical(logits=state).mode()
         pred_pad = distrax.Categorical(logits=pred_logits).mode()
-        return jnp.abs(pred_pad - pad_loc - 0.00001)
+        return jnp.abs(pred_pad - pad_loc)
 
     def joint_l1(logits, initial_state):
-        """Sum of l1 distance of paddle and ball."""
+        """Sum of l1 distance of paddle and ball.
+
+        The paddle l1 distance is scaled by a factor of 0.1 to make all
+        possible distances unique.
+        """
         init_ball, init_pad = initial_state.at[:45].get(), initial_state.at[45:].get()
         ball_logits, pad_logits = logits.at[:45].get(), logits.at[45:].get()
         ball_l1 = _ball_l1(ball_logits, init_ball)

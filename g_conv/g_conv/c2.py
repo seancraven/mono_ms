@@ -38,6 +38,8 @@ class C2Dense(nn.Module):
 
 
 class C2DenseBinary(nn.Module):
+    """Special layer that maps 0,1 to 1, -1 and then passes through equivariant layer"""
+
     features: int
 
     @nn.compact
