@@ -32,9 +32,9 @@ def pretty_compare(a, b):
     if (a == b).all():
         return True
     else:
-        # print()
-        # print(a.reshape(10, 5))
-        # print(b.reshape(10, 5))
+        print("both predictions")
+        print(a.reshape(10, 5))
+        print(b.reshape(10, 5))
         return False
 
 
@@ -44,7 +44,7 @@ def test_model_equivariance_exclude_type1():
     that are along the center line and so
     state @ group_action = state.
     """
-    model = tm.CatchEquiModel()
+    model = tm.CatchEquiModel_()
     key = jax.random.PRNGKey(10)
     state_gen = mock_catch(1000)
     obs, action = next(state_gen)
@@ -71,6 +71,7 @@ def test_model_equivariance_exclude_type1():
         if not comparison:
             # uncomment lines 35, 37 to see when goes wrong
             # print()
+            print("origional state")
             print(obs.reshape(10, 5))
         sol.append(comparison)
     print("Fraction of Predictions that are equivarant", sum(sol) / len(sol))
@@ -83,7 +84,7 @@ def test_model_equivariance():
     checks for this property
     group_action @ model(state) = model(group_action @ state).
     """
-    model = tm.CatchEquiModel()
+    model = tm.CatchEquiModel_()
     key = jax.random.PRNGKey(10)
     state_gen = mock_catch(1000)
     obs, action = next(state_gen)
@@ -101,6 +102,10 @@ def test_model_equivariance():
         transform_pred = catch_transform(pred).reshape(10, 5)
 
         comparison = pretty_compare(transform_pred, inv_pred)
+        if not comparison:
+            # uncomment lines 35, 37 to see when goes wrong
+            # print()
+            print(obs.reshape(10, 5))
         sol.append(comparison)
 
     print("Fraction of Predictions that are equivarant", sum(sol) / len(sol))

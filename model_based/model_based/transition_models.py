@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 from abc import ABC
-from math import dist
 from typing import Tuple
 
 import distrax
 import flax.linen as nn
 import jax
 import jaxtyping as jt
-import numpy as np
 from base_rl.higher_order import Action, Observation
 from base_rl.models import catch_transform, hidden_transform
 from g_conv.c2 import C2Dense, C2DenseBinary
@@ -57,6 +55,7 @@ class EquiModel(TransitionModel):
         hidden = nn.tanh(C2Dense(self.hidden_dim)(concat))
         hidden = nn.tanh(C2Dense(self.hidden_dim // 2)(hidden.reshape(-1)))
         hidden = C2Dense(self.state_dim)(hidden.reshape(-1))
+
         next_state = proximal_state_pool(state, hidden)
         return next_state
 
@@ -144,6 +143,9 @@ class SimpleCatchInv(BaseCatchModel):
         hidden_layer = nn.Dense(self.hidden_dim)
         hidden_layer_2 = nn.Dense(self.hidden_dim)
         out_layer = nn.Dense(self.state_dim)
+        # hidden_layer = C2Dense(self.hidden_dim, transform=hidden_transform)
+        # hidden_layer_2 = C2Dense(self.hidden_dim, transform=hidden_transform)
+        # out_layer = C2Dense(self.state_dim)
 
         ## State/ Action embedding are equivariant to group action.
         ## the application of group action permutes the -1 axis.
@@ -168,6 +170,41 @@ class SimpleCatchInv(BaseCatchModel):
         return stacked_logits
 
 
+class SimpleCatchEqui(BaseCatchModel):
+    @nn.compact
+    def __call__(self, state: Observation, action: Action) -> Observation:
+        state_embedding_layer = C2Dense(
+            self.hidden_dim // 2,
+            transform=catch_transform,
+        )
+        action_embedding_layer = C2Dense(
+            self.hidden_dim // 2,
+            transform=catch_action_transform,
+        )
+        hidden_layer = C2Dense(self.hidden_dim, transform=hidden_transform)
+        hidden_layer_2 = C2Dense(self.hidden_dim, transform=hidden_transform)
+        out_layer = C2Dense(self.state_dim, transform=hidden_transform)
+
+        state_embedding = nn.relu(state_embedding_layer(state))
+        action_embedding = nn.relu(action_embedding_layer(action))
+
+        concat = jnp.concatenate([state_embedding, action_embedding], axis=0).reshape(
+            -1
+        )
+        hidden = nn.relu(hidden_layer(concat))
+        hidden = nn.relu(hidden_layer_2(hidden.reshape(-1)))
+        out = out_layer(hidden.reshape(-1))
+        stacked_logits = convert_group_action(out)
+        return stacked_logits
+
+
+def convert_group_action(stacked_logits):
+    idn_logits = stacked_logits.at[..., 0].get()
+    inv_logits = stacked_logits.at[..., 1].get()
+    inv_logits = catch_transform(inv_logits)
+    return jnp.stack([idn_logits, inv_logits], axis=-1)
+
+
 class CatchEquiModel(BaseCatchModel):
     """Currently Nearly Equivariant model apart from some edge cases."""
 
@@ -176,6 +213,20 @@ class CatchEquiModel(BaseCatchModel):
         action = action.reshape(1)
 
         stacked_logits = SimpleCatchInv(self.state_dim, self.hidden_dim)(state, action)
+
+        logits = catch_pool(stacked_logits, state)
+
+        ball_dist = distrax.Categorical(logits=logits.at[:45].get())
+        pad_dist = distrax.Categorical(logits=logits.at[45:].get())
+        return ball_dist, pad_dist
+
+
+class CatchEquiModel_(BaseCatchModel):
+    @nn.compact
+    def __call__(self, state, action):
+        action = action.reshape(1)
+
+        stacked_logits = SimpleCatchEqui(self.state_dim, self.hidden_dim)(state, action)
 
         logits = catch_pool(stacked_logits, state)
 

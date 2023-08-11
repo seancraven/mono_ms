@@ -39,7 +39,6 @@ def make_actor_critic_update(
 ) -> Callable[
     [DynaRunnerState, Any], Tuple[DynaRunnerState, Tuple[Losses, Trajectory]]
 ]:
-    # Throught training constant functions.
     _mini_batch_update_fn = make_ac_mini_batch_update_fn(apply_fn, dyna_hyp.ac_hyp)
     _gae_fn = make_gae_fn(dyna_hyp)
 
