@@ -140,7 +140,7 @@ Additionally, the mean Episodic returns across all random seeds are tabulated at
 Despite the similar parameter count, because of the structure of the G-CNNs the forward passes are more expensive to compute, requiring the number of group actions times more operations in a forward pass due to the G-CNN architecture. In a problem like Cart-Pole where the networks themselves are small and cheap to evaluate and, the computation can be parallelized, both models train across 128 random seeds in under minute, using the hyperparameters found in the Appendix, on a modern Graphics Card.
 
 \subsection{Catch}
-To demonstrate that the
+To demonstrate that the method extends to other environments, with different group actions the equivariant actor-critic is implemented for the Bsuite Catch environment.
 
 
 
