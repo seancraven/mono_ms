@@ -3,16 +3,16 @@ import jax
 import jax.numpy as jnp
 from g_conv.c2 import C2Dense, C2DenseBinary
 
-from model_based.nn_model import NNCartpole
+from model_based.nn_model import NNCartPole
 from model_based.transition_models import EquiModel, Model
 
 
 def test_nn_model():
     key = jax.random.PRNGKey(42)
-    env = NNCartpole()
+    env = NNCartPole()
     env_params = env.default_params
     num = 100
-    env = NNCartpole(Model)
+    env = NNCartPole(Model)
 
     m_param = env.transition_model.init(
         key,
@@ -69,7 +69,7 @@ def proximal_state(state, next_states):
 def test_equi_model():
     key = jax.random.PRNGKey(42)
 
-    env = NNCartpole(EquiModel)  # type: ignore
+    env = NNCartPole(EquiModel)  # type: ignore
     assert_equiv_of(env.transition_model)
     env_params = env.default_params
     m_param = env.transition_model.init(

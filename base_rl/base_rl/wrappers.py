@@ -53,8 +53,14 @@ class FlattenObservationWrapper(GymnaxWrapper):
         state: environment.EnvState,
         action: Union[int, float],
         params: Optional[environment.EnvParams] = None,
+        model_params: Optional[environment.EnvParams] = None,
     ) -> Tuple[chex.Array, environment.EnvState, float, bool, dict]:
-        obs, state, reward, done, info = self._env.step(key, state, action, params)
+        if model_params is not None:
+            obs, state, reward, done, info = self._env.step(
+                key, state, action, params, model_params
+            )
+        else:
+            obs, state, reward, done, info = self._env.step(key, state, action, params)
         obs = jnp.reshape(obs, (-1,))
         return obs, state, reward, done, info
 
@@ -91,7 +97,7 @@ class LogWrapper(GymnaxWrapper):
         action: Union[int, float],
         params: Optional[environment.EnvParams] = None,
         model_params: Optional[environment.EnvParams] = None,
-    ) -> Tuple[chex.Array, environment.EnvState, float, bool, dict]:
+    ) -> Tuple[chex.Array, LogEnvState, float, bool, dict]:
         if model_params is not None:
             obs, env_state, reward, done, info = self._env.step(
                 key, state.env_state, action, params, model_params

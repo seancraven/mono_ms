@@ -14,8 +14,13 @@ from gymnax import EnvState
 from gymnax.environments.classic_control import CartPole
 from symmetrizer.symmetrizer import C2PermGroup, ac_symmmetrizer_factory
 
-from base_rl.models import (ACSequential, ActorCritic, ConvActorCritic,
-                            ConvEquivariantActorCritic, EquivariantActorCritic)
+from base_rl.models import (
+    ACSequential,
+    ActorCritic,
+    ConvActorCritic,
+    ConvEquivariantActorCritic,
+    EquivariantActorCritic,
+)
 from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 
 # Single timestep

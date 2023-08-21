@@ -140,10 +140,93 @@ Additionally, the mean Episodic returns across all random seeds are tabulated at
 Despite the similar parameter count, because of the structure of the G-CNNs the forward passes are more expensive to compute, requiring the number of group actions times more operations in a forward pass due to the G-CNN architecture. In a problem like Cart-Pole where the networks themselves are small and cheap to evaluate and, the computation can be parallelized, both models train across 128 random seeds in under minute, using the hyperparameters found in the Appendix, on a modern Graphics Card.
 
 \subsection{Catch}
-To demonstrate that the method extends to other environments, with different group actions the equivariant actor-critic is implemented for the Bsuite Catch environment.
+To demonstrate that G-CNN actor-critics extend to other environments, with different group actions. The equivariant actor-critic is implemented for the Bsuite Catch environment. In the case of the Catch environment to make an equivariant network because the layers themselves are not equivariant to the C2 representation, like in the case of CartPole, the whole network must be constructed out of Group Convolutions. As before, we consider equivariant constraint on the actor $\pi_\theta(s)$.
 
+In the case of catch the input state space is $\mathcal{S} \in [0, 1]^{50}$, rather than write out the tedious matrix representation of the reflection action $r$, it is left as $\ell_r^\mathcal{S}$. Thus, the equivariance constraint is,
+\begin{equation}
+	\pi_\theta(\ell_r^\mathcal{S} s) = \begin{pmatrix}
+		0 & 0 & 1 \\
+		0 & 1 & 0 \\
+		1 & 0 & 0
+	\end{pmatrix}\pi_\theta(s).
+\end{equation}
 
+To construct a G-CNN, which is equivariant to the group actions a group action in the hidden layers must be determined. Consider a group convolution input layer $f : \mathcal{S} \rightarrow \mathcal{H} \in \mathbb{R}^{|G| \times |H|}$, commonly reffered to as a lifting layer. Lifting layers apply a group action to the input and then passes the transformed input through, $ g: \mathcal{S} \rightarrow \mathbb{R}^{|H|}$, a dense/convolution layer. In the full layer the input is transformed by every group action, and then passed through $g$. In the absence of any pooling, this gives a hidden representation, that is the hidden dimensions of the equivalent dense/convolution layer, plus a new axis that is the size of the group. To illustrate the new equivariance constraint a single layer;
+\begin{equation}
+	g(s) = \vec{h} \in \mathbb{R}^{|H|}.
+\end{equation}
+When formed into a group convolution,
+\begin{equation}
+	f(s) = \begin{pmatrix}
+		g(s)                   \\
+		g(\ell_1^\mathcal{S}s) \\
+		g(\ell^\mathcal{S}_2s) \\
+		\vdots                 \\
+		g(\ell_{|G|}s).
+	\end{pmatrix}
+\end{equation}
+When a group action is applied to the input the values of the output are permuted. The exact permutation depends upon the group, however, the structure of the permutations are easily calculated due to group closure;
+\begin{equation}
+	f(\ell_n^\mathcal{S}) = \begin{pmatrix}
+		g(\ell_n^\mathcal{S}s)                   \\
+		g(\ell_n^\mathcal{S}\ell_1^\mathcal{S}s) \\
+		g(\ell_n^\mathcal{S}\ell_{|G|}s)         \\
+		\vdots                                   \\
+		g(\ell_n^\mathcal{S}\ell_{|G|}s)         \\
+	\end{pmatrix}
+	= \begin{pmatrix}
+		g(\ell_n^\mathcal{S}s) \\
+		g(\ell_i^\mathcal{S}s) \\
+		g(\ell^\mathcal{S}_js) \\
+		\vdots                 \\
+		g(\ell_{k}s).
+	\end{pmatrix}
+	= \mat{P} f(s)
+\end{equation}
+Where $\mat{P}$, is a permutation matrix defined by the group. There is a unique permutation matrix for each group element. To construct subsequent layers that are also equivariant, we exploit the fact that the output is a permutation of vectors. Consider a subsequent, $h: \mathcal{H} \rightarrow \mathcal{H}'$, a hidden layer that must continue the equivariance to group G. This is achived by treating each $\mat{P}$ as the group action, and ensuring that the output is equivariant to its application. The new layer can be through of as taking a vector of vectors, where it must be equivariant to the vectors permutation,
+\begin{equation}
+	h\left( \mat{P_i}
+	\begin{pmatrix}
+		v_1    \\
+		v_2    \\
+		\vdots \\
+		v_{|G|}
+	\end{pmatrix}
+	\right) = \mat{P_i} h
+	\begin{pmatrix}
+		v_1    \\
+		v_2    \\
+		\vdots \\
+		v_{|G|}
+	\end{pmatrix}.
+\end{equation}
+With this equivariant structure for each layer the network constructed out of an input layer and subsequent hidden layers, which all maintain the equivariance constraint, the only thing left is to find an output. In the case of an actor network in a discrete action space, the permutation representation, is perfect, in the case of Catch where the probability of moving left in a state $s$ should be the same as the probability of moving right in a reflected state $s' = \ell_r^\mathcal{S}$. As the network outputs logits, un-normalised probabilities, their permutation on a reflection is the exact property required. For cases where a permutation is not the required group action, achieving equivariance is slightly more difficult. This is left for later.
 
+With an Equivariant network structure created, as in the case of CartPole, an Equivariant actor critic and an MLP actor critic were formed with two hidden layers, and a comparable parameter count. In this experiment, the Symmetrizer was left out due to the challenges found optimizing its performance to that demonstrated in the original paper. As Catch is a much more straightforward task, the agents are given $20,000$ MDP interactions to learn over in comparison to that of CartPole, again the MLP baseline is the PureJaxRL baseline actor-critic, slightly adjusted for the new environment. Both network architectures were given the same hyperparameters.
+\begin{figure}
+	\begin{center}
+		\includegraphics[width=\linewidth]{Figures/catch_returns.png}
+		\caption{Left: Mean cumulative episodic returns for the Catch agents across 128 random seeds plotted against number of interaction time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps}
+	\end{center}
+\end{figure}
+Again, looking at the qualitative performance difference from the Episodic return curves we see a similar but more exaggerated story. For Catch the equivariance inductive bias appears to be incredibly useful, and not only does the agent converge to an expert policy faster, than without the G-CNN, but also the bottom decile of random seeds also perform substantially better. Further, looking at tabulated performance in Table~\ref{tab:actor-critic_catch}, The dominance of the Equivariant Network architecture is apparent, with it achieving a greater mastery of Catch in half of the time.
+
+\begin{table}
+	\centering
+	\begin{tabular}{|c|c|c|}
+		\hline
+		Time-steps & Baseline         & G-CNN                     \\
+		\hline
+		$2, 000$   & $- 0.51\pm 0.07$ & $\mathbf{-0.06 \pm 0.09}$ \\
+		$10, 000$  & $0.70 \pm 0.06$  & $\mathbf{0.95 \pm 0.03}   \\
+		$20,000$   & $0.875 \pm 0.04$ & $\mathbf{0.96\pm 0.02}$   \\
+		\hline
+	\end{tabular}
+	\caption{Cumulative episodic returns tabulated for the two network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\label{tab:actor-critic_catch}
+\end{table}
+\section{Conclusion}
+Wow! Way better, super sexy.
 
 
 

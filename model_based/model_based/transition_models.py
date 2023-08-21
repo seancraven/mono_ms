@@ -29,13 +29,13 @@ class Model(TransitionModel):
     @nn.compact
     def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
-        state_embedding = nn.sigmoid(nn.Dense(self.hidden_dim)(state))
-        action_embedding = nn.sigmoid(nn.Dense(self.hidden_dim)(action))
+        state_embedding = nn.relu(nn.Dense(self.hidden_dim)(state))
+        action_embedding = nn.relu(nn.Dense(self.hidden_dim)(action))
         concat = jnp.concatenate(
             [state_embedding.squeeze(), action_embedding.squeeze()], axis=0
         )
-        hidden = nn.sigmoid(nn.Dense(self.hidden_dim)(concat))
-        hidden = nn.sigmoid(nn.Dense(self.hidden_dim)(hidden))
+        hidden = nn.relu(nn.Dense(self.hidden_dim)(concat))
+        hidden = nn.relu(nn.Dense(self.hidden_dim)(hidden))
         next_state = nn.Dense(self.state_dim)(hidden)
 
         return next_state

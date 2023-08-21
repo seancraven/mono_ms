@@ -45,6 +45,7 @@ class TransitionModelHyperParams(NamedTuple):
     MINIBATCH_SIZE: int = 64
     NUM_EPOCHS: int = 10
     LR: float = 1e-3
+    PARAMS: Optional[jt.PyTree] = None
 
 
 class DynaHyperParams(NamedTuple):

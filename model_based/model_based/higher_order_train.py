@@ -18,7 +18,7 @@ from base_rl.wrappers import FlattenObservationWrapper, LogWrapper
 from flax.training.train_state import TrainState
 from gymnax.environments.classic_control import CartPole
 
-from model_based.nn_model import NNCartpole
+from model_based.nn_model import NNCartPole
 
 UpdateState = Tuple[
     TrainState,
@@ -308,8 +308,8 @@ CONFIG = {
     "MAX_GRAD_NORM": 0.5,
     "ACTIVATION": "tanh",
     "ANNEAL_LR": True,
-    "ENV": NNCartpole(),
-    "ENV_PARAMS": NNCartpole().default_params,
+    "ENV": NNCartPole(),
+    "ENV_PARAMS": NNCartPole().default_params,
     "VAL_ENV": CartPole(),
     "VAL_ENV_PARAMS": CartPole().default_params,
 }

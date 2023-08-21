@@ -1,26 +1,28 @@
 from __future__ import annotations
 
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Tuple
 
 import jax
+import numpy as np
 import jax.numpy as jnp
+import jaxtyping as jt
 import optax
-from base_rl.higher_order import Transition
+from base_rl.higher_order import FlattenObservationWrapper, Transition
 from base_rl.models import ActorCritic
 from base_rl.wrappers import LogWrapper
 from flax.training.train_state import TrainState
-from gymnax.environments.classic_control import CartPole
 from jaxtyping import PRNGKeyArray
-from model_based.nn_model import NNCartpole
 
 from dyna.ac_higher_order import make_actor_critic_update
 from dyna.model_higher_order import make_transition_model_update
 from dyna.types import DynaHyperParams, DynaRunnerState, DynaState
+from model_based.nn_model import NNModel
 
 
-def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
-    actor_critic = ActorCritic(2)
-
+def make_dyna_train_fn(
+    dyna_hyp: DynaHyperParams,
+    nn_model: NNModel,
+):
     tx_ac = optax.chain(
         optax.clip_by_global_norm(dyna_hyp.MAX_GRAD_NORM),
         optax.adam(dyna_hyp.ac_hyp.LR, eps=1e-5),
@@ -29,37 +31,64 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
         optax.clip_by_global_norm(dyna_hyp.MAX_GRAD_NORM),
         optax.adam(dyna_hyp.model_hyp.LR, eps=1e-5),
     )
+    env_model = LogWrapper(
+        FlattenObservationWrapper(nn_model(model=dyna_hyp.model_hyp.MODEL_FN))
+    )
+    env = LogWrapper(FlattenObservationWrapper(env_model._env._env.parent_class()))
+    actor_critic = ActorCritic(env.action_space(env.default_params).n)
+    state_shape = np.prod(
+        env.observation_space(env.default_params).shape, dtype=np.int32
+    )
+    action_shape = np.prod(env.action_space().shape, dtype=np.int32)
 
-    def train(rng):
-        env_model = LogWrapper(NNCartpole(model=dyna_hyp.model_hyp.MODEL_FN))
-        env = LogWrapper(CartPole())
+    def model_train_state_create(
+        rng: jt.PRNGKeyArray,
+    ) -> TrainState:
+        if dyna_hyp.model_hyp.PARAMS:
+            assert (
+                dyna_hyp.model_hyp.NUM_EPOCHS == 0
+            ), "Can't Use Expert Model with training."
+            return TrainState.create(
+                apply_fn=jax.vmap(
+                    env_model.transition_model.apply, in_axes=(None, 0, 0)
+                ),
+                params=dyna_hyp.model_hyp.PARAMS,
+                tx=tx_model,
+            )
 
-        assert env.action_space().n == env_model.action_space().n
-        assert (
-            env.observation_space(env.default_params).shape
-            == env_model.observation_space(env_model.default_params).shape
-        )
-        state_shape = env.observation_space(env.default_params).shape
-        action_shape = env.action_space().shape
+        else:
+            return TrainState.create(
+                apply_fn=jax.vmap(
+                    env_model.transition_model.apply, in_axes=(None, 0, 0)
+                ),
+                params=env_model.transition_model.init(
+                    rng, jnp.ones(state_shape), jnp.ones(action_shape)
+                ),
+                tx=tx_model,
+            )
 
-        rng, rng_ac, rng_reset, rng_model, rng_state = jax.random.split(rng, 5)
-        ac_train_state = TrainState.create(
+    def ac_train_state_create(rng: jt.PRNGKeyArray) -> TrainState:
+        return TrainState.create(
             apply_fn=jax.vmap(actor_critic.apply, in_axes=(None, 0)),
-            params=actor_critic.init(rng_ac, jnp.ones(state_shape)),
+            params=actor_critic.init(rng, jnp.ones(state_shape)),
             tx=tx_ac,
         )
 
-        model_train_state = TrainState.create(
-            apply_fn=jax.vmap(env_model.transition_model.apply, in_axes=(None, 0, 0)),
-            params=env_model.transition_model.init(
-                rng_model, jnp.ones(state_shape), jnp.ones(action_shape)
-            ),
-            tx=tx_model,
-        )
-        print(
-            "Model Params:",
-            sum(x.size for x in jax.tree_util.tree_leaves(model_train_state.params)),
-        )
+    assert env.action_space().n == env_model.action_space().n
+    assert (
+        env.observation_space(env.default_params).shape
+        == env_model.observation_space(env_model.default_params).shape
+    )
+
+    def train(rng):
+        rng, rng_ac, rng_reset, rng_model, rng_state = jax.random.split(rng, 5)
+        ac_train_state = ac_train_state_create(rng_ac)
+
+        model_train_state = model_train_state_create(rng_model)
+        # print(
+        #     "Model Params:",
+        #     sum(x.size for x in jax.tree_util.tree_leaves(model_train_state.params)),
+        # )
 
         model_free_update_fn = make_actor_critic_update(
             dyna_hyp,
@@ -84,18 +113,6 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             model_based_update_fn,
             env_model_update_fn,
         )
-        # gain_ex_fun = make_gain_exp(
-        #     dyna_hyp,
-        #     model_free_update_fn,
-        #     model_based_update_fn,
-        #     env_model_update_fn,
-        # )
-        # mf_ex_step = make_experience_step(
-        #     False,
-        #     model_free_update_fn,
-        #     model_based_update_fn,
-        #     env_model_update_fn,
-        # )
 
         rng_reset = jax.random.split(rng_reset, dyna_hyp.NUM_ENVS)
         first_obs, env_state = jax.vmap(env.reset, in_axes=(0, None))(
@@ -116,15 +133,6 @@ def make_dyna_train_fn(dyna_hyp: DynaHyperParams):
             model_train_state,
             model_env_state,
         )
-        # dyna_state, infos = mf_ex_step(
-        #     dyna_state,
-        #     None,
-        # )
-        # dyna_state, infos = gain_ex_fun(
-        #     dyna_state,
-        #     infos[1],
-        # )
-        # return dyna_state, infos
 
         final_dyna_runner, infos = jax.lax.scan(
             ex_step,

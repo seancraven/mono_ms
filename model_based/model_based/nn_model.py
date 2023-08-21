@@ -1,20 +1,43 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import NamedTuple, Optional, Tuple, Union
+from typing import NamedTuple, Optional, Protocol, Tuple, Union
 
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+from base_rl.higher_order import CartPole, gymnax
 from gymnax.environments.bsuite import catch
 from gymnax.environments.classic_control import cartpole
-from gymnax.environments.environment import EnvParams, EnvState
+from gymnax.environments.environment import Environment, EnvParams, EnvState
+from gymnax.registration import Catch
 from optax._src.linear_algebra import lax
 
 from model_based.transition_models import BaseCatchModel, TransitionModel
 
 
-class NNCartpole(cartpole.CartPole):
+class NNModel(Protocol):
+    """Similar to gymnax environment, but with a step function that takes model_params."""
+
+    def __init__(self, model=TransitionModel):
+        ...
+
+    @partial(jax.jit, static_argnums=(0,))
+    def step(
+        self,
+        key: jt.PRNGKeyArray,
+        state: EnvState,
+        action: Union[int, float],
+        params: Optional[EnvParams] = None,
+        model_params: Optional[jt.PyTree] = None,
+    ) -> Tuple[jt.Array, EnvState, float, bool, dict]:
+        ...
+
+    def parent_class(self) -> Environment:
+        ...
+
+
+class NNCartPole(cartpole.CartPole, NNModel):
     """A neural network model of the cartpole environment.
 
     The model default params returns the default params of the cartpole environment.
@@ -90,13 +113,11 @@ class NNCartpole(cartpole.CartPole):
             time_step,
         )
 
-
-class NNCartpoleParams(NamedTuple):
-    model: jt.PyTree
-    cartpole: cartpole.EnvParams = cartpole.EnvParams()
+    def parent_class(self) -> CartPole:
+        return CartPole()
 
 
-class NNCatch(catch.Catch):
+class NNCatch(catch.Catch, NNModel):
     def __init__(self, model=BaseCatchModel):
         super().__init__()
         obs_dim = self.rows * self.columns
@@ -188,3 +209,6 @@ class NNCatch(catch.Catch):
             done,
             time_step,
         )
+
+    def parent_class(self) -> Catch:
+        return Catch()

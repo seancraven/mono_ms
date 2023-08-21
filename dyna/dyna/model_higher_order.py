@@ -8,7 +8,6 @@ import jaxtyping as jt
 import numpy as np
 from base_rl.higher_order import Trajectory
 from flax.training.train_state import TrainState
-from model_based.sample_env import make_experience_fn
 from model_based.train import SARSDTuple
 
 from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
@@ -16,10 +15,17 @@ from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
 
 def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     mini_batch_fn = make_mini_batch_fn(apply_fn)
-    exp_fn = make_experience_fn("CartPole-v1", 10_000)
-    exp_fn = jax.jit(exp_fn)
-    exp = exp_fn(jax.random.PRNGKey(0))
-    base_sas = sarsd_to_sas_tuple(exp)
+    # exp_fn = make_experience_fn("CartPole-v1", 10_000)
+    # exp_fn = jax.jit(exp_fn)
+    # exp = exp_fn(jax.random.PRNGKey(0))
+    # base_sas = sarsd_to_sas_tuple(exp)
+
+    def pass_update_fn(
+        rng: jt.PRNGKeyArray,
+        train_state: TrainState,
+        trajectories: Trajectory,
+    ) -> Tuple[TrainState, EnvModelLosses]:
+        return train_state, None
 
     def tm_update_fn(
         rng: jt.PRNGKeyArray,
@@ -28,7 +34,7 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     ) -> Tuple[TrainState, EnvModelLosses]:
         no_mini_batch = hyper_params.M_NUM_MINIBATCHES
         data = trajectory_to_sas_tuple(trajectories)
-        data.join(base_sas)
+        # data = data.join(base_sas)
         perm = jax.random.permutation(rng, data.state.shape[0])
         data = jax.tree_map(lambda x: x.at[perm].get(), data)
         batched_data = jax.tree_map(
@@ -47,7 +53,7 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
         )
         return train_state, losses
 
-    return tm_update_fn
+    return tm_update_fn if hyper_params.model_hyp.NUM_EPOCHS > 0 else pass_update_fn
 
 
 def make_mini_batch_fn(apply_fn):

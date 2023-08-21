@@ -15,8 +15,8 @@ from base_rl.higher_order import (
 )
 from distrax import Categorical
 from flax.training.train_state import TrainState
-from model_based.nn_model import NNCartpole
 
+from model_based.nn_model import NNCartPole
 from dyna.types import ActorCriticHyperParams, DynaHyperParams, DynaRunnerState
 
 
@@ -226,7 +226,7 @@ def make_ac_mini_batch_update_fn(
 
 def make_env_step_fn(
     dyna_hyp: DynaHyperParams,
-    env: Union[gymnax.environments.CartPole, NNCartpole],
+    env: Union[gymnax.environments.CartPole, NNCartPole],
     env_params,
     model_based: bool = False,
 ):
@@ -273,7 +273,7 @@ def make_env_step_fn(
     ) -> Tuple[DynaRunnerState, Transition]:
         model_params, train_state, env_state, last_obs, rng = runner_state
 
-        assert isinstance(env._env, gymnax.environments.CartPole), type(env._env)
+        # assert isinstance(env._env, gymnax.environments.CartPole), type(env._env)
         rng, _rng = jax.random.split(rng)
         pi, value = train_state.apply_fn(train_state.params, last_obs)
         action = pi.sample(seed=_rng)

@@ -5,11 +5,11 @@ import pickle
 from collections.abc import Callable
 from typing import NamedTuple, Tuple
 
-import numpy as np
 import gymnax
 import jax
 import jax.numpy as jnp
 import jaxtyping as jt
+import numpy as np
 from base_rl.higher_order import ActorCritic
 from gymnax import EnvState
 
@@ -102,7 +102,10 @@ def make_expert_experience_fn(
         ) -> Tuple[Tuple[jt.Array, EnvState, jt.Array], SARSDTuple]:
             obs, env_state, rng = joint_state
             _, action_rng, step_rng = jax.random.split(rng, 3)
-            sample_action_dist, _ = policy_net.apply(expert_params, obs.reshape((1, np.prod(env.observation_space(env_params).shape))))
+            sample_action_dist, _ = policy_net.apply(
+                expert_params,
+                obs.reshape((1, np.prod(env.observation_space(env_params).shape))),
+            )
             sample_action = sample_action_dist.sample(seed=action_rng)
             next_obs, env_state, reward, done, _ = env.step(
                 step_rng, env_state, sample_action.squeeze()
