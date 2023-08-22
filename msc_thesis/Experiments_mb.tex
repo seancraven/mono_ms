@@ -1,0 +1,70 @@
+\section{Model-Based RL}\label{sec:model-based}
+In the previous section Actor-Critic methods were implemented on both the CartPole and Catch environments. The inclusion of a inductive bias exploiting the symmetry of an MDP lead to improvements in the sample efficiency of learning an expert policy, while maintaining robustness to initialization conditions.
+
+While this methodology was effective in improving the learning dynamics of the agent, the hard requirement for the symmetry of the environment is a strong constraint.
+
+In the case of a model-based agent, that performs planning and acting phases, the agent requires both a world model $T_\phi : \mathcal{S} \times \mathcal{A}\rightarrow \mathcal{S}, R_\psi :\mathcal{S} \times \mathcal{A}\rightarrow \mathbb{R}, $ and a policy or value model, $\pi_\theta(s)$.
+
+In the case where the transition dynamics of the MDP are group structured, or approximately group structured, this report proposes the use of an Equivariant world model. With a world model that has inductive biases that are designed to aid in learning the MDP's transition dynamics, the world model may be learned more efficiently and accurately from fewer samples from the environment, improving the effectiveness of planning for the agent. Additionally, because the policy that is learnt is not required to be equivariant, the agent may also still perform well in situations where the symmetry is not exact. The initial experementation uses a simple hybrid model-based algorithm, that has both model-based and model-free components Dyna.
+
+Dyna alternates between planning and acting phases, where the agent's policy is learned from experience in the MDP, an Acting phase. Then the agent learn's a world model and then performs a planning phase. Planning is where the agent simulates trajectories, with it's learned world model and updates its policy from the simulated trajectories.
+
+
+\subsection{Constructing Transition Models}
+Before using a full model-free algorithm, where the model is learned online, during the training. A simplified algorithm, Supervised-Dyna, is tested that uses off-line trained world models. The process for this is outlined below:
+\begin{algorithm}
+	\caption{Supervised-Dyna}
+	\begin{algorithmic}
+		\State Initialize $T_\phi$
+		\State Sample transition tuples from a policy $\pi \sim (s, a, s')$ on MDP $\mathcal{M}$.
+		\Comment {Here $\pi$ is a random/ expert policy}
+		\State Form Dataset $\mathcal{D}$ from sampled transition tuples.
+		\For {Num Epochs}
+		\State $\phi' \leftarrow $Minimise $L(\phi , \mathcal{D})$.
+		\EndFor
+		\For {Num Dyna Iterations}
+		\For {Num Acting Updates}
+		\State Sample transition tuples from policy $\pi_\theta \sim (s, a, s')$ on $\mathcal{M}$
+		\State Train agent $\pi_\theta$ from direct samples.
+		\EndFor
+		\For{Num Planning Updates}
+		\State Sample transition tuples from policy $\pi_\theta \sim (s, a, s')$ on $T_\phi$.
+		\State Train agent $\pi_\theta$ from planned samples.
+		\EndFor
+		\EndFor
+	\end{algorithmic}
+\end{algorithm}
+
+Using off-line trained world models has benefits as an intermediate step. Firstly, the world model is stationary throughout the agent training process and can be easily investigated. Secondly, the model can be trained with ample data. This is in contrast to full Dyna where, the length of the planning and acting phases must be tuned as a hyper parameter, and the convergence of the models must be tuned.
+
+\subsection{CartPole}
+A CartPole transition model is a functional approximation to a deterministic Non linear system. In CartPole the transitions between different states in CartPole are governed by the PDEs:
+\begin{equation}
+\ddot{\theta} = \frac{g \sin \theta + \cos\theta \left({\frac{-F - m_p l \dot{\theta}^2 \sin(\theta)}{m_c + m_p}} \right )}{l\left ( \frac{4}{3} - \frac{m_p \cos^2 \theta}{m_c + m_p}\right)},
+\end {equation}
+
+\begin{equation}
+	\ddot{x} = \frac{ F + m_p l (\dot{\theta}^2 \sin \theta - \ddot{\theta} \cos \theta)}{m_c + m_p}.
+\end{equation}
+Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the angle between the pole and vertical, with the pole length $l$. $F$ is the action force, where the positive direction is right. The masses of the cart and the pole are $m_c, m_p$, respectively. Finally $\dot{}$, indicates a derivative with respect to time.
+
+These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
+
+To learn this transition model, transitions are sampled from a policy on the MDP, and stored. This is then used as a dataset to perform supervised learning on. The Transition model, $T_\phi: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}$, predicts next states from a state action pair. A state is a vector s:
+\begin{equation}
+s = \begin{pmatrix}
+	x       \\
+	\dot{x} \\
+	\theta  \\
+	\dot{\theta}
+\end{pmatrix}
+\end{eqation}
+
+The loss function for the transition model is the average L2 distance between the predicted next state, and the true next state across a batch of samples.
+\begin{equation}
+	L(\phi) = \frac{1}{N}\sum^N_{(s, a, s')_i \sim \mathcal \tau} ||T(s, a) - s'||_2
+\end{equation}
+Here $\tau = \{(s, a , s')_1^N\}$ is a batch of transition, of size $N$, sampled from the MDP, and $(s, a, s')$, is the state, action, next state tuple. Often a reward model is required to also make an MDP. For simplicity, the CartPole reward model is used, rather than learned. As such the transition gains a reward of $+1$, if $|\theta| < 12.5^o$.
+
+
+
