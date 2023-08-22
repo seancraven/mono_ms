@@ -142,62 +142,14 @@ While both models have similar parameter counts, the structure of the G-CNNs mak
 Encouraged by the promising results from the initial experiment, we decided to explore a new environment to determine whether the equivariance constraint could further enhance performance.
 
 \subsection{Catch}\label{sec:catch_ac}
-To demonstrate that G-CNN actor-critics can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging. Unlike the CartPole case where layers can be made equivariant to the
-�
-2
-C
-2
-​
-representation, in Catch, the entire network must be built using Group Convolutions. As in previous scenarios, we impose an equivariant constraint on the actor
-�
-�
-(
-�
-)
-π
-θ
-​
-(s).
-
-In the context of Catch, the input state space is represented as
-�
-∈
-[
-0
-,
-1
-]
-50
-S∈[0,1]
-50
-. Instead of detailing the cumbersome matrix representation of the reflection action
-�
-r, we represent it as
-ℓ
-�
-�
-ℓ
-r
-S
-​
-. This action modifies the x-coordinate of both the ball and the paddle using the transformation
-�
-(
-�
-)
-=
-−
-(
-2
-−
-�
-)
-r(x)=−(2−x). Thus, the equivariance constraint is expressed as:
+To demonstrate that G-CNN actor-c can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging. Unlike the CartPole case where layers can be made equivariant to the
+representation, in Catch, the entire network must be built using Group Convolutions. As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
+In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=−(2−x)$. Thus, the equivariance constraint is expressed as:
 \begin{equation}
 	\pi_\theta(\ell_r^\mathcal{S} s) = \begin{pmatrix}
-		0 & 0 & 1 \
-		0 & 1 & 0 \
-		1 & 0 & 0
+		0 & 0 & 1 \\
+		0 & 1 & 0 \\
+		1 & 0 & 0 \\
 	\end{pmatrix}\pi_\theta(s).
 \end{equation}
 % To demonstrate that G-CNN actor-critics extend to other environments, with different group actions. The equivariant actor-critic is implemented for the Bsuite~\cite{osband2020bsuite} Catch environment. In the case of the Catch environment to make an equivariant network because layers themselves are not easily made equivariant to the C2 representation, like in the case of CartPole, the whole network must be constructed out of Group Convolutions. As before, we consider equivariant constraint on the actor $\pi_\theta(s)$.
@@ -227,8 +179,8 @@ When formed into a group convolution,
 \end{equation}
 Once a group action is applied to the input, the output values undergo permutation. While the exact permutation is contingent on the group, the permutations' structure can be readily determined due to group closure:
 % When a group action is applied to the input the values of the output are permuted. The exact permutation depends upon the group, however, the structure of the permutations are easily calculated due to group closure;
-\begin{equation}
-	f(\ell_n^\mathcal{S}) = \begin{pmatrix}
+\begin{equation}\label{eq:gs_perm}
+	f(\ell_n^\mathcal{S}s) = \begin{pmatrix}
 		g(\ell_n^\mathcal{S}s)                   \\
 		g(\ell_n^\mathcal{S}\ell_1^\mathcal{S}s) \\
 		g(\ell_n^\mathcal{S}\ell_{|G|}s)         \\
@@ -242,9 +194,9 @@ Once a group action is applied to the input, the output values undergo permutati
 		\vdots                 \\
 		g(\ell_{k}s).
 	\end{pmatrix}
-	= \mat{P} f(s)
+	= \mat{P}_n f(s)
 \end{equation}
-Where $\mat{P}$, is a permutation matrix defined by the group. There is a unique permutation matrix for each group element. To construct subsequent layers that are also equivariant, we exploit the fact that the output is a permutation of vectors. Consider a subsequent, $h: \mathcal{H} \rightarrow \mathcal{H}'$, a hidden layer that must continue the equivariance to group G. This is achieved by treating each $\mat{P}$ as the group action, and ensuring that the output is equivariant to its application. The new layer can be through of as taking a vector of vectors, where it must be equivariant to the Vectors' permutation,
+Where $\mat{P}_n$, is a permutation matrix defined by the group. There is a unique permutation matrix for each group element. To construct subsequent layers that are also equivariant, we exploit the fact that the output is a permutation of vectors. Consider a subsequent, $h: \mathcal{H} \rightarrow \mathcal{H}'$, a hidden layer that must continue the equivariance to group G. This is achieved by treating each $\mat{P}$ as the group action, and ensuring that the output is equivariant to its application. The new layer can be through of as taking a vector of vectors, where it must be equivariant to the Vectors' permutation,
 \begin{equation}
 	h\left( \mat{P_i}
 	\begin{pmatrix}

@@ -37,6 +37,75 @@ Before using a full model-free algorithm, where the model is learned online, dur
 
 Using off-line trained world models has benefits as an intermediate step. Firstly, the world model is stationary throughout the agent training process and can be easily investigated. Secondly, the model can be trained with ample data. This is in contrast to full Dyna where, the length of the planning and acting phases must be tuned as a hyper parameter, and the convergence of the models must be tuned.
 
+
+\subsection{Proximal Pooling Motivation}
+
+To produce equivariant world models, there are additional challenges beyond that of just implementing a G-CNN which permutes its outputs dependent on the input transformation. In contrast to an equivariant actor where simply permuting the logits of a distribution suffices to have equivariant behaviour \ref{symmetrizer}. When building an equivariant world model with a G-CNN, the output of the network predicts the next state and a number of nonsense next states.
+
+To illustrate what the final layer output in the G-CNN is doing, consider the same setup as the Actor-Critic networks, where there is a hidden representation that's responses get permuted depending on the application of a group structured transformation on the input:
+
+\begin{equation}
+	f(s , a) = \begin{pmatrix}
+		g(s, a)                                     \\
+		g(\ell_1^\mathcal{S}s,\ell^\mathcal{A}_1a)  \\
+		g(\ell^\mathcal{S}_2s, \ell^\mathcal{A}_2a) \\
+		\vdots                                      \\
+		g(\ell_{|G|}^\mathcal{S}s, \ell^\mathcal{A}_{|G|}a),
+	\end{pmatrix}
+\end{equation}
+and when a transformation is applied to the input these responses, $g$ are permuted,
+\begin{equation}\label{eq:tm_gcnn}
+	f(\ell_i^\mathcal{S}s, \ell_i^\mathcal{A}a) = \mat{P}_i f(s, a).
+\end{equation}
+Because the permutations are defined by the group, these are the same permutations as in Eq.\ref{eq:gs_perm}. However here each response $g: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}$. In order to get a transition function there must be a method to pool over the responses.
+
+\subsection{Group Action Transformation}
+When the network $f$ performs a forward pass and outputs the vector of responses, Eq.\ref{eq:tm_gcnn}, the equivariance in the response is mapping group actions on a state space to a permutation of responses that are all the same shape as the state. This is not the equivariance constraint that is required for a transition model, which is,
+\begin{equation}
+	T(\ell_i^\mathcal{S}s, \ell_i^\mathcal{A}a) = \ell_i^\mathcal{S}T(s, a).
+\end{equation}
+The first step in achieving this is to apply a group action to each row of the response of $f$. This is the Action Transformation operation denoted as $\mat{\mathcal{T}}$, where,
+\begin{equation}
+	\mat{\mathcal{T}}f(s,a) = \begin{pmatrix}
+		g(s, a)                                                          \\
+		\ell_{-1}^\mathcal{S}g(\ell_1^\mathcal{S}s,\ell^\mathcal{A}_1a)  \\
+		\ell_{-2}^\mathcal{S}g(\ell^\mathcal{S}_2s, \ell^\mathcal{A}_2a) \\
+		\vdots                                                           \\
+		\ell_{-|G|}^\mathcal{S}g(\ell_{|G|}^\mathcal{S}s, \ell^\mathcal{A}_{|G|}a)
+	\end{pmatrix}.
+\end{equation}
+Due to group closure, this gets us quite close to equivariance! For example consider some group element, which is the inverse of $i$ acting on the input,
+
+\begin{equation}
+	\mat{\mathcal{T}}f(\ell_{-i}^\mathcal{S}s,\ell_{-i}^\mathcal{A}a) = \begin{pmatrix}
+		g(s, a)                                                          \\
+		\ell_{-1}^\mathcal{S}g(\ell_j^\mathcal{S}s,\ell^\mathcal{A}_ja)  \\
+		\ell_{-2}^\mathcal{S}g(\ell^\mathcal{S}_ks, \ell^\mathcal{A}_ka) \\
+		\vdots                                                           \\
+		\ell_{-i}^\mathcal{S}g(s,a)                                      \\
+		\vdots                                                           \\
+		\ell_{-|G|}^\mathcal{S}g(\ell_{|G|}^\mathcal{S}s, \ell^\mathcal{A}_{|G|}a)
+	\end{pmatrix}.
+\end{equation}
+Then to achieve equivariance, the correct row must be selected. This would be straightforward if the group action on the input was known, but in general it is not. However, in many cases, in a transition model, the output is closer to the input than any of the other states! With this proximity intuition a pooling method is introduced to gain approximate equivariance with the transition models.
+
+Typically when using Conv-nets or other G-CNNs for classification or other image processing tasks, a reduction pooling such as mean or max is used over the different groups. Both of these pooling types result in an invariant network, where, if one pools over the group, takes a mean or a max over the group dimension of $f$, because the transformation only applies a permutation along this axis there is no change in the output if the group dimension is permuted,
+\begin{equation}
+	\max_\text{axis G} \mat{P}_i f(s, a) = \max_\text{axis G} \mat{P}_j f(s, a), \forall i, j.
+\end{equation}
+Here the group axis, axis G, is the leading dimension in $f$ if $f: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}^{|G| \times \mathcal{S}}$. This invariance is not helpful in our case and so an alternative technique of pooling over possible next states is proposed.
+
+
+\subsection{Proximal Pooling Layers}
+\begin{proposition}
+	Given some distance metric between two states $d(s, s')$. If at some time $t$ a state transition from $s_t$ to $s_{t+1}$ takes place. And the MDP has a group structured discrete symmetry, if the next state obeys,
+	\begin{equation}
+		d(s_t, s_{t+1}) < d(s_t, \ell_i^\mathcal{S}s_{t + 1}), \forall i, s.
+	\end{equation}
+	Then, a proximal pooling layer can be used to select the next transition state.
+\end{proposition}
+
+
 \subsection{CartPole}
 A CartPole transition model is a functional approximation to a deterministic Non linear system. In CartPole the transitions between different states in CartPole are governed by the PDEs:
 \begin{equation}
@@ -64,7 +133,12 @@ The loss function for the transition model is the average L2 distance between th
 \begin{equation}
 	L(\phi) = \frac{1}{N}\sum^N_{(s, a, s')_i \sim \mathcal \tau} ||T(s, a) - s'||_2
 \end{equation}
-Here $\tau = \{(s, a , s')_1^N\}$ is a batch of transition, of size $N$, sampled from the MDP, and $(s, a, s')$, is the state, action, next state tuple. Often a reward model is required to also make an MDP. For simplicity, the CartPole reward model is used, rather than learned. As such the transition gains a reward of $+1$, if $|\theta| < 12.5^o$.
+Here $\tau = \{(s, a , s')_1^N\}$ is a batch of transition, of size $N$, sampled from the MDP, and $(s, a, s')$, is the state, action, next state tuple. Often a reward model is required to also make an MDP. For simplicity, the CartPole reward model is used, rather than learned. As such the transition gains a reward of $+1$, if $|\theta| < 12.5^o$, otherwise the episode terminates.
+
+\subsubsection{Constructing Equivariant World Models}
+Like in the previous section on \ref{sec:actor-critic}, the equivariant transition models are deep G-CNNs. In contrast to the previous section, these networks
+
+
 
 
 

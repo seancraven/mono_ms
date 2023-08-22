@@ -59,7 +59,7 @@ class DebugData(NamedTuple):
 
 class HyperParams(NamedTuple):
     batch_size: int = 256
-    learning_rate: float = 1e-5
+    learning_rate: float = 1e-4
     train_frac: float = 0.8
     hidden_dim: int = 64
     epochs: int = 100
@@ -105,6 +105,22 @@ def make_mse_loss_fn(apply_fn):
 
     return _loss_fn
 
+def make_catch_mse_loss_fn(apply_fn):
+    def _loss_fn(
+        params: jt.PyTree, sarsd_tuple: SARSDTuple
+    ) -> Tuple[jt.Array, Optional[DebugData]]:
+        state, action, _, next_state, _ = sarsd_tuple
+        ball_dist, paddle_dist = apply_fn(params, state, action)
+        ball_logits = ball_dist.logits
+        paddle_logits = paddle_dist.logits
+        ball_loss = optax.squared_error(
+            ball_logits, next_state.at[..., :45].get()
+        ).mean()
+        paddle_loss = optax.squared_error(
+            paddle_logits, next_state.at[..., 45:].get()
+        ).mean()
+        return ball_loss + paddle_loss, None
+    return _loss_fn
 
 def make_catch_bce_loss_fn(apply_fn):
     def _loss_fn(
@@ -167,7 +183,7 @@ def make_train(
     train_data, _ = train_data.partition(train_size)
 
     if hyper_params.model == CatchModel:
-        assert loss_function_ho == make_catch_bce_loss_fn, "Catch model needs bce loss"
+        # assert loss_function_ho == make_catch_bce_loss_fn, "Catch model needs bce loss"
         assert (
             val_loss_function_ho == make_catch_accuracy_loss_fn
         ), "Catch model needs accuracy Validation"

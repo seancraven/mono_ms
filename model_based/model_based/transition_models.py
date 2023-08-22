@@ -8,6 +8,7 @@ import distrax
 import flax.linen as nn
 import jax
 import jaxtyping as jt
+import numpy as np
 from base_rl.higher_order import Action, Observation
 from base_rl.models import catch_transform, hidden_transform
 from g_conv.c2 import C2Dense, C2DenseBinary
@@ -225,14 +226,46 @@ class CatchEquiModel_(BaseCatchModel):
     @nn.compact
     def __call__(self, state, action):
         action = action.reshape(1)
+        assert np.prod(action.shape) == 1
+        action_left = action.all() < 2
+        # state, action = jax.lax.cond(
+        #     action_left,
+        #     lambda: (state, action),
+        #     lambda: (catch_transform(state), jnp.zeros_like(action)),
+        # )
 
         stacked_logits = SimpleCatchEqui(self.state_dim, self.hidden_dim)(state, action)
 
         logits = catch_pool(stacked_logits, state)
+        # logits = jax.lax.cond(
+        #     action_left,
+        #     lambda: logits,
+        #     lambda: catch_transform(stacked_logits.at[:, 0].get()),
+        # )
 
         ball_dist = distrax.Categorical(logits=logits.at[:45].get())
         pad_dist = distrax.Categorical(logits=logits.at[45:].get())
         return ball_dist, pad_dist
+
+
+class CatchInvModel(BaseCatchModel):
+    @nn.compact
+    def __call__(self, state, action):
+        assert np.prod(action.shape) == 1
+        action_left = action < 1
+        state, action = jax.lax.cond(
+            action_left.all(),
+            lambda: (state, action),
+            lambda: (catch_transform(state), jnp.zeros_like(action)),
+        )
+        model = CatchModel()
+        next_state = model(state, action)
+        next_state_pred = model.dist_to_obs(*next_state)
+        return jax.lax.cond(
+            action_left.all(),
+            lambda: next_state_pred,
+            lambda: catch_transform(next_state_pred),
+        )
 
 
 def catch_pool(stacked_logits, state) -> jt.Array:
@@ -253,7 +286,7 @@ def catch_pool(stacked_logits, state) -> jt.Array:
         ball_loc_y, ball_loc_x = divmod(distrax.Categorical(logits=state).mode(), 5)
 
         return jnp.sqrt(
-            (pred_ball_x - ball_loc_x) ** 2 + (pred_ball_y - ball_loc_y) ** 2
+            (pred_ball_x - ball_loc_x) ** 2 + (pred_ball_y - ball_loc_y) ** 2 * 0.4
         )
 
     def _paddel_l1(pred_logits: jt.Array, state: jt.Array):
