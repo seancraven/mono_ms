@@ -174,6 +174,7 @@ class SimpleCatchInv(BaseCatchModel):
 class SimpleCatchEqui(BaseCatchModel):
     @nn.compact
     def __call__(self, state: Observation, action: Action) -> Observation:
+        activ = nn.relu
         state_embedding_layer = C2Dense(
             self.hidden_dim // 2,
             transform=catch_transform,
@@ -186,14 +187,14 @@ class SimpleCatchEqui(BaseCatchModel):
         hidden_layer_2 = C2Dense(self.hidden_dim, transform=hidden_transform)
         out_layer = C2Dense(self.state_dim, transform=hidden_transform)
 
-        state_embedding = nn.relu(state_embedding_layer(state))
-        action_embedding = nn.relu(action_embedding_layer(action))
+        state_embedding = activ(state_embedding_layer(state))
+        action_embedding = activ(action_embedding_layer(action))
 
         concat = jnp.concatenate([state_embedding, action_embedding], axis=0).reshape(
             -1
         )
-        hidden = nn.relu(hidden_layer(concat))
-        hidden = nn.relu(hidden_layer_2(hidden.reshape(-1)))
+        hidden = activ(hidden_layer(concat))
+        hidden = activ(hidden_layer_2(hidden.reshape(-1)))
         out = out_layer(hidden.reshape(-1))
         stacked_logits = convert_group_action(out)
         return stacked_logits

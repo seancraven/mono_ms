@@ -76,20 +76,20 @@ The first step in achieving this is to apply a group action to each row of the r
 \end{equation}
 Due to group closure, this gets us quite close to equivariance! For example consider some group element, which is the inverse of $i$ acting on the input,
 
-\begin{equation}
+\begin{equation}\label{eq:g-cnn}
 	\mat{\mathcal{T}}f(\ell_{-i}^\mathcal{S}s,\ell_{-i}^\mathcal{A}a) = \begin{pmatrix}
-		g(s, a)                                                          \\
+		g(\ell_{-i}^\mathcal{S}s,\ell_{-i}^\mathcal{A}a)                 \\
 		\ell_{-1}^\mathcal{S}g(\ell_j^\mathcal{S}s,\ell^\mathcal{A}_ja)  \\
 		\ell_{-2}^\mathcal{S}g(\ell^\mathcal{S}_ks, \ell^\mathcal{A}_ka) \\
 		\vdots                                                           \\
-		\ell_{-i}^\mathcal{S}g(s,a)                                      \\
+		\ell_{-i}^\mathcal{S}g(s, a)                                     \\
 		\vdots                                                           \\
 		\ell_{-|G|}^\mathcal{S}g(\ell_{|G|}^\mathcal{S}s, \ell^\mathcal{A}_{|G|}a)
 	\end{pmatrix}.
 \end{equation}
-Then to achieve equivariance, the correct row must be selected. This would be straightforward if the group action on the input was known, but in general it is not. However, in many cases, in a transition model, the output is closer to the input than any of the other states! With this proximity intuition a pooling method is introduced to gain approximate equivariance with the transition models.
+Then to achieve equivariance, the correct row must be selected. This would be straightforward if the group action on the input was known, but in general it is not. However, in many cases, in a transition model, the output is closer to the input than any of the other states! With this proximity intuition a pooling method is introduced to gain approximate equivariance with the transition models. This vector of next states, is referred to as transition images.
 
-Typically when using Conv-nets or other G-CNNs for classification or other image processing tasks, a reduction pooling such as mean or max is used over the different groups. Both of these pooling types result in an invariant network, where, if one pools over the group, takes a mean or a max over the group dimension of $f$, because the transformation only applies a permutation along this axis there is no change in the output if the group dimension is permuted,
+When using Conv-nets or other G-CNNs for classification or other image processing tasks, a reduction pooling such as mean or max is used over the different groups. Both of these pooling types result in an invariant network, where, if one pools over the group, takes a mean or a max over the group dimension of $f$, because the transformation only applies a permutation along this axis there is no change in the output if the group dimension is permuted,
 \begin{equation}
 	\max_\text{axis G} \mat{P}_i f(s, a) = \max_\text{axis G} \mat{P}_j f(s, a), \forall i, j.
 \end{equation}
@@ -97,14 +97,40 @@ Here the group axis, axis G, is the leading dimension in $f$ if $f: \mathcal{S} 
 
 
 \subsection{Proximal Pooling Layers}
-\begin{proposition}
-	Given some distance metric between two states $d(s, s')$. If at some time $t$ a state transition from $s_t$ to $s_{t+1}$ takes place. And the MDP has a group structured discrete symmetry, if the next state obeys,
-	\begin{equation}
-		d(s_t, s_{t+1}) < d(s_t, \ell_i^\mathcal{S}s_{t + 1}), \forall i, s.
-	\end{equation}
-	Then, a proximal pooling layer can be used to select the next transition state.
-\end{proposition}
+As a forward, this method does not guarantee equivariance to the input transformation. However, empirically it is effective.
+The proximal pooling layer$\mathcal{P}$, takes a distance metric, $d(s, s')$, and selects the transition image, which has the minimum distance metric, as such the full approximately equivariant network is;
+\begin{equation}
+	\mathcal{P}\mathcal{T}f(s, a)  =\arg \min_\text{axis G} d \left (s,  \begin{pmatrix}
+			g(s, a)                                                          \\
+			\ell_{-1}^\mathcal{S}g(\ell_j^\mathcal{S}s,\ell^\mathcal{A}_ja)  \\
+			\ell_{-2}^\mathcal{S}g(\ell^\mathcal{S}_ks, \ell^\mathcal{A}_ka) \\
+			\vdots                                                           \\
+			\ell_{-|G|}^\mathcal{S}g(\ell_{|G|}^\mathcal{S}s, \ell^\mathcal{A}_{|G|}a)
+		\end{pmatrix}
+	\right ).
+\end{equation}
+The $\arg \min_\text{axis G}$, returns the state image, which is closest to the original state, if the network predictions are better than random with respect to the distance metric.
 
+Empirically across 10,000 randomly sampled CartPole states, the network, $T(s, a)= \mathcal{P}\mathcal{T}f(s,a)$, is fully equivariant, when untrained. When trained, it is equivariant across the same sample, and also achieves better validation MSE than the non equivariant model, when trained on transitions from the same data.
+
+This is not the case for the Catch network. Catch has $675$ state action pairs, and the transition model when untrained achieves $98.3 \pm 0.6\%$ equivariance, across all these state action pairs. The standard error is quoted over 1000 random seed parameter initializations. The performance of the transition models is investigated in more depth, in sections\ref{something,something}.
+
+When trained, the Catch model is able to achieve validation accuracy of 1. As such, the lack of perfect equivariance, may not be an issue in some scenarios. Small discrete spaces, with a high degree of symmetry are the worst in terms of a lack of equivariant predictions, as the expected distance between any two states decreases. Additionally, for MDPs where no sensible distance metric can be constructed this method will fail.
+\begin{proposition}
+	Given some distance metric between two states $d(s, s')$ and a G-CNN transition model of the form Eq.\ref{eq:g-cnn}. If at some time $t$ a state transition from $s_t$ to $s_{t+1}$ takes place. And the MDP has a group structured discrete symmetry, if the state space obeys,
+	\begin{equation}
+		d(s_t, s_{t+1}) < \mathbb{E}_{s'\sim \mu}[d(s_t, s')], \forall i, s_t.
+	\end{equation}
+	Where $\mu$ is the steady state distribution. Then, a proximal pooling layer can be used to make the G-CNNs' forward pass approximately equivariant.
+\end{proposition}
+As motivation for why this is, when the G-CNN performs a forward pass, one of the multiple outputs of $\mathcal{T} f(\ell_i^\mathcal{S}s,\ell_i^\mathcal{A} a)$, are empirically not correlated to the other group members, for all parts of the state effected by the transformations.
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width = 0.5\textwidth]{Figures/logits_correlation.png}
+	\caption{Pearson Correlation }
+	\label{fig:logits_correlation}
+
+\end{figure}
 
 \subsection{CartPole}
 A CartPole transition model is a functional approximation to a deterministic Non linear system. In CartPole the transitions between different states in CartPole are governed by the PDEs:
@@ -121,14 +147,13 @@ These PDEs have no closed solution and their form is taken from \cite{florian200
 
 To learn this transition model, transitions are sampled from a policy on the MDP, and stored. This is then used as a dataset to perform supervised learning on. The Transition model, $T_\phi: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}$, predicts next states from a state action pair. A state is a vector s:
 \begin{equation}
-s = \begin{pmatrix}
-	x       \\
-	\dot{x} \\
-	\theta  \\
-	\dot{\theta}
-\end{pmatrix}
-\end{eqation}
-
+	s = \begin{pmatrix}
+		x       \\
+		\dot{x} \\
+		\theta  \\
+		\dot{\theta}
+	\end{pmatrix}
+\end{equation}
 The loss function for the transition model is the average L2 distance between the predicted next state, and the true next state across a batch of samples.
 \begin{equation}
 	L(\phi) = \frac{1}{N}\sum^N_{(s, a, s')_i \sim \mathcal \tau} ||T(s, a) - s'||_2
