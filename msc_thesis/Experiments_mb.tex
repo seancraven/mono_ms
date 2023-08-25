@@ -169,9 +169,10 @@ Like in the previous section on \ref{sec:actor-critic}, the equivariant transiti
 \begin{equation}
 	T(- s, 2*a - 1) =  -T(s, a), \forall
 \end{equation}
-These transition models, are not truely equivariant but empirically the proximal pooling layer suffices to meet the equivariance condition.
+These transition models, are not truely equivariant but empirically the proximal pooling layer suffices to meet the equivariance condition. As a distance metric to achieve the equivariance, the proximal pool uses the $L1$ distance.
 
 Again in a similar fashion to the actor networks, the transition models have two hidden Group Covolution layers. The input layer for actions also transforms the action from $[0, 1]$ to $[-1, 1]$. Thus the same group convolution layer can be used for both the state and the action input.
+
 
 \subsubsection{Comparing Convergence of Transition Models}
 In order to perform model based RL a transition model must be learnt to simulate transitions, such that the agent can learn a policy that performs better in the original environment. Thus the first set of experiments were training transition models in a supervised learning setting.
@@ -196,12 +197,7 @@ Interestingly, when looking at the left hand figure, the RMS error is substantia
 \end{figure}
 
 On the other two datasets, the story is slightly different. When trained on only the left action, the power of the equivariant generalisation is very impressive with the model recovering very similar RMS error, overall and when divided by angle. Demosntrating the advantage of equivariance as and inductive bias.
-In the last plot, where the model is trained solely on transitions sampled from random actions, an interesting result is obtained. The equivariant model performs notably better across all angels, with an RMS validation error of $0.049$, in comparison of that to the MLP of $0.19$. On validation data that is sampled jointly from an expert policy, where the majority of transitions are at small angles. 
-
-
-
-
-
+In the last plot, where the model is trained solely on transitions sampled from random actions, an interesting result is obtained. The equivariant model performs notably better across all angels, with an RMS validation error of $0.049$, in comparison of that to the MLP of $0.19$. On validation data that is sampled jointly from an expert policy, where the majority of transitions are at small angles. This improved generalisation, from the random dataset to a dataset that posseses more transitions in the low angle range may be important in training Dyna Agents, where initially the Agents policies are suboptimal, but they learn in the simulated environment. Thus, improved model generalisation to transitions more frequently chosen by an optimal policy may provide an uplift in Model based agent performance.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
 
 
 \subsection{Catch}
@@ -227,15 +223,25 @@ The subscripts, $b, p$ indicate the ball and the paddle distributions respective
 
 \subsubsection{Comparing Convergence of Transition Models}
 In the same manner as before for CartPole, the transition models were trained on three different datasets to asses their convergence behaviour. In the same vein these were a random and expert policy sampled data, only left actions from the previous dataset, and only random policy sampled transitions. 
-
-\begin{figure}
+\begin{figure}\label{fig:transition_model_catch}
 	\centering
-	\includegraphics[width=\linewidth]{Figures/transition_model_cp.png}
-	\label{fig:transition_model_catch}
-	\caption{something}
+	\includegraphics[width=\linewidth]{Figures/transition_model_catch.png}
+\label{fig:transition_model_catch}
+\caption{Transition Model BCE error, plotted against epochs for three different training datasets, With model validation accuracy plotted below. Left, the dataset contains a 50/50 split between expert policy sampled transitions, and transitions sampled from a random policy. Center, the same dataset as left, however, with only the left action taken. Right, solely transitions sampled from a random policy. These datasets contain 40,000 transitions. All plots have the same set of validation data with a 50/50 split of expert and radom policy sampled data.}
 \end{figure}
+In Fig.\ref{fig:transition_model_catch}, the equivariant model, again demonstrates the effectiveness of inductive biases. The Equivariant and MLP models achieve $0.998$ validation accuracy on transitions sampled from the joint expert random policy, with slightly faster convergence. When acting on a dataset, which has been filtered for only the left actions. The equivariant G-CNN generalises to the right hand action much better than that of the MLP as expected. Clearly, the validation and training datasets are not distjoint, as the discrete state space is so small. Thus it is in someway not an accurate measure of performance on unseen states.
+
+The random policy sampled dataset, doesn't include all of the possible states, that the environment begins in. In this case both models approach the fraction of the states present in the training as the validation set. As such, there appears to be little generalisation to states not seen in the training data. Which in some way is not a problem, if the transition model can approach perfection, then the planning phase should be very effective.
+
+\subsection{Transition Model Conclusion}
+For both Catch and CartPole the equivariant G-CNN transition models with a proximal pooling layer are able to match and or improve upon the MLP transition models. Further, there is sufficient evidence to believe that the proximal pooling layer suffices, with the correct distance metric, to produce approximately equivariant transition models. This can be seen in both Catch and CartPole, where there is a substantial uplift in accuracy or loss on unseen data. Due to the G-CNNs ability to generalise to states not seen in the training data, if these states are in the orbit of states in the training data. 
+
+
+
+
+
+
 
 \ldots
-% TODO: Descriptions and something.
 
 
