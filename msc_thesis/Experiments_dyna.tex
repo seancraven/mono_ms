@@ -1,0 +1,7 @@
+\section{Expert Dyna}
+In the persuite of perfroming full dyna, rather than using online trained world models an intermediate step of pretraining the transition model on expert policy and random policy data was taken. This removes, the task of tuning the learning rates and number of epochs for leanring. Additionally we can isolate the challenge of learning an appropreate policy.
+
+For both the Equivariant G-CNNs and the MLPs the offline world models are provided an order of magnitude more MDP transitions, than the actor critics were trained for to ensure that the models provide an upper bound of accuracy. This upper bound on transition model quality should provide higher or equally as high planning quality to the agent, and improve sample efficiency.  
+
+
+Somthing somthing something.

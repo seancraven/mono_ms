@@ -144,7 +144,7 @@ Encouraged by the promising results from the initial experiment, we decided to e
 \subsection{Catch}\label{sec:catch_ac}
 To demonstrate that G-CNN actor-c can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging. Unlike the CartPole case where layers can be made equivariant to the
 representation, in Catch, the entire network must be built using Group Convolutions. As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
-In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=−(2−x)$. Thus, the equivariance constraint is expressed as:
+In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=-(2-x)$. Thus, the equivariance constraint is expressed as:
 \begin{equation}
 	\pi_\theta(\ell_r^\mathcal{S} s) = \begin{pmatrix}
 		0 & 0 & 1 \\

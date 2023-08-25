@@ -86,7 +86,7 @@ def make_mse_loss_fn(apply_fn):
     def _loss_fn(
         params: jt.PyTree, sarsd_tuple: SARSDTuple
     ) -> Tuple[jt.Array, DebugData]:
-        state, action, _, next_state, _ = sarsd_tuple
+        state, action, _, next_state, done = sarsd_tuple
         next_state_pred = apply_fn(params, state, action)
 
         next_state_loss = jnp.mean((next_state - next_state_pred) ** 2, axis=0)

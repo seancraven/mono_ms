@@ -96,11 +96,11 @@ When using Conv-nets or other G-CNNs for classification or other image processin
 Here the group axis, axis G, is the leading dimension in $f$ if $f: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}^{|G| \times \mathcal{S}}$. This invariance is not helpful in our case and so an alternative technique of pooling over possible next states is proposed.
 
 
-\subsection{Proximal Pooling Layers}
+\subsection{Proximal Pooling Layers}\label{sec:proximal_pool}
 As a forward, this method does not guarantee equivariance to the input transformation. However, empirically it is effective.
-The proximal pooling layer$\mathcal{P}$, takes a distance metric, $d(s, s')$, and selects the transition image, which has the minimum distance metric, as such the full approximately equivariant network is;
+The proximal pooling layer, $\mathcal{P}$, takes a distance metric, $d(s, s')$, and selects the transition image, which has the minimum distance metric, as such the full approximately equivariant network is;
 \begin{equation}
-	\mathcal{P}\mathcal{T}f(s, a)  =\arg \min_\text{axis G} d \left (s,  \begin{pmatrix}
+	T(s, a) = \mathcal{P}\mathcal{T}f(s, a)  =\arg \min_\text{axis G} d \left (s,  \begin{pmatrix}
 			g(s, a)                                                          \\
 			\ell_{-1}^\mathcal{S}g(\ell_j^\mathcal{S}s,\ell^\mathcal{A}_ja)  \\
 			\ell_{-2}^\mathcal{S}g(\ell^\mathcal{S}_ks, \ell^\mathcal{A}_ka) \\
@@ -127,16 +127,20 @@ As motivation for why this is, when the G-CNN performs a forward pass, one of th
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width = 0.5\textwidth]{Figures/logits_correlation.png}
-	\caption{Pearson Correlation }
+	\caption{Pearson $r^2$ value for each logit in the ouput of the transition model between $g(s, a)$ and $\ell_r^\mathcal{S}g(\ell_r^\mathcal{S}s,\ell_r^\mathcal{A}a)$, for one of the 675 possible sate action pairs, across 1000 random  seeds for network initialization. }
 	\label{fig:logits_correlation}
-
 \end{figure}
+Empirically one can see the lack of correlation in Fig.\ref{fig:logits_correlation}, which plots the $r^2$ co-efficient between the transition images across 1000 randomly initialized untrained networks. The network parameterise the next states as two distributions, by outputing an array of 50 logits. As expected, the network responses along the center axis should be invariant to the input transformation. Thus, a positive correlation co-efficient is encouraging. For all other logits in the distribution over the next state there is no evidence of a correlation between the two transition images, at a 5\% significance level.
+
+With the two ouptut's being independent of each other, then correct next state can be selected using the proximal layer reliably, and the networks can be approximately equivariant.
+
+
 
 \subsection{CartPole}
 A CartPole transition model is a functional approximation to a deterministic Non linear system. In CartPole the transitions between different states in CartPole are governed by the PDEs:
 \begin{equation}
-\ddot{\theta} = \frac{g \sin \theta + \cos\theta \left({\frac{-F - m_p l \dot{\theta}^2 \sin(\theta)}{m_c + m_p}} \right )}{l\left ( \frac{4}{3} - \frac{m_p \cos^2 \theta}{m_c + m_p}\right)},
-\end {equation}
+	\ddot{\theta} = \frac{g \sin \theta + \cos\theta \left({\frac{-F - m_p l \dot{\theta}^2 \sin(\theta)}{m_c + m_p}} \right )}{l\left ( \frac{4}{3} - \frac{m_p \cos^2 \theta}{m_c + m_p}\right)},
+\end{equation}
 
 \begin{equation}
 	\ddot{x} = \frac{ F + m_p l (\dot{\theta}^2 \sin \theta - \ddot{\theta} \cos \theta)}{m_c + m_p}.
@@ -161,9 +165,60 @@ The loss function for the transition model is the average L2 distance between th
 Here $\tau = \{(s, a , s')_1^N\}$ is a batch of transition, of size $N$, sampled from the MDP, and $(s, a, s')$, is the state, action, next state tuple. Often a reward model is required to also make an MDP. For simplicity, the CartPole reward model is used, rather than learned. As such the transition gains a reward of $+1$, if $|\theta| < 12.5^o$, otherwise the episode terminates.
 
 \subsubsection{Constructing Equivariant World Models}
-Like in the previous section on \ref{sec:actor-critic}, the equivariant transition models are deep G-CNNs. In contrast to the previous section, these networks
+Like in the previous section on \ref{sec:actor-critic}, the equivariant transition models are deep G-CNNs. In contrast to equivariant Actors in the previous section, these networks have to use the proximal pooling layer on their output \ref{sec:proximal_pool}. The equivariance described by these nextworks is to the identity and negative operation, such that;
+\begin{equation}
+	T(- s, 2*a - 1) =  -T(s, a), \forall
+\end{equation}
+These transition models, are not truely equivariant but empirically the proximal pooling layer suffices to meet the equivariance condition.
 
+Again in a similar fashion to the actor networks, the transition models have two hidden Group Covolution layers. The input layer for actions also transforms the action from $[0, 1]$ to $[-1, 1]$. Thus the same group convolution layer can be used for both the state and the action input.
 
+\subsubsection{Comparing Convergence of Transition Models}
+In order to perform model based RL a transition model must be learnt to simulate transitions, such that the agent can learn a policy that performs better in the original environment. Thus the first set of experiments were training transition models in a supervised learning setting.
 
+Three different pairs of models were trained. The first pair on data collected from an expert and random policy. The second pair took the first dataset and filtered out the transitions which took the right action. The final pair is trained only on data sampled from a random policy.
+\begin{figure}
+	\centering
+	\includegraphics*[width=\linewidth]{Figures/transition_model_cp.png}
+	\caption{Transition Model RMS error, plotted against epochs for three different training datasets. Left, the dataset contains a 50/50 split between expert policy sampled transitions, and transitions sampled from a random policy with 80,000 transitions. Center, the same dataset as left, however, with only the left action taken. This dataset contains 40,000 transitions. Right, solely transitions sampled from a random policy, again with 80,000 transitions. All plots have the same set of validation data with a 50/50 split of expert and radom policy sampled data.}
+	\label{fig:transition_model_cp}
+\end{figure}
+In Fig.\ref{fig:cartpole_equivariant_actor} it is clear that the G-CNN despite having the same parameter count, performs substantially better on all 3 datasets. Further, there is a reassuringly stark delta in performance between the equivariant model, and the conventional MLP transition model, when the right action is filtered out. The equivariant model recovers the majority of the performance in this scenario, while the MLP appears to ...
+
+% TODO
+
+\subsection{Catch}
+In catch the transitions between states are much simpler with the updates to the ball position between timesteps.
+\begin{equation}
+	y_{t+1} = y_t + 1.
+\end{equation}
+And the paddle displacement is goverend by,
+\begin{equation}
+	x_{t+1} = \text{clip}(1- a_t + x_t, 0, 5).
+\end{equation}
+Above the clip fucntion, stops the paddle moving beyond the environment's boundaries. The observations from the environment are arrays of shape $5 , 10$, with two ones, indicating the ball and paddle position. The paddle is in row 9, and the ball is only allowed in rows $0 -8$. To encode these constraints the network parameterises two distributions over the ball and paddle locations. The ball can be in one of 45 states, and the paddle may be in one of 5 states. The outputs of the networks are then the logits of the two distributions. In order to predict the next state, the mode of the distributions is taken for both the ball and the paddle. 
+
+Again construction of the G-CNN is much the same as in the case for CartPole, the basic network built from group convolutions. Again two hidden layers are used. Typically for a network predicting distributions against logits, the Binary Cross Entropy loss is used, however, it was found that this was not as effective as using the L2 distance between the logits, and the observation. Thus the loss function to train both transition models was,
+\begin{equation}
+	L(\phi) = \frac{1}{N}\sum_{(s, a, s') \sim \tau}^N (1 - \delta(\text{done}))||T(s, a) - s'||_2 \end{equation} Here, the one subtlety is that the loss is only back propagated if $s$, is not a terminal state. The indicator function $\delta(\text{done}) = 1 \text{if $s$ is terminal} $. Thus the model only learns transitions goverend by the environment dynamics, and not how to reset the episode.
+
+In order to make the model equivariant the proximal pooling layer a distance metric needs to be used that quantifies how far apart the predictions are. The metric used is an L1 loss between the x, y position in s and s' of both the ball and the paddle. Additionally, to make the possible number of distances greater when the distances are summed, the ball's displacement is multiplied by 0.13. This constant value was found to improve the equivariance behaviour of the proximal pooling layer. The distance metric is then given by,
+\begin{equation}
+	d(s, s') = ||\text{mode}(T(s, a)_b) - s'_b||_1 + 0.13 ||\text{mode}T(s, a)_p - s'_p||_1.
+\end{equation}
+The subscripts, $b, p$ indicate the ball and the paddle distributions respectively.
+
+\subsubsection{Comparing Convergence of Transition Models}
+In the same manner as before for CartPole, the transition models were trained on three different datasets to asses their convergence behaviour. In the same vein these were a random and expert policy sampled data, only left actions from the previous dataset, and only random policy sampled transitions. 
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\linewidth]{Figures/transition_model_cp.png}
+	\label{fig:transition_model_catch}
+	\caption{something}
+\end{figure}
+
+\ldots
+% TODO: Descriptions and something.
 
 

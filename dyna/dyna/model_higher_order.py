@@ -76,6 +76,7 @@ def trajectory_to_sas_tuple(trajectory: Trajectory) -> SASTuple:
     len_ = np.prod(trajectory.done.shape)
     state = trajectory.obs.reshape(len_, -1)
     action = trajectory.action.reshape(len_, 1)
+    done = trajectory.done.reshape(len_, -1)
     next_state = jnp.roll(state, shift=1, axis=0)
     return SASTuple(state, action, next_state)
 
