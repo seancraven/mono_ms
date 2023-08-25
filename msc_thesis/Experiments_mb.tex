@@ -180,12 +180,29 @@ Three different pairs of models were trained. The first pair on data collected f
 \begin{figure}
 	\centering
 	\includegraphics*[width=\linewidth]{Figures/transition_model_cp.png}
-	\caption{Transition Model RMS error, plotted against epochs for three different training datasets. Left, the dataset contains a 50/50 split between expert policy sampled transitions, and transitions sampled from a random policy with 80,000 transitions. Center, the same dataset as left, however, with only the left action taken. This dataset contains 40,000 transitions. Right, solely transitions sampled from a random policy, again with 80,000 transitions. All plots have the same set of validation data with a 50/50 split of expert and radom policy sampled data.}
+	\caption{Transition Model RMS error, plotted against epochs for three different training datasets. Left, the dataset contains a 50/50 split between expert policy sampled transitions, and transitions sampled from a random policy. Center, the same dataset as left, however, with only the left action taken. Right, solely transitions sampled from a random policy. These datasets contain 40,000 transitions. All plots have the same set of validation data with a 50/50 split of expert and radom policy sampled data.}
 	\label{fig:transition_model_cp}
 \end{figure}
-In Fig.\ref{fig:cartpole_equivariant_actor} it is clear that the G-CNN despite having the same parameter count, performs substantially better on all 3 datasets. Further, there is a reassuringly stark delta in performance between the equivariant model, and the conventional MLP transition model, when the right action is filtered out. The equivariant model recovers the majority of the performance in this scenario, while the MLP appears to ...
+In Fig.\ref{fig:cartpole_equivariant_actor} it is clear that the G-CNN despite having the same parameter count, performs similarly or better on all three transition datasets. Further, there is a reassuringly stark delta in performance between the equivariant model, and the conventional MLP transition model, when the right action is filtered out. The equivariant model recovers the majority of the performance in this scenario, while the MLP appears to overfit to left actions heavily. When it is asked to generalise to transitions that it has not seen it fails. Interestingly, when only random data is sampled The equivariant model has lower validation loss. To further investigate this, the final transition model validation loss is plotted by angle, for each of the datasets in Fig.\ref{fig:cp_model_angle}.
 
-% TODO
+Interestingly, when looking at the left hand figure, the RMS error is substantially higher for the equivariant model, for $\theta <|5^o|$. Indicating that the equivariant constraints and the structure of the model limit the accuracy of the model in comparison to the MLP. However, the delta in mean validation loss between the two, models over all angles is very similar, with both models having a mean validation loss of $0.013$, to two significant figures over the entire dataset. As the losses are dominated by the larger angles, where the transition dynamics are much less linear due to the moments applied to the cart by the pole's acceleration.
+\begin{figure}[h!]
+  \label{fig:cp_model_angle}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{./Figures/transition_model_cp_angle.png}
+  \end{center}
+  \caption{RMS Error plotted by angle on validation transitions sampled from a 50/50 split of expert and random data. Left, models trained on a dataset of 50/50 sampled expert and random policy transitions. Center, only transitions taking the left action. Right, transitions only sampled from a random ploicy.}
+  \label{fig:}
+\end{figure}
+
+On the other two datasets, the story is slightly different. When trained on only the left action, the power of the equivariant generalisation is very impressive with the model recovering very similar RMS error, overall and when divided by angle. Demosntrating the advantage of equivariance as and inductive bias.
+In the last plot, where the model is trained solely on transitions sampled from random actions, an interesting result is obtained. The equivariant model performs notably better across all angels, with an RMS validation error of $0.049$, in comparison of that to the MLP of $0.19$. On validation data that is sampled jointly from an expert policy, where the majority of transitions are at small angles. 
+
+
+
+
+
+
 
 \subsection{Catch}
 In catch the transitions between states are much simpler with the updates to the ball position between timesteps.
