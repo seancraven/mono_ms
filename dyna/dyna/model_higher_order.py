@@ -58,9 +58,9 @@ def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
 
 def make_mini_batch_fn(apply_fn):
     def loss_fn(model_params, sas_tuple):
-        state, action, next_state = sas_tuple
+        state, action, next_state, done = sas_tuple
         pred_next_state = apply_fn(model_params, state, action)
-        return jnp.mean((pred_next_state - next_state) ** 2)
+        return jnp.mean((1-done)*(pred_next_state - next_state) ** 2)
 
     def _mini_batch_fn(train_state, data):
         grad_fn = jax.value_and_grad(loss_fn)
@@ -87,4 +87,5 @@ def sarsd_to_sas_tuple(sarsd: SARSDTuple) -> SASTuple:
         state=sarsd.state.reshape(len_, -1).at[:-1, ...].get(),
         action=sarsd.action.reshape(len_, -1).at[:-1, ...].get(),
         next_state=sarsd.next_state.reshape(len_, -1).at[1:, ...].get(),
+        done=sarsd.done.reshape(len_, -1).at[:-1, ...].get()
     )
