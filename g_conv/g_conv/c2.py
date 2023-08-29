@@ -23,14 +23,13 @@ class C2Dense(nn.Module):
     features: int
     transform: Callable[[jt.Array], jt.Array] = lambda x: -x
     use_bias: bool = False
+    bias_init: Callable = nn.zeros_init()
 
     @nn.compact
     def __call__(self, input):
         layer = nn.Dense(
-            features=self.features,
-            use_bias=self.use_bias,
+            self.features, use_bias=self.use_bias, bias_init=self.bias_init
         )
-
         return jnp.stack(
             [layer(input), layer(self.transform(input))],
             axis=-1,
