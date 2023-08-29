@@ -49,16 +49,32 @@ class EquiModel(TransitionModel):
         state_embedding = nn.tanh(C2Dense(self.hidden_dim // 2)(state))
         action_embedding = nn.tanh(C2DenseBinary(self.hidden_dim // 2)(action))
 
-        concat = jnp.concatenate(
-            [state_embedding.reshape(-1), action_embedding.reshape(-1)], axis=0
+        concat = jnp.concatenate([state_embedding, action_embedding], axis=0).reshape(
+            -1
         )
 
-        hidden = nn.tanh(C2Dense(self.hidden_dim)(concat))
-        hidden = nn.tanh(C2Dense(self.hidden_dim // 2)(hidden.reshape(-1)))
-        hidden = C2Dense(self.state_dim)(hidden.reshape(-1))
+        hidden = nn.relu(
+            C2Dense(self.hidden_dim, use_bias=True, transform=hidden_transform)(concat)
+        )
+        hidden = nn.relu(
+            C2Dense(self.hidden_dim // 2, use_bias=True, transform=hidden_transform)(
+                hidden.reshape(-1)
+            )
+        )
+        hidden = C2Dense(self.state_dim, use_bias=True, transform=hidden_transform)(
+            hidden.reshape(-1)
+        )
 
+        hidden = self.convert_group_action(hidden)
         next_state = proximal_state_pool(state, hidden)
         return next_state
+
+    @classmethod
+    def convert_group_action(cls, stacked_logits):
+        idn_logits = stacked_logits.at[..., 0].get()
+        inv_logits = stacked_logits.at[..., 1].get()
+        inv_logits = -(inv_logits)
+        return jnp.stack([idn_logits, inv_logits], axis=-1)
 
 
 def proximal_state_pool(state: jt.Array, next_states: jt.Array) -> Observation:
@@ -183,9 +199,13 @@ class SimpleCatchEqui(BaseCatchModel):
             self.hidden_dim // 2,
             transform=catch_action_transform,
         )
-        hidden_layer = C2Dense(self.hidden_dim, transform=hidden_transform)
-        hidden_layer_2 = C2Dense(self.hidden_dim, transform=hidden_transform)
-        out_layer = C2Dense(self.state_dim, transform=hidden_transform)
+        hidden_layer = C2Dense(
+            self.hidden_dim, transform=hidden_transform, use_bias=True
+        )
+        hidden_layer_2 = C2Dense(
+            self.hidden_dim, transform=hidden_transform, use_bias=True
+        )
+        out_layer = C2Dense(self.state_dim, transform=hidden_transform, use_bias=True)
 
         state_embedding = activ(state_embedding_layer(state))
         action_embedding = activ(action_embedding_layer(action))
