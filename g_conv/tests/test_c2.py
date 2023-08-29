@@ -1,12 +1,11 @@
-import random
-
 import distrax
+import random
 import jax
-from base_rl.models import EquivariantActorCritic
 from flax import linen as nn
 from jax import numpy as jnp
 
-from g_conv.c2 import ActionEquiv, C2Conv, C2Dense
+from g_conv.c2 import C2Conv, C2Dense
+from model_based.transition_models import hidden_transform, proximal_state_pool
 
 # def test_shaping():
 #     mod = C2Conv(features=3, kernel_size=(1, 4))
@@ -16,16 +15,7 @@ from g_conv.c2 import ActionEquiv, C2Conv, C2Dense
 #     assert out.shape == (1, 2, 3), f"Expected shape (1, 2, 3), got {out.shape}"
 
 
-def test_action_equiv():
-    layer = ActionEquiv(features=3)
-    params = layer.init(jax.random.PRNGKey(0), jnp.ones((1,)))
-    out = layer.apply(params, jnp.ones((1,)))
-    inv = layer.apply(params, jnp.zeros((1,)))
-    print(out, inv)
-    assert jnp.allclose(out, -inv)
-
-
-class TwoLayer(nn.Module):
+class ConvEqui(nn.Module):
     features: int
 
     @nn.compact
@@ -39,74 +29,8 @@ class TwoLayer(nn.Module):
         return out
 
 
-class Dense(nn.Module):
-    features: int
-
-    @nn.compact
-    def __call__(self, input):
-        layer = nn.Dense(self.features, use_bias=False)
-        out = nn.tanh(layer(input))
-        layer_2 = nn.Dense(self.features, use_bias=False)
-        out = nn.tanh(layer_2(out))
-        layer_3 = C2Dense(features=1)
-        out = layer_3(out)
-        return distrax.Categorical(logits=out)
-
-
-def test_dense_equiv():
-    layer = C2Dense(features=3)
-
-    params = layer.init(jax.random.PRNGKey(0), jnp.ones((1, 2)))
-    out = layer.apply(params, jnp.ones((1, 2)))
-    inv = layer.apply(params, -jnp.ones((1, 2)))
-
-    assert jnp.allclose(out, -inv)
-
-
-def scrach_choice(x, hidden):
-    normal, mirror = hidden.at[..., 0].get(), hidden.at[..., 1].get()
-    dis = ((normal - x) ** 2).sum()
-    dis_mirror = ((mirror - x) ** 2).sum()
-    cond = dis < dis_mirror
-    return jax.lax.cond(cond, lambda: normal, lambda: mirror)
-
-
-class DenseDeep(nn.Module):
-    h_dim: int
-
-    @nn.compact
-    def __call__(self, x):
-        out = x.squeeze().reshape(-1)
-
-        out = C2Dense(self.h_dim)(x)
-        out = nn.tanh(x.reshape(-1))
-        out = C2Dense(self.h_dim)(x)
-        out = nn.tanh(x.reshape(-1))
-        out = C2Dense(1)(x)
-        return scrach_choice(x, out)
-
-
-def test_dense_equiv_deep():
-    model = DenseDeep(h_dim=64)
-    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
-    input = jax.random.normal(jax.random.PRNGKey(4), (100, 4))
-    v_app = jax.vmap(model.apply, in_axes=(None, 0))
-    out = v_app(params, input)
-    r_out = v_app(params, -input)
-    assert jnp.alltrue(out == -r_out)
-
-
-def test_dense():
-    model = Dense(features=64)
-    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
-    input = jax.random.normal(jax.random.PRNGKey(4), (4,))
-    out = model.apply(params, input)
-    r_out = model.apply(params, -input)
-    assert out.log_prob(0) == r_out.log_prob(1)
-
-
 def mock_model():
-    mod = TwoLayer(features=64)
+    mod = ConvEqui(features=64)
     dummy_state = jnp.ones((1, 4))
     params = mod.init(jax.random.PRNGKey(0), dummy_state)
     return params, mod.apply
@@ -135,12 +59,72 @@ def test_equiv():
     assert jnp.allclose(dist.log_prob(0), r_dist.log_prob(1))
 
 
-def test_params():
-    model = C2Conv(features=64, kernel_size=(1,))
-    dummy_state = jnp.ones((1, 4))
-    params = model.init(jax.random.PRNGKey(0), dummy_state)
-    single_lyaer = nn.Conv(features=64, kernel_size=(1,))
-    single_params = single_lyaer.init(jax.random.PRNGKey(0), dummy_state)
-    size_c2 = sum(x.size for x in jax.tree_leaves(params))
-    size_conv = sum(x.size for x in jax.tree_leaves(single_params))
-    assert size_c2 == size_conv
+class Dense(nn.Module):
+    features: int
+
+    @nn.compact
+    def __call__(self, input):
+        layer = nn.Dense(self.features, use_bias=False)
+        out = nn.tanh(layer(input))
+        layer_2 = nn.Dense(self.features, use_bias=False)
+        out = nn.tanh(layer_2(out))
+        layer_3 = C2Dense(features=1)
+        out = layer_3(out)
+        return distrax.Categorical(logits=out)
+
+
+def test_dense_equiv():
+    layer = C2Dense(features=3, use_bias=False)
+
+    params = layer.init(jax.random.PRNGKey(0), jnp.ones((2,)))
+    apply_fn = jax.vmap(layer.apply, in_axes=(None, 0))
+    out = apply_fn(params, jnp.ones((100, 2)))
+    inv = apply_fn(params, -jnp.ones((100, 2)))
+
+    assert (out == jnp.roll(inv, 1, axis=-1)).all()
+
+
+class DenseDeep(nn.Module):
+    h_dim: int
+
+    @nn.compact
+    def __call__(self, x):
+        x = x.reshape(-1)
+
+        out = C2Dense(
+            self.h_dim,
+        )(x)
+        out = nn.relu(out.reshape(-1))
+        print(out.shape)
+        out = C2Dense(self.h_dim, use_bias=True, transform=hidden_transform)(out)
+        out = nn.relu(out.reshape(-1))
+        print(out.shape)
+        out = C2Dense(1, use_bias=True, transform=hidden_transform)(out)
+        out = convert_group_action(out)
+        return proximal_state_pool(x, out)
+
+
+def convert_group_action(stacked_logits):
+    idn_logits = stacked_logits.at[..., 0].get()
+    inv_logits = stacked_logits.at[..., 1].get()
+    inv_logits = -(inv_logits)
+    return jnp.stack([idn_logits, inv_logits], axis=-1)
+
+
+def test_dense_equiv_deep():
+    model = DenseDeep(h_dim=64)
+    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
+    input = jax.random.normal(jax.random.PRNGKey(4), (100, 4))
+    v_app = jax.vmap(model.apply, in_axes=(None, 0))
+    out = v_app(params, input)
+    r_out = v_app(params, -input)
+    assert (out == -r_out).all()
+
+
+def test_dense():
+    model = Dense(features=64)
+    params = model.init(jax.random.PRNGKey(0), jnp.ones((4)))
+    input = jax.random.normal(jax.random.PRNGKey(4), (4,))
+    out = model.apply(params, input)
+    r_out = model.apply(params, -input)
+    assert out.log_prob(0) == r_out.log_prob(1)
