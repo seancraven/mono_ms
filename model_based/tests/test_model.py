@@ -77,7 +77,7 @@ def test_equi_model():
         jnp.ones(env.observation_space(env_params).shape),  # type: ignore
         jnp.ones(env.action_space().shape),
     )
-    num = 10
+    num = 10000
     actions = jax.random.randint(key, (num,), minval=0, maxval=2)
     key = jax.random.split(key, num)
     _, base_env_state = jax.vmap(env.reset, in_axes=(0, None))(key, env_params)
@@ -106,7 +106,7 @@ def test_equi_model():
 
 
 def assert_equiv_of(model):
-    num = 2
+    num = 2000
     key = jax.random.PRNGKey(42)
     model_params = model.init(jax.random.PRNGKey(0), jnp.ones((4,)), jnp.ones((1,)))
     obs = jax.random.normal(
