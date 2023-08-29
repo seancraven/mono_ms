@@ -1,0 +1,43 @@
+\Chapter{Appendix}
+\section{Policy Gradient Methods}
+It is possible to use the score function trick to derive the gradient-based update term in the episodic case. First, the expected reward is expressed in its natural form as the average return under the distribution of trajectories defined by the policy and the MDP's dynamics and proceed to do some algebra to get it into a more friendly form,
+\begin{align}
+	\nabla_\theta J_G(\theta) & = \nabla_\theta \mathbb{E}_{\tau \sim \pi_\theta}\left[R(\tau)\right]                            \\
+	                          & = \nabla_\theta \sum_\tau R(\tau) P(\tau|\theta)                                                 \\
+	                          & = \sum_\tau R(\tau) \nabla_\theta P(\tau | \theta)                                               \\
+	                          & = \sum_\tau R(\tau) P(\tau | \theta) \frac{\nabla_\theta P(\tau | \theta)}{P(\tau |\theta)}      \\
+	                          & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \log(P(\tau| \theta))\right].
+\end{align}
+It would be ideal if the trajectories' probability could be calculated without any knowledge of the MDP's dynamics $P(S_{t+1}| S_t, A_t)$. This can be done by exploiting the definition of the trajectory's probability.
+\begin{equation}
+	P(\tau|\theta) = P(S_0) \prod_{t=0}^ TP(S_{t+1}| S_t, A_t)\pi_\theta(A_{t}|S_{t})
+\end{equation}
+Thus using log rules, the expectations can be rearranged in the form,
+\begin{align}
+	\nabla_\theta J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_{\theta}} & \left[ R(\tau) \nabla_\theta  \right.                                                                               \\
+	                                                                 & \left. \left\{ \log(P(S_0)) +  \sum_{t=0}^ T \log(P(S_{t+1}| S_t, A_t))+ \log(\pi_\theta(A_t|S_t))\right\} \right], \\
+	= \mathbb{E}_{\tau \sim \pi_{\theta}}                            & \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right].
+\end{align}
+With this form of the policy gradient, we could sample multiple trajectories and perform gradient descent on the policy.
+
+This would be an unbiased estimate of the policy gradient. Empirically, the variance of the gradient updates for deep networks is inefficient in the number of training samples or impossible, depending on the task. One further remedy to this is that we can note that a policy at time $t = t'$ should not depend on the rewards in the past; this insight can be seen by splitting the expectation,
+\begin{align}
+	\nabla_{\theta} J_G(\theta) & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right]                                               \\
+	                            & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ \left(\sum_{k = 0}^T r(S_k, A_k)\right) \left(\nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right) \right] \\
+	                            & = \sum_{t = 0} ^T \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t)) \right.                     \\
+	                            & \left. + \sum_{k' = t} ^ T r(S_{k'}, A_{k'}) \nabla_\theta \log(\pi_\theta(A_t| S_t)) \right ]. \label{causal_expect}
+\end{align}
+As the rewards at time $t$ are only correlated to the actions only at time $t$, and none of the previous times, the left-hand side of the expectation can be factorised into two expectations,
+\begin{equation}
+	\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t))\right]
+\end{equation}
+\begin{align*}
+	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \mathbb{E}_{\tau \sim \pi_\theta} \left[ \nabla_\theta \log(A_t| S_t) \right]                                                                 \\
+	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \mathbb{E}_{\tau \sim \pi_\theta} \left[ \frac{\nabla_\theta \pi_\theta(A_t| S_t)}{\pi_\theta(A_t| S_t)} \right] \label{score_function_lemma} \\
+	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \sum_{A_t} \pi_\theta(A_t|S_t)\frac{\nabla_\theta \pi_\theta(A_t| S_t)}{\pi_\theta(A_t| S_t)}                                                 \\
+	 & = 0.
+\end{align*}
+Thus equation\ref{causal_expect} becomes,
+\begin{align}
+	 & = \sum_{t = 0} ^T \mathbb{E}_{\tau \sim \pi_\theta} \left [  \sum_{k' = t} ^T  r(S_{k'}, A_{k'}) \nabla_\theta \log(\pi_\theta(A_t| S_t)) \right ].
+\end{align}

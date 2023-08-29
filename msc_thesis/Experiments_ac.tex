@@ -1,13 +1,13 @@
 \chapter{Experiments}
 \section{Motivation}
-With the ultimate aim of leveraging equivariance for model-based RL. A series of Experiments were carried out, sequentially, to investigate how to exploit known symmetries in a model based environment.
+A series of Experiments were carried out to investigate the efficacy of Equivariant Transition model structure in model-based RL.
 
-Model-Based RL, is inherently more complex than Actor-Critic or Value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned.
+Model-Based RL, is inherently more complex than Actor-Critic or Value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent. Even with the simple models constructed here, the model based agents have two times more parameters. With wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
 
 Due to the increased complexity of model-based methods, and the benefit of implementing existing methods, while also providing a baseline for further experimentation a model-free implementation was created.
 
-\section{Baseline}
-The baseline that was chosen was a proximal policy optimization agent from PureJaxRL,~\cite{lu2022discovered}. This baseline provides a training framework, that trains a single agent concurrently on multiple environments.
+\section{Baseline}\label{sec:baseline}
+The baseline that was chosen was a proximal policy optimization\ref{sec:PPO} agent from PureJaxRL,~\cite{lu2022discovered, schulman2015highdimensional}. This baseline provides a training framework, that trains a single agent concurrently on multiple identical environments.
 
 The Training regime is outlined below in pseudocode.
 \begin{algorithm}

@@ -24,7 +24,7 @@
 \chapter{Background}\label{chap:background}
 \section{Markov Decision Process}
 
-Bellman\cite{bellamn1957mdp} in 1957 describes a framework for solving stochastic control problems. A classic example of this is playing blackjack. There is often no certain outcome to playing a given hand. However, actions exist for which the expected probability of a player winning is higher. The Markov Decision Process formalism allows one to tackle such problems systematically, with mathematically tractable convergence bounds to optimal solutions in some cases.
+\cite{bellamn1957mdp} described a framework for solving stochastic control problems. A classic example of this is playing blackjack. There is often no certain outcome to playing a given hand. However, actions exist for which the expected probability of a player winning is higher. The Markov Decision Process formalism allows one to tackle such problems systematically, with mathematically tractable convergence bounds to optimal solutions in some cases.
 
 The MDP describes these processes as an agent acting in an environment that is, in general, partially observable.
 
@@ -37,7 +37,7 @@ A family of algorithms known as dynamic programming exists that, given finite st
 
 Solutions to MDPs can be expressed in terms of the value function, $V(s) = \mathbb{E} [ G_t | s_t = s]$, which is the expected return from a given state.
 
-The optimal value function, $V^*(s)$, is the maximum value function over all possible policies. The optimal policy, $\pi^*(s)$, is the policy that maximises the value function for all states. The optimal value function and policy satisfy the Bellman optimality equations\cite{bellamn1957mdp}:
+The optimal value function, $V^*(s)$, is the maximum value function over all possible policies. The optimal deterministic policy, $\pi^*(s)$, is the policy that maximizes the value function for all states. The optimal value function and policy satisfy the Bellman optimality equations\cite{bellamn1957mdp}:
 \begin{equation}
 	V^*(s) = \max_a \mathbb{E} [ R_{t+1} + \gamma V^*(s_{t+1}) | s_t = s, a_t = a].
 \end{equation}
@@ -47,27 +47,27 @@ The value function is very closely linked to the action-value function $Q(s, a) 
 	Q^*(s,a) = \mathbb{E} [ R_{t+1} + \gamma \max_{a'} Q^*(s_{t+1}, a') | s_t = s, a_t = a].
 \end{equation}
 
-Using dynamic programming and finding exact solutions to an MDP and the optimal policy $\pi*$ to optimise your return is often impossible. Reinforcement learning is a common alternative to dynamic programming, which provides a principled approach to learning approximate solutions. It describes a family of techniques that learn from previous experience to improve at solving MDPs.
+Using dynamic programming and finding exact solutions to an MDP and the optimal policy $\pi^*$ to optimize your return is often impossible. Reinforcement learning is a common alternative to dynamic programming, which provides a principled approach to learning approximate solutions. It describes a family of techniques that learn from previous experience to improve at solving MDPs.
 
 \section{Reinforcement Learning}
-Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find any solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, starcraft and other games and have recently found diamonds in Minecraft~\cite{silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with an inability to transfer knowledge between tasks, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
+Reinforcement Learning (RL) encompasses the techniques used to solve MDPs where experience is required to solve the MDP. When framed as MDPs, many real-world problems have such large state or action spaces that some approximations must be made to find any solutions. Despite the approximate nature of their solutions, RL agents have achieved superhuman performance in chess, go, Star Craft and other games and have recently found diamonds in Minecraft~\cite{silver2016mastering,silver2017mastering,hafner2023mastering}. Many of these successes with current RL approaches highlight the challenges current algorithms face due to their hunger for data. Games, especially games that can be played on computers, are relatively cheap to sample data from and can be played many times\footnote{It is worth noting that RL has not just solved problems that pertain to games, but has been very successful in solving robotic control problems}. This sample hunger, combined with the challenge of to transfer knowledge between tasks~\cite{kirkpatrick2017overcoming}, highlights that there is a significant advantage to encoding prior knowledge into RL algorithms. The knowledge of symmetries enables agents to attempt simplified problems and draws abstract connections between different tasks. This thesis focuses on the encoding of symmetries into RL algorithms. This section will describe the most common approaches to solving RL problems.
 
 \section{Deep Reinforcement Learning Approaches}
-The underlying optimisation problem in reinforcement learning is finding a policy which produces the maximum expected reward. However, not all RL algorithms take this approach directly. Additionally, many algorithms choose to forgo learning the dynamics of a process and instead model the value function or policy directly. These are Model-Free algorithms. In contrast, model-based algorithms learn the problem's dynamics and simulate the agent's behaviour to learn. This section will describe the most common approaches to solving RL problems.
+The underlying optimization problem in reinforcement learning is finding a policy which produces the maximum expected reward. However, not all RL algorithms take this approach directly. Additionally, many algorithms choose to forgo learning the dynamics of a process and instead model the value function or policy directly. These are Model-Free algorithms. In contrast, model-based algorithms learn the problem's dynamics and simulate the agent's behaviour to learn. This section will describe the most common approaches to solving RL problems.
 Typically, learning algorithms face a few persistent problems in Deep RL that make solving problems difficult. These are;
 \begin{itemize}
 	\item \textbf{Sample Efficiency} The algorithms require a large amount of data to learn. This is because training large neural networks requires lots of data to learn. As mentioned before, breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
-	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialisation of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
+	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialization of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
 	\item \textbf{Reward Sparsity} Reward functions are often sparse, and coming across states that provide rewards, such as finding diamonds in Minecraft, is a difficult problem when initial exploration is random.\cite{hafner2023mastering}.
 \end{itemize}
 
-\subsection{Model Based Algorithms}
-Model-based reinforcement learning is the process of the agent learning the dynamics of a system and then performing "planning" to decide how best to act next. In concrete terms, this corresponds to an agent learning the transition dynamics of the MDP, thus learning both the subsequent state of a state action pair, $P(s'| s, a)$ and the expected reward from a state action pair $r(s, a)$. From the learned model agent "plans" by simulating the environment and acting in the simulated environment. Then the agent learns a policy with the simulated data. Common algorithms like Dyna-Q, use Q-learning over a comnination of real and simulated data to learn a policy.
 
-Model-based algorithms have the potential to provide much better sample efficiency than model-free algorithms, as they can learn from simulated data. However, this in itself can be difficult to learn. However, the Dreamer models have shown substantial success in tackling difficult problems\cite{hafner2023mastering, hafner2020mastering}. This report does in some way, build a world model.
-....NEEDS MORE..... I could do with actually knowing more about this and having build some model free instances to figure out this
+
 \subsection{Model Free Algorithms}
-Model-free algorithms forgo trying to build an approximation of the MDP's transition dynamics defined by $P$ and instead try to optimise the agent behaviour by either approximating how good different states are or learning the best action to take in given states. When combining standard dynamic programming algorithms such as q-learning with function approximation, or actor-critic methods, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimises a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Actor-Critic approaches is that Q-learning uses an epsilon greedy policy to collect data and experience. Whereas, Actor Critics learn a stochastic policy from the data. However, the training loop is much the same;
+Model free algorithms attempt to train an agent to maximize returns from agent experience. The two key paradigms either approximating how good different state action pairs are, Q-learning. Or the agent learns the best action to take in given states these are policy gradient methods.
+
+When combining standard dynamic programming algorithms such as Q-learning with function approximation, or actor-critic methods, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimizes a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Actor-Critic approaches is that Q-learning uses an epsilon greedy policy to collect experience. Whereas, Actor Critics learn and gain experience with the same policy. However, the training loop is much the same;
+
 \begin{algorithm}
 	\caption{Model Free RL Training Loop}
 	\begin{algorithmic}
@@ -102,10 +102,10 @@ Model-free algorithms forgo trying to build an approximation of the MDP's transi
 \end{algorithm}
 In most cases, some operations need to be performed on the replay buffer, and the buffer will store more data than just sequential $(s, a,r)_t$ tuples. Often subsequent actions are required to calculate the loss. This can be done during the update loop. Finally, rather than interacting with one environment, training is done in parallel in multiple environments. The process is much the same; states, rewards and actions become vectors for this. Environment vectorisation has improved training stability and robustness~\cite{minh2016asynchronous}.
 
-\subsubsection{Deep Q-Learning}
+\subsubsection{Deep Q-Learning}\label{sec:Q-learning}
 Q-Learning forgoes optimising the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a greedy policy with a stationary point at the optimal value function. Dynamic Programming exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}.
 
-When extended to function approximation the convergence guarantees of the origianl dynmaic programming Q-learning algroithm are absent in Deep-Q-Learning. While exact solution may not be found due to computational restraints or partial observability, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
+When extended to function approximation the convergence guarantee of the original dynamic programming Q-learning algorithm is absent in Deep-Q-Learning. While an exact solution may not be found due to computational restraints or partial observability, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
 \begin{equation}
 	Q_{t+1}(s, a) = Q_t(s,a) + \alpha \left[ r(s, a) + \gamma \max_{a'} Q_t(S_{t+1}, a') \right].
 \end{equation}
@@ -115,7 +115,7 @@ The Bellman optimality equation can be used to construct a loss function to trai
 \begin{equation}
 	\mathcal{D} = \{S_0, A_0, R_1, S_1, A_1, \ldots \}
 \end{equation}
-This can be sampled when training the network. The loss function to optimise is derived from the Bellman equation and is the squared temoporal difference error\cite{sutton2018reinforcement},
+This can be sampled when training the network. The loss function to optimise is derived from the Bellman equation and is the squared temporal difference error\cite{sutton2018reinforcement},
 \begin{equation}
 	L_{w}(\mathcal{D}) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}}\left[\left(Q_w(s,a) -(r + \gamma(1-\mathbb{I}(s'= S_{T}))\max_{a'}Q_{w'}(s', a')\right)^2\right].
 \end{equation}
@@ -123,79 +123,39 @@ Here, it is essential to note that $Q_w'$ can be the original network if $w = w'
 
 Alternatively, the semi-gradient can be avoided with Double-Q-Learning. Double-Q-Learning uses target networks\cite{van2016deep}. This makes two copies of the primary, $Q_w$, network and performs gradient updates on one, $Q_w$, with the secondary network, $Q_{w'}$, parameters being moved towards $w$ after some further number of updates so that its parameters lag that of $w$. This can be done with weighted averages or just a direct update.
 
-Some problems arise in continuous state spaces, where the $\max$ operation may involve an optimisation loop. This is not ideal. Algorithms such as DDPG\cite{lillicrap2015continuous} use another network to parameterise an optimal policy instead of the max operation. DDPG is an example of an Actor-Critic algorithm that straddles the divide between Q-Learning and Policy Based Methods.
+Some problems arise in continuous state spaces, where the $\max$ operation may involve an optimization loop. This is not ideal. Algorithms such as Deep Deterministic Policy Gradient (DDPG)\cite{lillicrap2015continuous} use another network to parmeterize an optimal policy instead of the max operation. DDPG is an example of an Actor-Critic algorithm that straddles the divide between Q-Learning and Policy Based Methods.
 
 
 \subsubsection{Policy Based Methods}
-While Policy Based Methods all strive to optimise the expected cumulative return for an agent, there are quite a few subtleties between the dominant gradient-based approaches. In the episodic setting, where it is possible to obtain complete trajectories and optimise for episodic returns, policy gradient functions can directly optimise the expected cumulative reward,
+While Policy Based Methods all strive to optimize the expected cumulative return for an agent by performing gradient descent on the obtained rewards, reducing the variance of the estimator is a key challenge. There are multiple tricks used in deriving the gradient estimator to reduce variance as well as algorithmic improvements such as Soft Actor-Critic~\cite{haarnoja2018soft}, Proximal Policy Optimization (PPO)\cite{schulman2017proximal}.
+
+In the episodic setting, where it is possible to obtain complete trajectories and optimize for episodic returns, policy gradient functions can directly optimize the expected cumulative reward,
 \begin{equation}
 	J_G(\theta) = \mathbb{E}_{s_0 \sim d_0}\left[v_{\pi_{\theta}}(S_0)\right].
 \end{equation}
-However, in infinite time horizon tasks, there is no termination and optimising for the expected reward of the next action may be a more prudent objective,
+However, in infinite time horizon tasks, there is no termination and optimizing for the expected reward of the next action may be a more prudent objective,
 \begin{equation}
 	J_R(\theta)
 	= \mathbb{E}_{\pi_{\theta}}\left[R_{t+1}\right].
 \end{equation}
-Many common algorithms for episodic tasks can be extended for infinite time horizon problems.
-In both cases, it should be noted that the objective function from which we are taking the gradient is an expectation. This provides a problem, and we use the score function trick to take the gradient before the expectation.
+Many common algorithms for episodic tasks can be extended for infinite time horizon problems. In the rest of the report, the episodic setting is only considered.
 
-It is possibel to use the score function trick to derive the gradient-based update term in the episodic case. First, the expected reward is expressed in its natural form as the average return under the distribution of trajectories defined by the policy and the MDP's dynamics and proceed to do some algebra to get it into a more friendly form,
-\begin{align}
-	\nabla_\theta J_G(\theta) & = \nabla_\theta \mathbb{E}_{\tau \sim \pi_\theta}\left[R(\tau)\right]                            \\
-	                          & = \nabla_\theta \sum_\tau R(\tau) P(\tau|\theta)                                                 \\
-	                          & = \sum_\tau R(\tau) \nabla_\theta P(\tau | \theta)                                               \\
-	                          & = \sum_\tau R(\tau) P(\tau | \theta) \frac{\nabla_\theta P(\tau | \theta)}{P(\tau |\theta)}      \\
-	                          & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \log(P(\tau| \theta))\right].
-\end{align}
-It would be ideal if the trajectories' probability could be calculated without any knowledge of the MDP's dynamics $P(S_{t+1}| S_t, A_t)$. This can be done by exploiting the definition of the trajectory's probability.
-\begin{equation}
-	P(\tau|\theta) = P(S_0) \prod_{t=0}^ TP(S_{t+1}| S_t, A_t)\pi_\theta(A_{t}|S_{t})
-\end{equation}
-Thus using log rules, the expectations can be rearranged in the form,
-\begin{align}
-	\nabla_\theta J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_{\theta}} & \left[ R(\tau) \nabla_\theta  \right.                                                                               \\
-	                                                                 & \left. \left\{ \log(P(S_0)) +  \sum_{t=0}^ T \log(P(S_{t+1}| S_t, A_t))+ \log(\pi_\theta(A_t|S_t))\right\} \right], \\
-	= \mathbb{E}_{\tau \sim \pi_{\theta}}                            & \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right].
-\end{align}
-With this form of the policy gradient, we could sample multiple trajectories and perform gradient descent on the policy.
-
-This would be an unbiased estimate of the policy gradient. Empirically, the variance of the gradient updates for deep networks is inefficient in the number of training samples or impossible, depending on the task. One further remedy to this is that we can note that a policy at time $t = t'$ should not depend on the rewards in the past; this insight can be seen by splitting the expectation,
-\begin{align}
-	\nabla_{\theta} J_G(\theta) & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ R(\tau) \nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right]                                               \\
-	                            & = \mathbb{E}_{\tau \sim \pi_{\theta}} \left[ \left(\sum_{k = 0}^T r(S_k, A_k)\right) \left(\nabla_\theta \sum_{t=0}^ T \log(\pi_\theta(A_t|S_t))\right) \right] \\
-	                            & = \sum_{t = 0} ^T \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t)) \right.                     \\
-	                            & \left. + \sum_{k' = t} ^ T r(S_{k'}, A_{k'}) \nabla_\theta \log(\pi_\theta(A_t| S_t)) \right ]. \label{causal_expect}
-\end{align}
-As the rewards at time $t$ are only correlated to the actions only at time $t$, and none of the previous times, the left-hand side of the expectation can be factorised into two expectations,
-\begin{equation}
-	\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k = 0} ^ {t-1} r(S_k, A_k) \nabla_\theta \log(\pi_\theta(A_t|S_t))\right]
-\end{equation}
-\begin{align*}
-	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \mathbb{E}_{\tau \sim \pi_\theta} \left[ \nabla_\theta \log(A_t| S_t) \right]                                                                 \\
-	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \mathbb{E}_{\tau \sim \pi_\theta} \left[ \frac{\nabla_\theta \pi_\theta(A_t| S_t)}{\pi_\theta(A_t| S_t)} \right] \label{score_function_lemma} \\
-	 & = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{k=0}^{t-1}r(S_k, A_k)\right] \sum_{A_t} \pi_\theta(A_t|S_t)\frac{\nabla_\theta \pi_\theta(A_t| S_t)}{\pi_\theta(A_t| S_t)}                                                 \\
-	 & = 0.
-\end{align*}
-Thus equation\ref{causal_expect} becomes,
-\begin{align}
-	 & = \sum_{t = 0} ^T \mathbb{E}_{\tau \sim \pi_\theta} \left [  \sum_{k' = t} ^T  r(S_{k'}, A_{k'}) \nabla_\theta \log(\pi_\theta(A_t| S_t)) \right ].
-\end{align}
-The sum over future rewards is the expected return. Combined with the log derivative's expectation of zero. This formulation enables lower variance updates with the same expectation. A detailed review of this is available in~\cite{schulman2015highdimensional}. The general policy gradient is of the form,
+The general policy gradient is of the form,
 \begin{equation}
 	\nabla J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_\theta} \left[\sum_{t=0} ^ T \mathcal{R}_t \nabla_\theta \log(\pi_\theta(A_t|S_t))\right].
 \end{equation}
 Where $\mathcal{R}_t$ is a return estimator a time $t$, if the return estimator is the discounted sum of rewards, this is the REINFORCE algorithm~\cite{williams1992simple}.
 The most used modern policy gradient algorithms take this form: a return estimator either sampled or bootstrapped with a possible constant baseline offset. This leads to Actor-Critic methods, where the actor is the policy network, and the critic is a value function estimation network.
 
-\subsubsection{Actor Critic Methods}
+\subsubsection{Actor Critic Methods}\label{sec:Actor-Critic}
 Actor critics in deep learning typically consist of a pair of function approximation networks, one the actor to approximate the optimal policy, the other to approximate the optimal value function. Because the gradient of a constant is zero, having a baseline that is independent of the policy does not affect the expectation of the policy gradient estimator, but if picked wisely, it may reduce the variance,
 \begin{equation}
 	\nabla J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_\theta} \left[\sum_{t=0} ^ T (\mathcal{R}_t - b) \nabla_\theta \log(\pi_\theta(A_t|S_t))\right].
 \end{equation}
-As the variance of the updates depends on the magnitude of the $(\mathcal{R}_t - b)$ term, a function is learned to estimate the value of the state, $V_\phi(S_t)$, and the baseline is set to the value of the state, $b = V_\phi(S_t)$. The critic trained to minimise the mean squared error between the estimated value and the actual return. This produces an unbiased update of lower variance, which has better training behaviour\cite{sutton2018reinforcement}.
+As the variance of the updates depends on the magnitude of the $(\mathcal{R}_t - b)$ term, a function is learned to estimate the value of the state, $V_\phi(S_t)$, and the baseline is set to the value of the state, $b = V_\phi(S_t)$. The critic trained to minimize the mean squared error between the estimated value and the actual return. This produces an unbiased update of lower variance, which has better training behaviour\cite{sutton2018reinforcement}.
 
-\subsection{Generalised Advantage Estimation}
-Generalised advantage estimation\cite{schulman2015high}, rather than using the discounted return as a learning target. It learns the $\lambda$-return, a weighted sum of the n-step discounted returns. The $\lambda$-return is defined as,
+\subsubsection{Generalized Advantage Estimation}
+Generalized advantage estimation\cite{schulman2015high}, rather than using the discounted return as a learning target. It learns the $\lambda$-return, a weighted sum of the n-step discounted returns. The $\lambda$-return is defined as,
 \begin{equation}
 	R_t^\lambda = (1-\lambda) \sum_{n=1}^\infty \lambda^{n-1} R_{t:t+n}^V.
 \end{equation}
@@ -203,7 +163,7 @@ Where $R_{t:t+n}^V$ is the n-step discounted return and lambda is a hyperparamet
 \begin{equation}
 	R_{t:t+n}^V = \sum_{k=0}^{n-1} \gamma^k r_{t+k} + \gamma^n V_\phi(S_{t+n}).
 \end{equation}
-The lambda return provides a biased but lower variance return estimator, which can benefit training and is the backbone of many modern policy gradient algorithms. Typically the lambda return is calculated recursively backwards in episodic settings,
+The lambda return provides a biased but lower variance return estimator, which can benefit training and is the backbone of many modern policy gradient algorithms. Typically, the lambda return is calculated recursively backwards in episodic settings,
 \begin{equation}
 	R_t^\lambda = r_t + \gamma (1-\lambda) V_\phi(S_{t+1}) + \lambda R_{t+1}^\lambda.
 \end{equation}
@@ -211,14 +171,14 @@ And then the advantage is the difference between the value function and the lamb
 \begin{equation}
 	A_t^\lambda = R_t^\lambda - V_\phi(S_t).
 \end{equation}
-Having the generalised advantage as the optimisation target provides control over the variance of the gradient estimator. The generalised advantage estimator is defined as,
+Having the generalized advantage as the optimization target provides control over the variance of the gradient estimator. The generalized advantage estimator is defined as,
 \begin{equation}
 	\nabla J_G(\theta)  = \mathbb{E}_{\tau \sim \pi_\theta} \left[\sum_{t=0} ^ T A_t^\lambda \nabla_\theta \log(\pi_\theta(A_t|S_t))\right].
 \end{equation}
-In this situation, the critic network learns to minimise the advantage. Advantage estimation is often used with regularisation methods that stop the current policy from moving too far between training updates. These regularisation methods penalise the KL divergence between the current and previous policies. This is the case for TRPO\cite{shculman2015trust} and the computationally efficient and simple PPO\cite{schulman2017proximal}.
+In this situation, the critic network learns to minimize the advantage. Advantage estimation is often used with regularization methods that stop the current policy from moving too far between training updates. These regularization methods penalize the KL divergence between the current and previous policies. This is the case for Trust Region Policy Optimization (TRPO)~\cite{shculman2015trust} and the computationally efficient and simple PPO\cite{schulman2017proximal}.
 
 \subsubsection{PPO}
-Proximal policy optimisation (PPO) follows the same lines as TRPO, as it is a regularised form of gradient-based policy optimisation with a critic that learns a value function as a bias reduction method. The PPO paper introduces two forms: a hard thresholding method PPO-Clip, and a soft regularisation method PPO-Penalty. The clip optimisation target removes the need for explicitly calculating a KL-divergence for a single interaction is,
+Proximal policy optimization (PPO) follows the same lines as TRPO, as it is a regularized form of gradient-based policy optimization with a critic that learns a value function as a bias reduction method. The PPO paper introduces two forms: a hard threshold method PPO-Clip, and a soft regularization method PPO-Penalty. The clip optimization target removes the need for explicitly calculating a KL-divergence for a single interaction is,
 \begin{equation}
 	L(s, a, \theta_k, \theta) = \min \left( \frac{\pi_\theta(a|s)}{\pi_{\theta_k}(a|s)} A^{\pi_{\theta_k}}(s,a), g\left(\epsilon, \frac{\pi_\theta(a|s)}{\pi_{\theta_k}(a|s)} \right)A^{\pi_{\theta_k}}(s, a) \right).
 \end{equation}
@@ -232,6 +192,41 @@ Where the $V^\pi _ \phi(s)$ is the critic, typically a neural network. $R_t(s, a
 \end{equation}
 The $\epsilon$ hyperparameter must be set. This loss function ensures that there are no overly large policy updates.
 
+\subsection{Model Based Algorithms}
+Model-based reinforcement learning is the process of the agent learning the dynamics of a system and then performing "planning" to decide how best to act next. In concrete terms, this corresponds to an agent learning the transition dynamics of the MDP, thus learning both the subsequent state of a state action pair, $P(s'| s, a)$ and the expected reward from a state action pair $r(s, a)$. From the learned model agent "plans" by simulating the environment and acting in the simulated environment. Then the agent learns a policy with the simulated data. Common algorithms like Dyna-Q~\cite{sutton2018reinforcement}, use Q-learning over a combination of real and simulated data to learn a policy.
+
+Model-based algorithms have the potential to provide much better sample efficiency than model-free algorithms, as they can learn from simulated data. However, this in itself can be difficult to learn. However, the Dreamer models have shown substantial success in tackling difficult problems\cite{hafner2023mastering, hafner2020mastering}.
+
+\section{Dyna} \label{sec:Dyna}
+Dyna style algorithms\cite{sutton2018reinforcement, sutton2012dyna} augment model free algorithms, while using the same experience based updates, such as Q-learning~\ref{sec:Q-learning} or PPO~\ref{sec:PPO}, they train, $T(S_{t+1}|S_t, A_t)$ a transition model. This can improve the sample efficiency of an agent. The basic Dyna formulation is outlined in pseudocode below.
+\begin{algorithm}
+	\caption{Dyna}
+	\begin{algorithmic}
+		\State Initialise $\theta, \phi, \psi,$ randomly
+		\For {Num Epochs}
+		\For {Num Dyna Iterations}
+		\For {Num Acting Updates}
+		\State Sample transition tuples from policy $\pi_\theta \sim (s, a, s')$ on $\mathcal{M}$
+		\State Construct replay buffer from transitions $\mathcal{D} = \{(s, a, s', r)_i\}_1^N$
+
+		\State $\theta' \leftarrow$ Minimize $L_{a}(\theta, \mathcal{D})$
+		\State $\phi' \leftarrow $Minimize $L_{mb}(\phi , \mathcal{D})$
+		\State $\psi' \leftarrow $Minimize $L_{rw}(\psi , \mathcal{D})$
+		\EndFor
+		\State $\theta \leftarrow \theta'$
+		\State $\phi \leftarrow \phi'$
+		\For{Num Planning Updates}
+		\State Sample transition tuples from policy $\pi_\theta \sim (s, a, s')$ on $T_\phi$
+		\State Construct replay buffer from planned transitions $\mathcal{D}_{p} = \{(s, a, s', r)_i\}_1^N$
+		\State $\theta' \leftarrow$ Minimize $L_{rc}(\theta, \mathcal{D}_p)$
+		\EndFor
+		\State $\theta \leftarrow \theta'$
+		\EndFor
+	\end{algorithmic}
+\end{algorithm}
+Here; $L_{a}$, $L_{mb}$, and $L_{rw}$ are the agent, transition model and reward model losses, respectively. The minimization is typically through stochastic gradient descent.
+
+Dyna provides a conceptually simple model based augmentation on conventional model free algorithms. By simulating transitions using previous experience, higher sample efficiency may be gained at the cost of a more complex training regime.
 
 \section{Groups, Symmetries, Homomorphisms}
 
@@ -318,15 +313,39 @@ The abstract MDP can then be solved with Dynamic Programming or approximate Dyna
 
 
 
-\section{The Infamous Cartpole}
+\section{CartPole}
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/cart_pole.png}
-	\caption{The Cartpole environment.}
+	\caption{The CartPole environment.}
 \end{figure}
-The Cartpole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical. The action space$a \in {0,1}$, for the problem, is to either push the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole; as such, $s \in \mathbb{R}^4$. Typically, the episodes are truncated at 500 timesteps, and the reward is 1, so the return is an integer $G_0 \in [0, 500]$. An episode terminates if the pole falls over or the cart moves too far from the centre. If a human were learning to solve this problem, one would notice that the expected result of pushing the cart left when it is leaning right at some positions is the same as pushing the cart right when it is leaning left at the displacement in the opposite direction. This is an example of symmetry in the problem, and it is this symmetry that we will attempt to exploit to improve the learning characteristics of the agent.
+The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical. The action space$a \in {0,1}$, for the problem, is to either push the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. A state is a vector s:
+\begin{equation}
+	s = \begin{pmatrix}
+		x       \\
+		\dot{x} \\
+		\theta  \\
+		\dot{\theta}
+	\end{pmatrix}
+\end{equation}
+Thus, $s \in \mathbb{R}^4$.
 
-The symmetry present in Cartpole is the cyclic $C_2$ group. Other than the trivial group, the group with a single element, the $C_2$ group, is the simplest. This is a group with only two elements, the identity and inversion.
+Typically, the episodes are truncated at 500 timesteps, and the reward is 1, so the return is an integer $G_0 \in [0, 500]$. An episode terminates if the pole falls over or the cart moves too far from the centre. If a human were learning to solve this problem, one would notice that the expected result of pushing the cart left when it is leaning right at some positions is the same as pushing the cart right when it is leaning left at the displacement in the opposite direction. This is an example of symmetry in the problem, and it is this symmetry that we will attempt to exploit to improve the learning characteristics of the agent or a transition model.
+
+To learn the transition dynamics of CartPole and agent must learn how the system evolves through time. In CartPole the transitions between different states in CartPole are governed by the PDEs:
+
+\begin{equation}
+	\ddot{\theta} = \frac{g \sin \theta + \cos\theta \left({\frac{-F - m_p l \dot{\theta}^2 \sin(\theta)}{m_c + m_p}} \right )}{l\left ( \frac{4}{3} - \frac{m_p \cos^2 \theta}{m_c + m_p}\right)},
+\end{equation}
+
+\begin{equation}
+	\ddot{x} = \frac{ F + m_p l (\dot{\theta}^2 \sin \theta - \ddot{\theta} \cos \theta)}{m_c + m_p}.
+\end{equation}
+Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the angle between the pole and vertical, with the pole length $l$. $F$ is the action force, where the positive direction is right. The masses of the cart and the pole are $m_c, m_p$, respectively. Finally $\dot{}$, indicates a derivative with respect to time.
+
+These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
+
+Both learning a policy and a transition model may be augmented by exploiting symmetry. The symmetry present in Cartpole is the cyclic $C_2$ group. Other than the trivial group, the group with a single element, the $C_2$ group, is the simplest. This is a group with only two elements, the identity and inversion.
 \begin{table}[h!]
 	\centering
 	\begin{tabular}{c | c  c}
@@ -348,37 +367,36 @@ What is nice in many ways about the original MLP model is that it is so flexible
 
 \begin{table}
 	\centering
-\begin{tabular}{|c | c|}
-	\hline
-	Inductive Bias              & Corresponding property                              \\
-	\hline
-	\hline
-	Distributed representations & Inputs mapped to patterns of features               \\
-	\hline
-	Convolution                 & group equivariance (usually over space)             \\
-	\hline
-	Deep architectures          & Complicated functions = composition of simpler ones \\
-	\hline
-	Graph Neural Networks       & equivariance over entities and relations            \\
-	\hline
-	Recurrent Nets              & equivariance over time                              \\
-	\hline
-	Soft attention              & equivariance over permutations                      \\
-	\hline
-	Self-supervised             & pre-training $P(X)$ is informative about $P(Y |X)$      \\
-	\hline
-\end{tabular}
+	\begin{tabular}{|c | c|}
+		\hline
+		Inductive Bias              & Corresponding property                              \\
+		\hline
+		\hline
+		Distributed representations & Inputs mapped to patterns of features               \\
+		\hline
+		Convolution                 & group equivariance (usually over space)             \\
+		\hline
+		Deep architectures          & Complicated functions = composition of simpler ones \\
+		\hline
+		Graph Neural Networks       & equivariance over entities and relations            \\
+		\hline
+		Recurrent Nets              & equivariance over time                              \\
+		\hline
+		Soft attention              & equivariance over permutations                      \\
+		\hline
+		Self-supervised             & pre-training $P(X)$ is informative about $P(Y |X)$  \\
+		\hline
+	\end{tabular}
 \end{table}
 
 For the purposes of this thesis, the focus will be on the induction of group eqivariances. However, it is important to note that this strategy to improving Machine Learning models comes from a more general class of ideas.
 
 
-\subsection{Neural Networks and The Raiders of the Group}
 \subsection{G-CNNs}\label{sec:G-CNNs}
 
 The Group Equivariant Convolutional Neural Network (G-CNN) is a generalisation of the CNN's translational equivariance to arbitrary group structured equivariances.
 
-The traditional Convolution layer is a discrete convolution, this is an approximation of tha continuous convolution,
+The traditional Convolution layer is a discrete convolution, this is an approximation of that continuous convolution,
 \begin{equation}
 	(f*g)(x) = \int_{\mathbb{R}^d} k(x-x')f(x')dy,
 \end{equation}
@@ -392,5 +410,3 @@ is the translation group $\mathbb{R}^d$ acting on the kernel $k$,
 Here, the inverse of a tranlastion by $x$, group action $g$ is the translation by $-x$. This is then $g^{-1}$, the inverse of the group action. This is the backbone of the G-CNN\cite{cohen2016group}, where rather than a translation group, we have an arbitrary group $G$ acting on the kernel $k$. When looking for more complex equivariances than $C_2$, multiple different groups can be used in the same layer, this increases the number of varibles in the convolution's output, this complecates the form of the layers, however for our purposes this is not relevant.
 
 
-\subsection{Steerabel Kernel G-CNNs}
-% TODO: Add a section on Steerable Kernel G-CNNs
