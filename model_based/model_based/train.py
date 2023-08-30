@@ -105,6 +105,7 @@ def make_mse_loss_fn(apply_fn):
 
     return _loss_fn
 
+
 def make_catch_mse_loss_fn(apply_fn):
     def _loss_fn(
         params: jt.PyTree, sarsd_tuple: SARSDTuple
@@ -120,7 +121,9 @@ def make_catch_mse_loss_fn(apply_fn):
             paddle_logits, next_state.at[..., 45:].get()
         ).mean()
         return ball_loss + paddle_loss, None
+
     return _loss_fn
+
 
 def make_catch_bce_loss_fn(apply_fn):
     def _loss_fn(
