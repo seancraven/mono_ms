@@ -2,7 +2,7 @@
 \section{Motivation}
 A series of Experiments were carried out to investigate the efficacy of Equivariant Transition model structure in model-based RL.
 
-Model-Based RL, is inherently more complex than Actor-Critic or Value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent. Even with the simple models constructed here, the model based agents have two times more parameters. With wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
+Model-Based RL, is inherently more complex than actor-critic or value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent. Even with the simple models constructed here, the model based agents have two times more parameters. With wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
 
 Due to the increased complexity of model-based methods, and the benefit of implementing existing methods, while also providing a baseline for further experimentation a model-free implementation was created.
 
@@ -30,14 +30,14 @@ The Training regime is outlined below in pseudocode.
 	\end{algorithmic}
 \end{algorithm}
 
-\section{Equivariant Actor-Critics}
+\section{Equivariant Actor-Critics}\label{sec:actor-critic}
 \subsection{CartPole}
 
 To form an equivariant network to the group structure of CartPole the actor network must be equivariant to both the identity and inversion operator. This report provides structures for equivariant G-CNNs for both CartPole and Catch, that can easily be extended to other environments with known discrete symmetries.
 
-
+\subsubsection{Constructing a CartPole Actor-Critic}
 In this section, the outline for the network design is described. In the Catch section~\ref{sec:catch_ac}, a more detailed description of how to extend the procedure to other Groups is outlined.
-The Group for CartPole contains two unique elements, in both state and action space. In state space the inversion and identity operator $r, e$ are,
+The group for CartPole contains two unique elements, in both state and action space. In state space the inversion and identity operator $r, e$ are,
 \begin{equation}
 	\ell^\mathcal{S}_e =
 	\begin{pmatrix}
@@ -98,7 +98,7 @@ This G-CNN network for policy learning is the first novel contribution of this r
 
 Further, this network architecture has advantages over Symmetrizer networks, \cite{vanderpol2020mdp}, in that it does not require a large matrix inversions to solve for the parameters of the network, while still maintaining the same equivariance qualities.
 
-\subsection{Training Dynamics On the Cart-Pole Benchmark}
+\subsubsection{Results: Training Dynamics On the CartPole Benchmark}
 With the network's structure established, the benchmark task focuses on mastering an expert policy within the CartPole environment. By default, CartPole imposes a maximum episode length of 500 interactions. All non-terminal states yield a reward of +1, setting the maximum episodic return at 500. As with most traditional RL problems, the primary objective in CartPole is to optimize the agent's episodic return. Finding an expert policy in CartPole using standard deep learning methods is relatively straightforward and primarily serves as an implementation benchmark. For an equivariant network structure to truly enhance the quality of the learned policy, it should strive to approach the 500 episodic return benchmark with fewer MDP interactions.
 
 When comparing the learning dynamics of policy agents, it's crucial to ensure not just that the agent achieves expertise in the task but also that the policy learning procedure remains stable across multiple random seeds. A random seed refers to the initial state in which both the agent and environment begin. Keeping training stability in mind, examining the performance under the least favourable random seeds is informative about the training robustness. If an algorithm is particularly sensitive to its initialization, its performance may be significantly impacted, and may not converge over multiple random seeds.
@@ -142,8 +142,11 @@ While both models have similar parameter counts, the structure of the G-CNNs mak
 Encouraged by the promising results from the initial experiment, we decided to explore a new environment to determine whether the equivariance constraint could further enhance performance.
 
 \subsection{Catch}\label{sec:catch_ac}
-To demonstrate that G-CNN actor-c can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging. Unlike the CartPole case where layers can be made equivariant to the
-representation, in Catch, the entire network must be built using Group Convolutions. As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
+To demonstrate that G-CNN actor-c can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging.
+
+\subsubsection{Constructing a Catch Actor-Critic}
+Unlike the CartPole case where layers can be made equivariant to the
+representation, in Catch, the entire network must be built using Group Convolutions.As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
 In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=-(2-x)$. Thus, the equivariance constraint is expressed as:
 \begin{equation}
 	\pi_\theta(\ell_r^\mathcal{S} s) = \begin{pmatrix}
@@ -217,9 +220,11 @@ Given this equivariant structure for each layer, when constructing a network out
 
 With the framework of an equivariant network in place—similar to the CartPole scenario—we established both an equivariant actor-critic and an MLP actor-critic. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the "Symmetrizer" was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the simplicity of the "Catch" task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters.
 
+\subsubsection{Results: Training Dynamics On the Catch Benchmark}
 % With this equivariant structure for each layer the network constructed out of an input layer and subsequent hidden layers, which all maintain the equivariance constraint, the only thing left is to find an output. In the case of an actor network in a discrete action space, the permutation representation, is perfect, in the case of Catch where the probability of moving left in a state $s$ should be the same as the probability of moving right in a reflected state $s' = \ell_r^\mathcal{S}$. As the network outputs logits, un-normalised probabilities, their permutation on a reflection is the exact property required. For cases where a permutation is not the required group action, achieving equivariance is slightly more difficult. This is left for later.
 %
 % With an Equivariant network structure created, as in the case of CartPole, an Equivariant actor critic and an MLP actor critic were formed with two hidden layers, and a comparable parameter count. In this experiment, the Symmetrizer was left out due to the challenges found optimizing its performance to that demonstrated in the original paper. As Catch is a much more straightforward task, the agents are given $20,000$ MDP interactions to learn over in comparison to that of CartPole, again the MLP baseline is the PureJaxRL baseline actor-critic, slightly adjusted for the new environment. Both network architectures were given the same hyperparameters.
+
 \begin{figure}
 	\centering
 	\includegraphics[width=\linewidth]{Figures/catch_returns.png}
@@ -242,7 +247,7 @@ Upon examining the qualitative differences in the episodic return curves, we obs
 	\caption{Cumulative episodic returns tabulated for the two network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
 	\label{tab:actor-critic_catch}
 \end{table}
-\section{Conclusion}
+\subsection{Conclusion}
 Equivariant Actors were tested in both environments, and showed a substantially more efficient learning. These results are inline with other Experiments, where Agents are trained with inductive biases about the task's symmetry outperform conventional methods. Further, they also demonstrated the same improvement in cases with challenging initialization conditions.
 
 The equivariance constraint itself however, is quite limiting. For any given task the group must be known beforehand. Not only this but it must also be an exact symmetry. In many settings these constraints are rare, especially with discrete symmetry groups.
