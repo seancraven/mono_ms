@@ -114,7 +114,7 @@ def hidden_transform(input):
 
 class EquivariantCatchActorCritic(nn.Module):
     a_dim: int
-    h_dim: int = 64 
+    h_dim: int = 64
     act: Callable = nn.relu
 
     @nn.compact
@@ -124,9 +124,9 @@ class EquivariantCatchActorCritic(nn.Module):
         )
         actor_mean = actor_mean.reshape(-1)
 
-        actor_mean = C2Dense(self.h_dim//2, transform=hidden_transform, use_bias=True)(
-            actor_mean
-        )
+        actor_mean = C2Dense(
+            self.h_dim // 2, transform=hidden_transform, use_bias=True
+        )(actor_mean)
         actor_mean = self.act(actor_mean.reshape(-1))
 
         actor_mean = C2Dense(1, transform=hidden_transform, use_bias=True)(actor_mean)

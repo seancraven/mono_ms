@@ -78,9 +78,12 @@ def make_train(
     config["NUM_UPDATES"] = (
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
+
     config["MINIBATCH_SIZE"] = (
         config["NUM_ENVS"] * config["NUM_STEPS"] // config["NUM_MINIBATCHES"]
     )
+    print(config["MINIBATCH_SIZE"])
+    print(config["NUM_UPDATES"])
     env = config["ENV"]
     env_params = config["ENV_PARAMS"]
     env = FlattenObservationWrapper(env)
