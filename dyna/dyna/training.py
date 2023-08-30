@@ -22,6 +22,7 @@ from model_based.nn_model import NNModel
 def make_dyna_train_fn(
     dyna_hyp: DynaHyperParams,
     nn_model: NNModel,
+    ac_model: Callable[[int], ActorCritic] = ActorCritic,
 ):
     tx_ac = optax.chain(
         optax.clip_by_global_norm(dyna_hyp.MAX_GRAD_NORM),
@@ -35,7 +36,7 @@ def make_dyna_train_fn(
         FlattenObservationWrapper(nn_model(model=dyna_hyp.model_hyp.MODEL_FN))
     )
     env = LogWrapper(FlattenObservationWrapper(env_model._env._env.parent_class()))
-    actor_critic = ActorCritic(env.action_space(env.default_params).n)
+    actor_critic = ac_model(env.action_space(env.default_params).n)
     state_shape = np.prod(
         env.observation_space(env.default_params).shape, dtype=np.int32
     )

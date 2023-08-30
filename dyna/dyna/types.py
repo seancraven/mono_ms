@@ -28,15 +28,15 @@ class SASTuple(NamedTuple):
 class ActorCriticHyperParams(NamedTuple):
     """Hyper parameters for the actor critic model."""
 
-    NUM_UPDATES: int = 5
-    NUM_EPOCHS: int = 6
-    MINIBATCH_SIZE: int = 64
+    NUM_UPDATES: int = 1
+    NUM_EPOCHS: int = 4
+    MINIBATCH_SIZE: int = 128
     PRIV_NUM_TIMESTEPS: int = 128
 
     CLIP_EPS: float = 0.2
     VF_COEF: float = 0.5
     ENT_COEF: float = 0.01
-    LR: float = 2.5e-4
+    LR: float = 3.5e-4
 
 
 class TransitionModelHyperParams(NamedTuple):
@@ -51,7 +51,7 @@ class TransitionModelHyperParams(NamedTuple):
 class DynaHyperParams(NamedTuple):
     ac_hyp: ActorCriticHyperParams = ActorCriticHyperParams()
     model_hyp: TransitionModelHyperParams = TransitionModelHyperParams()
-    NUM_UPDATES: int = 10
+    NUM_UPDATES: int = 1
     NUM_ENVS: int = 4
     GAMMA: float = 0.99
     GAE_LAMBDA: float = 0.95
