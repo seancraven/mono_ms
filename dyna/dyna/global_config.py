@@ -1,3 +1,4 @@
+import logging
 from dyna.types import (
     ActorCriticHyperParams,
     DynaHyperParams,
@@ -44,7 +45,7 @@ def make_hyp_cp(
         * cp_hyp.ac_hyp.MINIBATCH_SIZE
         * cp_hyp.NUM_ENVS
     )
-    print("Total_updates", total_updates)
+    logging.debug(f"Total_updates{total_updates}")
     return cp_hyp
 
 
@@ -64,5 +65,5 @@ def make_hyp_catch(
         * cp_hyp.ac_hyp.MINIBATCH_SIZE
         * cp_hyp.NUM_ENVS
     )
-    print("Total_updates", total_updates)
+    logging.debug(f"Total_updates{total_updates}")
     return cp_hyp

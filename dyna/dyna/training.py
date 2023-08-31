@@ -21,7 +21,7 @@ from model_based.nn_model import NNModel
 
 def make_dyna_train_fn(
     dyna_hyp: DynaHyperParams,
-    nn_model: NNModel,
+    nn_model: Callable[[], NNModel],
     ac_model: Callable[[int], ActorCritic] = ActorCritic,
 ):
     tx_ac = optax.chain(

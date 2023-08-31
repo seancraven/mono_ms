@@ -16,12 +16,14 @@ class SASTuple(NamedTuple):
     state: Obs
     action: Actions
     next_state: Obs
+    done: Any
 
     def join(self, other: SASTuple) -> SASTuple:
         return SASTuple(
             state=jnp.concatenate([self.state, other.state], axis=0),
             action=jnp.concatenate([self.action, other.action], axis=0),
             next_state=jnp.concatenate([self.next_state, other.next_state], axis=0),
+            done=jnp.concatenate([self.done, other.done], axis=0),
         )
 
 
@@ -43,8 +45,8 @@ class TransitionModelHyperParams(NamedTuple):
     USE_MODEL: bool = True
     MODEL_FN: Callable = Model
     MINIBATCH_SIZE: int = 64
-    NUM_EPOCHS: int = 10
-    LR: float = 1e-3
+    NUM_EPOCHS: int = 50
+    LR: float = 1e-4
     PARAMS: Optional[jt.PyTree] = None
 
 
