@@ -27,6 +27,8 @@ class TransitionModel(nn.Module, ABC):
 
 
 class Model(TransitionModel):
+    """Transition model for CartPole."""
+
     @nn.compact
     def __call__(self, state: Observation, action: Observation) -> Observation:
         action = jnp.array((action,))
@@ -43,6 +45,8 @@ class Model(TransitionModel):
 
 
 class EquiModel(TransitionModel):
+    """Equivariant G-CNN Transition model for CartPole."""
+
     @nn.compact
     def __call__(self, state: Observation, action: Action) -> Observation:
         action = jnp.array((action,))
