@@ -46,7 +46,7 @@ class TransitionModelHyperParams(NamedTuple):
     MODEL_FN: Callable = Model
     MINIBATCH_SIZE: int = 64
     NUM_EPOCHS: int = 50
-    LR: float = 1e-4
+    LR: float = 1e-3
     PARAMS: Optional[jt.PyTree] = None
 
 

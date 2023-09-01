@@ -8,17 +8,18 @@ import jaxtyping as jt
 import numpy as np
 from base_rl.higher_order import Trajectory
 from flax.training.train_state import TrainState
-from model_based.train import SARSDTuple
+from model_based.train import CatchModel, SARSDTuple
 import optax
-from model_based.nn_model import NNCatch
+from model_based.transition_models import CatchEquiModel_
 
 from dyna.types import DynaHyperParams, EnvModelLosses, SASTuple
+import logging
 
 
 def make_transition_model_update(hyper_params: DynaHyperParams, apply_fn):
     bce = False
-    if hyper_params.model_hyp.MODEL_FN == NNCatch:
-        print("bce")
+    if hyper_params.model_hyp.MODEL_FN in [CatchModel, CatchEquiModel_]:
+        logging.debug("BCE")
         bce = True
     mini_batch_fn = make_mini_batch_fn(apply_fn, bce=bce)
     # exp_fn = make_experience_fn("CartPole-v1", 10_000)
@@ -73,22 +74,24 @@ def make_mini_batch_fn(apply_fn, bce=False):
         ball_dist, paddle_dist = apply_fn(model_params, state, action)
         ball_logits = ball_dist.logits
         paddle_logits = paddle_dist.logits
-        ball_loss = (1 - done) * optax.softmax_cross_entropy(
-            ball_logits, next_state.at[..., :45].get()
+        ball_loss = (
+            (1 - done.astype(jnp.float32))
+            * optax.softmax_cross_entropy(ball_logits, next_state.at[..., :45].get())
         ).mean()
-        paddle_loss = (1 - done) * optax.softmax_cross_entropy(
-            paddle_logits, next_state.at[..., 45:].get()
+        paddle_loss = (
+            (1 - done.astype(jnp.float32))
+            * optax.softmax_cross_entropy(paddle_logits, next_state.at[..., 45:].get())
         ).mean()
         return ball_loss + paddle_loss
 
-    def _mini_batch_fn(train_state, data):
-        grad_fn = jax.value_and_grad(bce_loss if bce else loss_fn)
+    def _mini_batch_fn(train_state, data, loss_fn):
+        grad_fn = jax.value_and_grad(loss_fn)
         loss, grads = grad_fn(train_state.params, data)
 
         train_state = train_state.apply_gradients(grads=grads)
         return train_state, loss
 
-    return _mini_batch_fn
+    return lambda x, d: _mini_batch_fn(x, d, loss_fn if not bce else bce_loss)
 
 
 def trajectory_to_sas_tuple(trajectory: Trajectory) -> SASTuple:
