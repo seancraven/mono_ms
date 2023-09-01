@@ -191,7 +191,7 @@ This superior generalization is demonstrated when the model is trianed on random
 This property may be important in training dyna Agents. Where initially the agents' policies are suboptimal and may tend to be worse at keeping the pole upright. However, the agents' learning in the simulated environments may be augmented by the improved generalization to small angels. As the policies improve from simulated experience, they tend towards having more transitions at small angels.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
 
 \subsubsection{Results: Supervised-Dyna}
-Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the supervised-dyna algorithm~\ref{alg:supervised-dyna}. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in the appendix~\ref{apd:supervised-dyna-catch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
+Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the supervised-dyna algorithm~\ref{alg:supervised-dyna}. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in the appendix~\ref{ap:supervised-dyna-catch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
 \begin{figure}\label{fig:supervised-dyna-cp}
 	\centering
 	\includegraphics[width=\textwidth]{Figures/Expert_dyna_cp_best.png}

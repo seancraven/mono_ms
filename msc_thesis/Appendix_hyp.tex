@@ -1,0 +1,87 @@
+\section{Hyperparameters}\label{ap:hyp}
+\subsection{Actor-Critic}
+All of the hyperparameter choices come from PureJaxRL\cite{alet2021noether}, apart from those for Catch which were slightly modified.
+\begin{table}[h!]\label{tab:hyp_ac_cp}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		Hyperparameter  & Value             \\
+		\hline
+		Optimizer       & Adam              \\
+		Learning rate   & 3.5\cdot 10 ^{-4} \\
+		Adam: $\beta_1$ & 0.9               \\
+		Adam: $\beta_2$ & 0.999             \\
+		Adam:$\epsilon$ & 10^{-8}           \\
+		Max Grad Norm   & 0.5               \\
+		Mini Batch Size & 128               \\
+		\hline
+	\end{tabular}
+	\caption{CartPole Optimizer Hyperparameters}
+\end{table}
+\begin{table}[h!]\label{tab:hyp_ac_catch}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		Hyperparameter  & Value             \\
+		\hline
+		Optimizer       & Adam              \\
+		Learning rate   & 3.5\cdot 10 ^{-4} \\
+		Adam: $\beta_1$ & 0.9               \\
+		Adam: $\beta_2$ & 0.999             \\
+		Adam:$\epsilon$ & 10^{-8}           \\
+		Max Grad Norm   & 0.5               \\
+		Mini Batch Size & 10                \\
+		\hline
+	\end{tabular}
+	\caption{Catch Optimizer Hyperparameters}
+\end{table}
+
+\begin{table}[h!]\label{tab:hyp_rl}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		Hyperparameter      & Value \\
+		\hline
+		PPO:Clip-$\epsilon$ & 0.2   \\
+		Value coefficient   & 0.5   \\
+		Entropy coefficient & 0.01  \\
+		Update length       & 128   \\
+		Discount: $\gamma$  & 0.99  \\
+		GAE-$\lambda$       & 0.95  \\
+		\hline
+	\end{tabular}
+	\caption{RL Hyperparameters}
+\end{table}
+
+\begin{table}[h!]\label{ap:parm}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		Network                  & Parameter Count \\
+		\hline
+		Actor-Critic             & 9155            \\
+		Symmetrizer              & 9155            \\
+		Equivariant Actor-Critic & 8961
+		\hline
+	\end{tabular}
+	\caption{Actor-Critic network parameter Counts}
+\end{table}
+
+\subsection{Transition Model}
+\begin{table}[h!]\label{tab:hyp_tm}
+	\centering
+	\begin{tabular}{|c|c|}
+		\hline
+		Hyperparameter  & Value           \\
+		\hline
+		Optimizer       & Adam            \\
+		Learning rate   & 1\cdot 10 ^{-3} \\
+		Adam: $\beta_1$ & 0.9             \\
+		Adam: $\beta_2$ & 0.999           \\
+		Adam:$\epsilon$ & 10^{-8}         \\
+		Max Grad Norm   & 0.5             \\
+		Mini Batch Size & 64              \\
+		\hline
+	\end{tabular}
+	\caption{Transition Model Hyperparameters}
+\end{table}
