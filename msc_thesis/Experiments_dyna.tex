@@ -3,16 +3,35 @@ Previously, we have demonstrated equivariant world models provide advantages ove
 
 However, for such techniques to be truly useful, the models must demonstrate an improvement in sample efficiency, while trained online in a full Dyna~\ref{algo:Dyna} setting.
 
-In the same fashion as the Supervised-Dyna agents before, 128 agents were trained at each hyperparameter configuration initialized with independent random seeds. In comparison to the Supervised-Dyna experiments before agents are trained across 5 planning ratios and four values for the number of Dyna iterations. The planning ratio is much the same as before and controls the fraction of time spent planning to acting. The number of Dyna iterations controls the size of the buffer of transitions for both the transition model. As the number of timesteps is fixed, this provides a tradeoff between update frequency and dataset size for the transition model training.
-
+In the same fashion as the Supervised-Dyna agents before, 128 agents were trained at each hyperparameter configuration initialized with independent random seeds. In comparison to the Supervised-Dyna experiments before agents are trained across 5 planning ratios and four values for the number of Dyna iterations. The planning ratio is much the same as before and controls the fraction of time spent planning to acting. The number of Dyna iterations controls the size of the buffer of transitions for both the transition model. To help with reasoning about the training the size of the replay buffer is,
+\begin{equation}
+	|\mathcal{D}| = 50000/\text{Num Dyna Iterations}.
+\end{equation}
+Further, when considering the planning phase, the planning buffer size is related to the acting buffer by,
+\begin{equation}
+	|\mathcal{D}_p| = \textbf{PR}|\mathcal{D}|.
+\end{equation}
+As the number of timesteps is fixed the number of Dyna iterations provides a mechanism for controlling the frequency of planning.
 \subsection{Results: CartPole Dyna}
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\includegraphics[width=\textwidth]{Figures/dyna_sweep_cp.png}
 	\caption{A matrix of plots for mean episodic returns for the CartPole Dyna agents across 128 random seeds
-		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple with }
+		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple. Each plot contains 5 lines, in black is the baseline actor-critic implementation. The colorbars indicate the number of dyna iterations used to train the agents.}
 	\label{fig:cp_dyna}
 \end{figure}
 
+The matrix of plots in Fig.\ref{fig:cp_dyna} shows underwhelming performance for the Dyna implementation. Both the Dyna and Equi-Dyna agents underperform the baseline actor-critic in all plots. Further, the model's performance is strikingly similar across all planning ratios and Dyna iterations.
 
+When only considering a planning ratio of 0.5, where, the agent learns from twice the number of real transitions as simulated transitions. The agents with higher Dyna iteration count, thus fewer gradient updates\footnote{Batch size is constant, so parameter updates is a function of dataset size.} from simulated transitions, perform similarly to the baseline. They did not demonstrate the discontinuities seen in models with higher Dyna iterations.
+
+These discontinuities are caused by the actor-critic network gaining too much experience in the planning environment. If the planning environment does not simulate the true environment well enough.
+
+The evidence for this is threefold. Firstly such discontinuities, are clearly absent in the expert transition model seen in Fig.\ref{fig:supervised-dyna-cp}. Where, the pretrained transition model, has acess to more data than is seen by the online trained world models throughout the whole training, and achieves much lower validation loss $0.009$ compared with the lowest transition model training loss across all hyperparameters of $0.039$. This factor of four loss indicates a far more accurate transition model.
+
+Secondly, considering higher planning ratios it can be seen that the discontinuities are even larger. As higher planning ratios correspond to the actor-critic performing more simulated training. This results in further fitting the actor-critic to the simulated environment. When the agent returns to the true environment the return delta is larger for higher planning ratios, indicating the negative effect on the policy in performing simulated training.
+
+Finally, when considering the higher planning ratios and higher Dyna iterations, we see that when the majority of policy updates are in the simulated environment, and the transition model learns from a limited amount of simulated data, that the effectiveness of the models collapses in the true environment.
+
+This results in a set of Dyna agents where the equivariance inductive bias, provides no improvement in performance. This is attributed to the poor quality of the online learnt world models. Where the equivariant G-CNN transition model's superior data efficiency and generalization is not sufficient to overcome the limited sample count available for training transition models.
 
