@@ -38,11 +38,22 @@ This results in a set of Dyna agents where the equivariance inductive bias, prov
 \subsection{Catch}
 In comparison to the CartPole environment the Catch environment is discrete and as such may provide a simpler task for learning.
 In the same manner as CartPole, a set of experiments were performed, varying the planning ratio and number of Dyna iterations.
-\begin{figure}
+\begin{figure}[h!]
 	\centering
 	\includegraphics[width=\textwidth]{Figures/dyna_sweep_catch.png}
 	\caption{A matrix of plots for mean episodic returns for the Catch Dyna agents across 128 random seeds
 		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple. Each plot contains 5 lines, in black is the baseline actor-critic implementation. The colorbar indicate the number of dyna iterations used to train the agents.}
 	\label{fig:catch_dyna}
 \end{figure}
-
+Despite the small discrete state space, none of the agents are able to improve upon the actor-critic baseline. The similarity, in the patterns shown in the return curves between Catch and CartPole imply that the overfitting to poor simulation is also present.
+
+In the mean returns of the Catch agents over 128 seeds, again minimal difference is seen between the Equi-Dyna agent and the Dyna agent. However, their training dynamics do seem to be similar. At higher iteration count, the return curves are smoother, due to reduced number of updates in the planned environment, not allowing the policy to drift from the value learnt in the true environment dramatically. When the planning ratio is increased, the impact upon the quality of the policy is more sever. This degradation is attributed to overfitting to a simulated environment.
+
+In comparison to CartPole, the Catch environment only has 675 possible transitions. However, when testing the expert policy and the random policies in Section~\ref{sec:model-based} the joint expert random policy, did not sample every possible state action pair, in 10,000 sampled transitions. When training the agent's world model online from the replay buffer, not all transitions may be present, and the model's inability to generalize to unseen states is still a problem. This poor generalization performance is clear in the return curves as the agent's transition models are not able to produce sufficiently accurate transitions for the policy to learn from.
+
+
+\section{Conclusion}
+In both environment similar behaviour was observed. The Dyna and Equi-Dyna have very comparable performance at the same hyperparameters, which always underperformed the baseline. As such, planning with online models was ineffective.
+
+The poor performance was attributed to transition models that do not deliver sufficient accuracy in producing trajectories that simulate the environment well enough to provide an alternative to samples in the true environment.
+

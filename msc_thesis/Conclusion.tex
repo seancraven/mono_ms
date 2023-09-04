@@ -1,0 +1,8 @@
+\chapter{Conclusions}\label{sec:conclusions}
+This report presented multiple novel contributions. With the focus of leveraging symmetries for reinforcement learning agents. The first of a fully equivariant actor-critic architecture using discrete group G-CNNs. The equivariant agents showed superior sample efficiency and robustness to the MLP baseline.
+
+In contrast to using equivariant actor-critic agents, equivariant transition models were investigated. Here, the Proximal Pooling layer Sec.\ref{sec:proximal_pool} was introduced, which provides a method to produce approximately equivariant transition models from G-CNNs. In experiments, once trained these models demonstrated full equivariance. The power of this was shown in their ability to predict transitions from discrete actions unseen in the training set.
+
+Finally, the equivariant transition models were applied to Dyna agents, with MLP actor-critics. First the transition models were trained offline, with large volumes of transition samples. The pre-trained equivariant transition models agent in the CartPole environment demonstrated a substantial uplift over the actor-critic baseline. In the Catch environment, the results were less impressive.
+
+When extended to online trained transition models, neither the equivariant transition models not the MLP transition models
