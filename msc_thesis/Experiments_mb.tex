@@ -191,8 +191,8 @@ This superior generalization is demonstrated when the model is trianed on random
 This property may be important in training dyna Agents. Where initially the agents' policies are suboptimal and may tend to be worse at keeping the pole upright. However, the agents' learning in the simulated environments may be augmented by the improved generalization to small angels. As the policies improve from simulated experience, they tend towards having more transitions at small angels.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
 
 \subsubsection{Results: Supervised-Dyna}
-Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the supervised-dyna algorithm~\ref{alg:supervised-dyna}. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in the appendix~\ref{ap:supervised-dyna-catch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
-\begin{figure}\label{fig:supervised-dyna-cp}
+Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the supervised-dyna algorithm~\ref{alg:sup-dyna}. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in the appendix~\ref{ap:sup-dyna-ctch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
+\begin{figure}
 	\centering
 	\includegraphics[width=\textwidth]{Figures/Expert_dyna_cp_best.png}
 	\caption{Left: Mean episodic returns for the CartPole agents across 128 random seeds
@@ -201,8 +201,9 @@ Using the off-line trained world models above on the joint expert-random data. B
 		number of experience time-steps in the MDP. Both of the plots are moving
 		averages, with windows of 10 time-steps. Additionally, two standard errors are
 		plotted. The equi-dyna model uses a planning ratio of 8 and the Dyna model uses a planning ratio of 1.}
+	\label{fig:sup-dyna-cp}
 \end{figure}
-The results are displayed in Fig.\ref{fig:supervised-dyna-cp}. Where the equi-dyna model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the dyna model only providing a small uplift over a model-free baseline.
+The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the equi-dyna model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the dyna model only providing a small uplift over a model-free baseline.
 \begin{table}
 	\centering
 	\begin{tabular}{|c|c|c|c|}
@@ -215,10 +216,10 @@ The results are displayed in Fig.\ref{fig:supervised-dyna-cp}. Where the equi-dy
 		\hline
 	\end{tabular}
 	\caption{Cumulative episodic returns tabulated for the three network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
-	\label{tab:supervised-dyna-cp}
+	\label{tab:sup-dyna-cp}
 \end{table}
 
-This trend, when investigated at the $20\%, 40\%$, and $100\%$ completion in Table.\ref{tab:supervised-dyna-cp} is clear. Particularly impressively, at $40\%$ of the sampled experience the equi-dyna model is able to achieve an expert policy on average. With further training, it seems that the policy diverges further. This is the most sample efficient model yet, and suggests that with a sufficiently good world model, the agent may be able to achieve strong generalization performance.
+This trend, when investigated at the $20\%, 40\%$, and $100\%$ completion in Table.\ref{tab:sup-dyna-cp} is clear. Particularly impressively, at $40\%$ of the sampled experience the equi-dyna model is able to achieve an expert policy on average. With further training, it seems that the policy diverges further. This is the most sample efficient model yet, and suggests that with a sufficiently good world model, the agent may be able to achieve strong generalization performance.
 \subsection{Catch}
 
 Again construction of the G-CNN is much the same as in the case for CartPole. The basic network was built from group convolutions, with two hidden layers. There is one notable difference between these models and the CartPole models. The output for the Catch transition models are two distributions over the ball and paddle locations. In contrast to the real valued outputs of the CartPole model. These distributions are $T(s, a)_b, T(s, a)_p$ which are the distribution over the ball and paddle locations, respectively.
@@ -286,3 +287,4 @@ When using the aforementioned transition models for performing supervised-dyna, 
 In the Catch environment, both the MLP and G-CNN models achieved identical accuracy after training. When employed to plan trajectories for a dyna agent, these models resulted in a slight improvement in the initial episodes compared to a model-free implementation. Furthermore, they exhibited significantly improved stability across the worst-performing random seeds.
 
 The results of the supervised-dyna experiments indeed demonstrate the effectiveness of the dyna implementation. In certain scenarios, the transition model can effectively enhance an agent's sample efficiency. However, the marginal improvement in performance gained from models that generalize slightly worse suggests that the quality of the model plays a pivotal role in enabling effective model-based reinforcement learning. This observation is not surprising.
+

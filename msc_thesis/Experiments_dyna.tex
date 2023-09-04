@@ -17,7 +17,7 @@ As the number of timesteps is fixed the number of Dyna iterations provides a mec
 	\centering
 	\includegraphics[width=\textwidth]{Figures/dyna_sweep_cp.png}
 	\caption{A matrix of plots for mean episodic returns for the CartPole Dyna agents across 128 random seeds
-		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple. Each plot contains 5 lines, in black is the baseline actor-critic implementation. The colorbars indicate the number of dyna iterations used to train the agents.}
+		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple. Each plot contains 5 lines, in black is the baseline actor-critic implementation. The colorbar indicate the number of dyna iterations used to train the agents.}
 	\label{fig:cp_dyna}
 \end{figure}
 
@@ -27,7 +27,7 @@ When only considering a planning ratio of 0.5, where, the agent learns from twic
 
 These discontinuities are caused by the actor-critic network gaining too much experience in the planning environment. If the planning environment does not simulate the true environment well enough.
 
-The evidence for this is threefold. Firstly such discontinuities, are clearly absent in the expert transition model seen in Fig.\ref{fig:supervised-dyna-cp}. Where, the pretrained transition model, has acess to more data than is seen by the online trained world models throughout the whole training, and achieves much lower validation loss $0.009$ compared with the lowest transition model training loss across all hyperparameters of $0.039$. This factor of four loss indicates a far more accurate transition model.
+The evidence for this is threefold. Firstly such discontinuities, are clearly absent in the expert transition model seen in Fig.\ref{fig:sup-dyna-cp}. Where, the pretrained transition model, has acess to more data than is seen by the online trained world models throughout the whole training, and achieves much lower validation loss $0.009$ compared with the lowest transition model training loss across all hyperparameters of $0.039$. This factor of four loss indicates a far more accurate transition model.
 
 Secondly, considering higher planning ratios it can be seen that the discontinuities are even larger. As higher planning ratios correspond to the actor-critic performing more simulated training. This results in further fitting the actor-critic to the simulated environment. When the agent returns to the true environment the return delta is larger for higher planning ratios, indicating the negative effect on the policy in performing simulated training.
 
@@ -35,3 +35,14 @@ Finally, when considering the higher planning ratios and higher Dyna iterations,
 
 This results in a set of Dyna agents where the equivariance inductive bias, provides no improvement in performance. This is attributed to the poor quality of the online learnt world models. Where the equivariant G-CNN transition model's superior data efficiency and generalization is not sufficient to overcome the limited sample count available for training transition models.
 
+\subsection{Catch}
+In comparison to the CartPole environment the Catch environment is discrete and as such may provide a simpler task for learning.
+In the same manner as CartPole, a set of experiments were performed, varying the planning ratio and number of Dyna iterations.
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{Figures/dyna_sweep_catch.png}
+	\caption{A matrix of plots for mean episodic returns for the Catch Dyna agents across 128 random seeds
+		plotted against number of interaction time-steps in the MDP. The matrix varies planning ratio horizontally, and the top row is the conventional MLP transition model in blue. The equivariant transition models are all on the bottom row, in purple. Each plot contains 5 lines, in black is the baseline actor-critic implementation. The colorbar indicate the number of dyna iterations used to train the agents.}
+	\label{fig:catch_dyna}
+\end{figure}
+
