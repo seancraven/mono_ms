@@ -67,18 +67,18 @@ if __name__ == "__main__":
     with open("./base_metrics_catch.pkl", "wb") as f_base:
         pickle.dump(model_free_results, f_base)
     del model_free_results
-    # print("The Equi boi")
-    # for pr in tqdm.tqdm(planning_ratios):
-    #     for iter_ in dyna_iters:
-    #         print(f"PR: {pr} | Iter: {iter_}")
-    #         model_sweep_results = memory_limited_train(rng, pr, iter_, CatchEquiModel_)  # type: ignore
-    #         with open(f"./equi_catch_dyna_pr{pr}_iter{iter_}_50.pkl", "wb") as equi_f:
-    #             pickle.dump(jax.device_put(model_sweep_results, cpu), equi_f)
-    #         del model_sweep_results
-    # for pr in tqdm.tqdm(planning_ratios):
-    #     for iter_ in dyna_iters:
-    #         print(f"PR: {pr} | Iter: {iter_}")
-    #         model_sweep_results = memory_limited_train(rng, pr, iter_, CatchModel)  # type: ignore
-    #         with open(f"./dyna_catch_pr{pr}_iter{iter_}_50.pkl", "wb") as f:
-    #             pickle.dump(jax.device_put(model_sweep_results, cpu), f)
-    #         del model_sweep_results
+    print("The Equi boi")
+    for pr in tqdm.tqdm(planning_ratios):
+        for iter_ in dyna_iters:
+            print(f"PR: {pr} | Iter: {iter_}")
+            model_sweep_results = memory_limited_train(rng, pr, iter_, CatchEquiModel_)  # type: ignore
+            with open(f"./equi_catch_dyna_pr{pr}_iter{iter_}_50.pkl", "wb") as equi_f:
+                pickle.dump(jax.device_put(model_sweep_results, cpu), equi_f)
+            del model_sweep_results
+    for pr in tqdm.tqdm(planning_ratios):
+        for iter_ in dyna_iters:
+            print(f"PR: {pr} | Iter: {iter_}")
+            model_sweep_results = memory_limited_train(rng, pr, iter_, CatchModel)  # type: ignore
+            with open(f"./dyna_catch_pr{pr}_iter{iter_}_50.pkl", "wb") as f:
+                pickle.dump(jax.device_put(model_sweep_results, cpu), f)
+            del model_sweep_results

@@ -186,7 +186,7 @@ Model-based algorithms have the potential to provide much better sample efficien
 
 \section{Dyna} \label{sec:Dyna}
 Dyna style algorithms\cite{sutton2018reinforcement, sutton2012dyna} augment model free algorithms, while using the same experience based updates, such as Q-learning~\ref{sec:Q-learning} or PPO~\ref{sec:PPO}, they train, $T(S_{t+1}|S_t, A_t)$ a transition model. This can improve the sample efficiency of an agent. The basic Dyna formulation is outlined in pseudocode below.
-\begin{algorithm}
+\begin{algorithm}\label{algo:Dyna}
 	\caption{Dyna}
 	\begin{algorithmic}
 		\State Initialise $\theta, \phi, \psi,$ randomly
@@ -205,9 +205,11 @@ Dyna style algorithms\cite{sutton2018reinforcement, sutton2012dyna} augment mode
 		\For{Num Planning Updates}
 		\State Sample transition tuples from policy $\pi_\theta \sim (s, a, s')$ on $T_\phi$
 		\State Construct replay buffer from planned transitions $\mathcal{D}_{p} = \{(s, a, s', r)_i\}_1^N$
-		\State $\theta' \leftarrow$ Minimize $L_{rc}(\theta, \mathcal{D}_p)$
+		\State $\theta' \leftarrow$ Minimize $L_{a}(\theta, \mathcal{D}_p)$
 		\EndFor
 		\State $\theta \leftarrow \theta'$
+		\State $\emptyset \leftarrow \mathcal{D}$
+		\State $\emptyset \leftarrow \mathcal{D}_p$
 		\EndFor
 	\end{algorithmic}
 \end{algorithm}

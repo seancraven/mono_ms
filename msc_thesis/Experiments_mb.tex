@@ -124,7 +124,7 @@ When trained, the Catch model is able to achieve a validation accuracy of 1. As 
 As motivation for why this occurs, when the G-CNN performs a forward pass, one of the multiple outputs of $\mathcal{T} f(\ell_i^\mathcal{S}s,\ell_i^\mathcal{A} a)$, is empirically non correlated to the other group members, for all parts of the state affected by the transformations.
 \begin{figure}[h!]
 	\centering
-	\includegraphics[width = 0.5\textwidth]{Figures/logits_correlation.png}
+	\includegraphics[width = 0.6\textwidth]{Figures/logits_correlation.png}
 	\caption{Pearson $r^2$ value for each logit in the output of the transition model between $g(s, a)$ and $\ell_r^\mathcal{S}g(\ell_r^\mathcal{S}s,\ell_r^\mathcal{A}a)$, for one of the 675 possible state action pairs, across 1000 random  seeds for network initialization. }
 	\label{fig:logits_correlation}
 \end{figure}
