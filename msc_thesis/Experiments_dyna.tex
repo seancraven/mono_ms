@@ -57,3 +57,5 @@ In both environment similar behaviour was observed. The Dyna and Equi-Dyna have 
 
 The poor performance was attributed to transition models that do not deliver sufficient accuracy in producing trajectories that simulate the environment well enough to provide an alternative to samples in the true environment.
 
+The inaccurate transition models suggest providing the models with more data and/or not using the transition model before some point in the training such that enough data can be sampled from the MDP that the transition model can generalize effectively. This Hoewever, would not have been straightforward to implement. Implementation constrains of the numerical computing library JAX and available memory, meant that there was no ability to grow array size in code compiled to the XLA backend. This in conjunction with the large memory footprint of thousands of transitions, meant that the workarounds tried with pre allocated replay buffers were infeasible due to out of memory errors on the GPU and RTX 3090.
+

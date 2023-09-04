@@ -1,8 +1,19 @@
 \chapter{Conclusions}\label{sec:conclusions}
-This report presented multiple novel contributions. With the focus of leveraging symmetries for reinforcement learning agents. The first of a fully equivariant actor-critic architecture using discrete group G-CNNs. The equivariant agents showed superior sample efficiency and robustness to the MLP baseline.
+This report presented multiple novel contributions. With the focus of leveraging symmetries for reinforcement learning agents. The first of these contributions was a fully equivariant actor-critic architecture using discrete group G-CNNs. These equivariant agents showed superior sample efficiency and robustness to the MLP baselines in multiple environments.
 
-In contrast to using equivariant actor-critic agents, equivariant transition models were investigated. Here, the Proximal Pooling layer Sec.\ref{sec:proximal_pool} was introduced, which provides a method to produce approximately equivariant transition models from G-CNNs. In experiments, once trained these models demonstrated full equivariance. The power of this was shown in their ability to predict transitions from discrete actions unseen in the training set.
+In contrast to using equivariant structured actor-critic agents, equivariant transition models were investigated. Here, the Proximal Pooling layer Sec.\ref{sec:proximal_pool} was proposed, which provides a method to produce approximately equivariant transition models from G-CNNs. In experiments, once trained these models demonstrated full equivariance. The power of this was shown in their ability to predict transitions from discrete actions unseen in the training set.
 
 Finally, the equivariant transition models were applied to Dyna agents, with MLP actor-critics. First the transition models were trained offline, with large volumes of transition samples. The pre-trained equivariant transition models agent in the CartPole environment demonstrated a substantial uplift over the actor-critic baseline. In the Catch environment, the results were less impressive.
 
-When extended to online trained transition models, neither the equivariant transition models not the MLP transition models
+When extended to online trained transition models, neither the equivariant transition models nor the MLP transition models were able to outperform the actor-critic baseline. This inability to perform effective planning was attributed to the transition models not achieving high enough accuracy in simulating the true environment for the leant policy to improve when planning.
+
+As both the equivariant transition model and MLP transition model failed to generalize sufficiently, this highlights an issue with the Dyna algorithm when training a model online. Despite the fact that the equivariant model demonstrated improved generalization. This improved generalization was not sufficient to stop the actor-critic agent overfitting to an inaccurate transition model impairing the performance of the actor-critic agent in the true environment.
+
+The report presents clear evidence that equivariance is an effective inductive bias in symmetric MDPs, providing improved sample efficiency and robustness in training. Additionally, the report provides a path for future investigation with equivariant G-CNNs world models.
+
+
+\section{Future Work}
+There exist multiple interesting future avenues to take. Firstly, implementing alternative model-based RL algorithms with the equivariant G-CNN transition models would be interesting to see if performance improvements can be seen, not only when the model is trained offline.
+
+Secondly, possibly most interestingly, is that there may be the possibility of learning the group structure, in the G-CNNs using a Meta-Learning method, like that proposed by \cite{zhou2020meta}. This would entail training agents simultaneously, as we do across multiple random seeds acting in different instantiations of environments, learning the permutation matrices described in Sec.\ref{sec:proximal_pool}.
+
