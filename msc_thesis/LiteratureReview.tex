@@ -3,7 +3,7 @@
 
 \section{Deep Learning and MDP Homomorphisms}
 As discussed previously In Chapter \ref{chap:background} the idea of learning a group structured MDP homomorphism is a powerful tool to make the learning problem posed by an MDP simpler. This section will discuss current attempts at exploiting MDP homomorphisms, with a focus on group-structured MDP homomorphisms.
-\subsection{MDP Homomorphic Networks}
+\subsection{MDP Homomorphic Networks}\label{sec:symmetrizer}
 \cite{vanderpol2020mdp} introduces the idea of performing policy-based learning that respects the symmetry of the environment, by constraining the possible policies that can be represented by a neural network.
 
 This is achieved by using a network equivariant to Group Structured transformations on discrete action spaces. When a group-structured operation transforms the input to the network. The output policy is also transformed by this operation due to the equivariance property of the network. Thus, it exploits a group structured MDP homomorphism.

@@ -186,10 +186,10 @@ Model-based algorithms have the potential to provide much better sample efficien
 
 \section{Dyna} \label{sec:Dyna}
 Dyna style algorithms\cite{sutton2018reinforcement, sutton2012dyna} augment model free algorithms, while using the same experience based updates, such as Q-learning~\ref{sec:Q-learning} or PPO~\ref{sec:PPO}, they train, $T(S_{t+1}|S_t, A_t)$ a transition model. This can improve the sample efficiency of an agent. The basic Dyna formulation is outlined in pseudocode below.
-\begin{algorithm}\label{algo:Dyna}
+\begin{algorithm}
 	\caption{Dyna}
 	\begin{algorithmic}
-		\State Initialise $\theta, \phi, \psi,$ randomly
+		\State Iritialize $\theta, \phi, \psi,$ randomly
 		\For {Num Epochs}
 		\For {Num Dyna Iterations}
 		\For {Num Acting Updates}
@@ -211,7 +211,9 @@ Dyna style algorithms\cite{sutton2018reinforcement, sutton2012dyna} augment mode
 		\State $\emptyset \leftarrow \mathcal{D}$
 		\State $\emptyset \leftarrow \mathcal{D}_p$
 		\EndFor
+		\EndFor
 	\end{algorithmic}
+	\label{algo:Dyna}
 \end{algorithm}
 Here; $L_{a}$, $L_{mb}$, and $L_{rw}$ are the agent, transition model and reward model losses, respectively. The minimization is typically through stochastic gradient descent.
 
@@ -299,73 +301,9 @@ Where $\ell_g^\mathcal{X}$ is the representation of the element $g \in G$ in the
 
 The abstract MDP can then be solved with dynamic programming or approximate dynamic programming techniques\cite{van2020plannable, rezaei2022continuous}, and the policy found in the abstract MDP can be "lifted" to the original MDP.
 
-
-
-\section{CartPole}\label{sec:cartpole}
-\begin{figure}[h!]
-	\centering
-	\includegraphics[width=0.5\textwidth]{Figures/cart_pole.png}
-	\caption{The CartPole environment.}
-\end{figure}
-The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical, in this instantiation. The action space$a \in {0,1}$, for the problem, is to either push the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. A state is a vector s:
-\begin{equation}
-	s = \begin{pmatrix}
-		x       \\
-		\dot{x} \\
-		\theta  \\
-		\dot{\theta}
-	\end{pmatrix}
-\end{equation}
-Thus, $s \in \mathbb{R}^4$.
-
-Typically, the episodes are truncated at 500 timesteps, and the reward is 1, so the return is an integer $G_0 \in [0, 500]$. An episode terminates if the pole falls over or the cart moves too far from the centre. If a human were learning to solve this problem, one would notice that the expected result of pushing the cart left when it is leaning right at some positions is the same as pushing the cart right when it is leaning left at the displacement in the opposite direction. This is an example of symmetry in the problem, and it is this symmetry that is exploited by~\cite{vanderpol2020mdp, mondal2020group}.
-
-To learn the transition dynamics of CartPole and agent must learn how the system evolves through time. In CartPole the transitions between different states in CartPole are governed by the PDEs:
-
-\begin{equation}
-	\ddot{\theta} = \frac{g \sin \theta + \cos\theta \left({\frac{-F - m_p l \dot{\theta}^2 \sin(\theta)}{m_c + m_p}} \right )}{l\left ( \frac{4}{3} - \frac{m_p \cos^2 \theta}{m_c + m_p}\right)},
-\end{equation}
-
-\begin{equation}
-	\ddot{x} = \frac{ F + m_p l (\dot{\theta}^2 \sin \theta - \ddot{\theta} \cos \theta)}{m_c + m_p}.
-\end{equation}
-Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the angle between the pole and vertical, with the pole length $l$. $F$ is the action force, where the positive direction is right. The masses of the cart and the pole are $m_c, m_p$, respectively. Finally $\dot{}$, indicates a derivative with respect to time.
-
-These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
-
-Both learning a policy and a transition model may be augmented by exploiting symmetry. The symmetry present in CartPole is the cyclic $C_2$ group. Other than the trivial group, the group with a single element, the $C_2$ group, is the simplest. This is a group with only two elements, the identity and inversion.
-\begin{table}[h!]\label{tab:c2}
-	\centering
-	\begin{tabular}{c | c  c}
-		$C_2$ & $e$ & $r$ \\
-		\hline
-		$e$   & $e$ & $r$ \\
-		$r$   & $r$ & $e$
-	\end{tabular}
-	\caption{The $C_2$ group table, where entry $i, j$ is the result of group operation on the $i^{th}$ and $j^{th}$ element.}
-\end{table}
-
-
-%%As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s\mathbf{s} = \mathbf{s}$ and $\pi_r^s\mathbf{s} = -\mathbf{s}$, as well as $\pi_1^a\mathbf{a} = \mathbf{a}$ and $\pi_r^a\mathbf{a} = 1 - \mathbf{a}$. Here the state and actions as vectors; $\mathbf{s}, \mathbf{a}$ are being acted upon by the vector representations of $C_2, \pi$ in their respective spaces.
-
-\section{Catch}\label{sec:catch}
-\begin{figure}
-	\label{fig:catch_env}
-	\centering
-	\includegraphics[width = 0.6\textwidth]{Figures/catch_env.png}
-	\caption{The Catch environment. The ball position is indicated by B, and the paddle position is indicated by P.}
-\end{figure}
-The Catch environment~\cite{osband2020bsuite} is another simple MDP task similar to CartPole used mainly for debugging implementations. The aim of the game is to catch a falling ball. The default implementation has ten rows and 5 columns. The ball moves down by one row every time-step, and the position of the paddle is translated left or right by the action of the agent. When the ball reaches the tenth row, the reward of the system is $+1$, if the ball and the paddle are in the same location, otherwise the reward is $-1$. For all other time-steps the reward is 0. This produces an episodic environment, with a maximum return of $1$.
-
-The state and action spaces are both discrete, and the transitions are deterministic. These states are represented to the agent as a $5\times 10$ array, with the ball and paddle's positions indicated by ones. The actions the agent can take are $\mathcal{A} = [0, 1, 2]$, that translate the ball by $1-a$. Thus, the MDP has a finite amount of transitions and state action pairs, 675.
-
-Like CartPole, the Catch environment possesses $C_2$ group symmetry, however, due to the different state and action spaces the representations of the groups are different. However, because the groups are the same the structure is that in Table~\ref{tab:c2}.
-
-
-
 \section{Neural Networks and Inductive Biases}
 
-What is nice in many ways about the original MLP model is that it is so flexible. An infinite width MLP may produce any function~\cite{hornik1989multilayer}. However, this also highlights one of their weaknesses when solving applied problems, because in theory MLPs have incredible expressive power, they are perfectly able to represent physically impossible functions. When applied to domains such as images, and physical processes where there are concrete rules governing the processes that are being modelled. Additionally, it is posited by~\cite{wolpert1995no}, that there is no free lunch in machine learning, and that there must be a constrained search space for possible algorithms. Such constraints are in other words, inductive biases~\cite{baxter2000model}. This kind of reasoning has lead to research into encoding inductive biases into Deep Networks, from~\cite{goyal2022inductive} a table of current approaches to introduce inductive biases;
+What is nice in many ways about the original MLP model is that it is so flexible. An infinite width MLP may produce any function~\cite{hornik1991approximation}. However, this also highlights one of their weaknesses when solving applied problems, because in theory MLPs have incredible expressive power, they are perfectly able to represent physically impossible functions. When applied to domains such as images, and physical processes where there are concrete rules governing the processes that are being modelled. Additionally, it is posited by~\cite{wolpert1995no}, that there is no free lunch in machine learning, and that there must be a constrained search space for possible algorithms. Such constraints are in other words, inductive biases~\cite{baxter2000model}. This kind of reasoning has lead to research into encoding inductive biases into Deep Networks, from~\cite{goyal2022inductive} a table of current approaches to introduce inductive biases;
 
 \begin{table}
 	\centering
