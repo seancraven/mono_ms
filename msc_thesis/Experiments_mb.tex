@@ -2,7 +2,7 @@
 In the previous section, Actor-Critic methods were implemented on both the CartPole and Catch environments. The inclusion of an inductive bias exploiting the symmetry of an MDP led to improvements in the sample efficiency of learning an expert policy, while maintaining robustness to initialization conditions.
 In the case where the transition dynamics of the MDP are group-structured, or approximately group-structured, this report proposes the use of an equivariant world model. With a world model that has inductive biases designed to aid in learning the MDP's transition dynamics, the world model may be learned more efficiently and accurately from fewer samples from the environment, improving the effectiveness of planning for the agent.
 
-The specific algorithm implemented to create a model-based agent is a dyna~\ref{sec:Dyna} algorithm, with a PPO \ref{sec:PPO} agent. Using the dyna-PPO agent means that when the number of planning steps is set to zero, the agent becomes a model-free PPO agent, enabling direct comparison with the baseline MLP PPO implementation~\ref{sec:baseline}.
+The specific algorithm implemented to create a model-based agent is a Dyna, Alg.\ref{algo:Dyna}, with a PPO agent ,Sec.\ref{sec:PPO}. Using the dyna-PPO agent means that when the number of planning steps is set to zero, the agent becomes a model-free PPO agent, enabling direct comparison with the baseline MLP PPO implementation, found in Sec.\ref{sec:baseline}.
 
 Both Catch and CartPole are environments where the reward function is only a function of the state the agent is in, and not a state-action pair. Further, because their rewards are simple functions of their state, this report forgoes learning the reward dynamics of the environments and uses their existing reward structure on simulated states, such that:
 \begin{equation}
@@ -11,7 +11,7 @@ Both Catch and CartPole are environments where the reward function is only a fun
 Where, $R$, is the reward function defined by the environment.
 
 \subsection{Constructing Transition Models}
-Before using a full model-free algorithm, where the model is learned online, during the training. A simplified algorithm, supervised-dyna, is tested that uses offline trained world models. The process for this is outlined below:
+Before using a full model-free algorithm, where the model is learned online, during the training. A simplified algorithm, Supervised-Dyna, is tested that uses offline trained world models. The process for this is outlined below.
 \begin{algorithm}
 	\caption{Supervised-Dyna}\label{alg:Supervised-Dyna}
 	\begin{algorithmic}
@@ -35,13 +35,13 @@ Before using a full model-free algorithm, where the model is learned online, dur
 	\end{algorithmic}
 \end{algorithm}
 
-Using offline-trained world models has benefits as an intermediate step. Firstly, the world model is stationary throughout the agent training process and can be easily investigated. Secondly, the model can be trained with ample data. This is in contrast to full dyna where the length of the planning and acting phases must be tuned as a hyperparameter, and the convergence of the models must be tuned. This hyperparameter of $\text{Num Acting Updates}/\text{Num Planning Updates}$, is referred to as the Planning ratio.
+Using offline-trained world models has benefits as an intermediate step. Firstly, the world model is stationary throughout the agent training process and can be easily investigated. Secondly, the model can be trained with ample data. This is in contrast to full Dyna where the length of the planning and acting phases must be tuned as a hyperparameter, and the convergence of the models must be tuned. This hyperparameter of $\text{Num Acting Updates}/\text{Num Planning Updates}$, is referred to as the planning ratio.
 
 
 \subsection{Proximal Pooling Motivation}
 To produce equivariant world models, there are additional challenges beyond just implementing a G-CNN, which permutes its outputs depending on the input transformation. In contrast to an equivariant actor, where simply permuting the logits of a distribution suffices for equivariant behaviour \ref{symmetrizer}, building an equivariant world model with a G-CNN means the output of the network predicts not only the next state but also a number of nonsense next states.
 
-To illustrate what the final layer output in the G-CNN is doing, consider the same setup as in the Actor-Critic networks, where there is a hidden representation whose responses get permuted depending on the application of a group-structured transformation on the input:
+To illustrate what the final layer output in the G-CNN is doing, consider the same setup as in the actor-critic networks, where there is a hidden representation whose responses get permuted depending on the application of a group-structured transformation on the input:
 
 \begin{equation}
 	f(s , a) = \begin{pmatrix}
@@ -63,7 +63,7 @@ When the network $f$ performs a forward pass and outputs the vector of responses
 \begin{equation}
 	T(\ell_i^\mathcal{S}s, \ell_i^\mathcal{A}a) = \ell_i^\mathcal{S}T(s, a).
 \end{equation}
-The first step in achieving this is to apply a group action to each row of the response of $f$. This is the Action Transformation operation, denoted as $\mat{\mathcal{T}}$, where,
+The first step in achieving this is to apply a group action to each row of the response of $f$. This is the action transformation operation, denoted as $\mat{\mathcal{T}}$, where,
 \begin{equation}
 	\mat{\mathcal{T}}f(s,a) = \begin{pmatrix}
 		g(s, a)                                                          \\
@@ -74,7 +74,6 @@ The first step in achieving this is to apply a group action to each row of the r
 	\end{pmatrix}.
 \end{equation}
 Due to group closure, this gets us quite close to equivariance! For example consider some group element, which is the inverse of $i$ acting on the input,
-
 \begin{equation}\label{eq:g-cnn}
 	\mat{\mathcal{T}}f(\ell_{-i}^\mathcal{S}s,\ell_{-i}^\mathcal{A}a) = \begin{pmatrix}
 		g(\ell_{-i}^\mathcal{S}s,\ell_{-i}^\mathcal{A}a)                 \\
@@ -112,7 +111,9 @@ Empirically, across 10,000 randomly sampled CartPole states, the network, $T(s, 
 
 This is not the case for the Catch network. Catch has $675$ state-action pairs, and the transition model when untrained achieves $98.3 \pm 0.6\%$ equivariance across all these state action pairs. The standard error is quoted over 1,000 random seed parameter initializations. The performance of the transition models is investigated in more depth in sections\ref{something,something}.
 
-When trained, the Catch model is able to achieve a validation accuracy of 1. As such, the lack of perfect equivariance may not be an issue in some scenarios. Small, discrete spaces with a high degree of symmetry are the worst in terms of a lack of equivariant predictions, as the expected distance between any two states decreases. Additionally, for MDPs where no sensible distance metric can be constructed, this method will fail.
+When trained, the Catch model is able to achieve a validation accuracy of 1. As such, the lack of perfect equivariance may not be an issue in some scenarios. Small, discrete spaces with a high degree of symmetry are the worst in terms of a lack of equivariant predictions.
+
+When there are few possible states, the probability that a random state is closer to the prediction increases. In the limit where there are two states, a distance metric between the two is either $0, d$ and as such a random prediction is the same distance or closer half of the time.  Additionally, for MDPs where no sensible distance metric can be constructed, this method will fail.
 
 \begin{proposition}
 	Given some distance metric between two states $d(s, s')$ and a G-CNN transition model of the form Eq.\ref{eq:g-cnn}. If at some time $t$ a state transition from $s_t$ to $s_{t+1}$ takes place. And the MDP has a group structured discrete symmetry, if the state space obeys,
@@ -121,7 +122,7 @@ When trained, the Catch model is able to achieve a validation accuracy of 1. As 
 	\end{equation}
 	Where $\mu$ is the steady state distribution. Then, a proximal pooling layer can be used to make the G-CNNs' forward pass approximately equivariant.
 \end{proposition}
-As motivation for why this occurs, when the G-CNN performs a forward pass, one of the multiple outputs of $\mathcal{T} f(\ell_i^\mathcal{S}s,\ell_i^\mathcal{A} a)$, is empirically non correlated to the other group members, for all parts of the state affected by the transformations.
+As motivation for why this occurs, when the G-CNN performs a forward pass, one of the multiple outputs of $\mathcal{T} f(\ell_i^\mathcal{S}s,\ell_i^\mathcal{A} a)$, is empirically non correlated to the other transition images, for all parts of the state affected by the transformations. However, on of the outputs is closely related to the input, due to the proximity of the previous state to the new state. As such, we can select the closest state on average, as the closest state to the input is expected to be the correct transition image.
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width = 0.6\textwidth]{Figures/logits_correlation.png}
@@ -134,7 +135,7 @@ With the two outputs being independent of each other, the correct next state can
 
 
 
-\subsection{CartPole}
+\subsection{Transition Models: CartPole}
 A CartPole transition model is a functional approximation to a deterministic, non-linear system.
 To learn this transition model, transitions are sampled from a policy on the MDP and stored. This is then used as a dataset to perform supervised learning on. The Transition model, $T_\phi: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}$, predicts next states from a state action-pair.
 
@@ -146,13 +147,13 @@ Here $\tau = \{(s, a , s')_1^N\}$ is a batch of transitions, of size $N$, sample
 
 
 \subsubsection{Constructing Equivariant World Models}
-Like in the previous section on \ref{sec:actor-critic}, the equivariant transition models are deep G-CNNs. In contrast to equivariant Actors in the previous section, these networks have to use the proximal pooling layer on their output \ref{sec:proximal_pool}. The equivariance described by these networks is to the identity and negative operation, such that;
+Like in the previous section on \ref{sec:actor-critic}, the equivariant transition models are deep G-CNNs. In contrast to equivariant actors in the previous section, these networks have to use the proximal pooling layer on their output \ref{sec:proximal_pool}. The equivariance described by these networks is to the identity and negative operation, such that;
 \begin{equation}
 	T(- s, 2*a - 1) =  -T(s, a), \forall
 \end{equation}
 These transition models are not truly equivariant but empirically, the proximal pooling layer suffices to meet the equivariance condition. As a distance metric to achieve the equivariance, the proximal pool uses the $L1$ distance.
 
-Similarly to the actor networks, the transition models have two hidden Group Convolution layers. The input layer for actions also transforms the action from $[0, 1]$ to $[-1, 1]$. Thus, the same group convolution layer can be used for both the state and the action input.
+Similarly to the actor networks, the transition models have two hidden group convolution layers. The input layer for actions also transforms the action from $[0, 1]$ to $[-1, 1]$. Thus, the same group convolution layer can be used for both the state and the action input.
 
 
 \subsubsection{Results: Comparing Convergence of Transition Models}
@@ -186,12 +187,12 @@ The Centre plot in Fig.\ref{fig:cp_model_angle}, is as expected. The RMS errors 
 
 In the last plot, where the model is trained solely on transitions sampled from random actions, a striking result is obtained. The equivariant model performs notably better across all angels, with an RMS validation error of $0.039$, in comparison of that to the MLP of $0.19$. On validation data that is sampled jointly from an expert policy, where the majority of transitions are at small angles.
 
-This superior generalization is demonstrated when the model is trianed on random data but validated on join expert random data, which contains far more transitions at small angles.
+This superior generalization is demonstrated when the model is trained on random data but validated on join expert random data, which contains far more transitions at small angles.
 
-This property may be important in training dyna Agents. Where initially the agents' policies are suboptimal and may tend to be worse at keeping the pole upright. However, the agents' learning in the simulated environments may be augmented by the improved generalization to small angels. As the policies improve from simulated experience, they tend towards having more transitions at small angels.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
+This property may be important in training dyna agents. Where initially the agents' policies are suboptimal and may tend to be worse at keeping the pole upright. However, the agents' learning in the simulated environments may be augmented by the improved generalization to small angels. As the policies improve from simulated experience, they tend towards having more transitions at small angels.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
 
 \subsubsection{Results: Supervised-Dyna}
-Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the supervised-dyna algorithm~\ref{alg:sup-dyna}. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in the appendix~\ref{ap:sup-dyna-ctch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
+Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the Supervised-Ayna algorithm, Alg.\ref{alg:Supervised-Dyna}. With only equivariant transition models, and conventional MLP actor-critics. The model-based agents have 50 dyna iterations, and the full hyperparameter set can be found in Appendix.\ref{ap:sup-dyna-ctch-hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
 \begin{figure}
 	\centering
 	\includegraphics[width=\textwidth]{Figures/Expert_dyna_cp_best.png}
@@ -203,7 +204,7 @@ Using the off-line trained world models above on the joint expert-random data. B
 		plotted. The equi-dyna model uses a planning ratio of 8 and the Dyna model uses a planning ratio of 1.}
 	\label{fig:sup-dyna-cp}
 \end{figure}
-The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the equi-dyna model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the dyna model only providing a small uplift over a model-free baseline.
+The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the Equi-Dyna model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the dyna model only providing a small uplift over a model-free baseline.
 \begin{table}
 	\centering
 	\begin{tabular}{|c|c|c|c|}
@@ -219,8 +220,8 @@ The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the equi-dyna mode
 	\label{tab:sup-dyna-cp}
 \end{table}
 
-This trend, when investigated at the $20\%, 40\%$, and $100\%$ completion in Table.\ref{tab:sup-dyna-cp} is clear. Particularly impressively, at $40\%$ of the sampled experience the equi-dyna model is able to achieve an expert policy on average. With further training, it seems that the policy diverges further. This is the most sample efficient model yet, and suggests that with a sufficiently good world model, the agent may be able to achieve strong generalization performance.
-\subsection{Catch}
+This trend, when investigated at the $20\%, 40\%$, and $100\%$ completion in Table.\ref{tab:sup-dyna-cp} is clear. Particularly impressively, at $40\%$ of the sampled experience the Equi-Dyna model is able to achieve an expert policy on average. With further training, it seems that the policy diverges further. This is the most sample efficient model yet, and suggests that with a sufficiently good world model, the agent may be able to achieve strong generalization performance.
+\subsection{Transition Models: Catch}
 
 Again construction of the G-CNN is much the same as in the case for CartPole. The basic network was built from group convolutions, with two hidden layers. There is one notable difference between these models and the CartPole models. The output for the Catch transition models are two distributions over the ball and paddle locations. In contrast to the real valued outputs of the CartPole model. These distributions are $T(s, a)_b, T(s, a)_p$ which are the distribution over the ball and paddle locations, respectively.
 \begin{equation}
@@ -244,7 +245,7 @@ As before for CartPole, the transition models were trained on three different da
 	\label{fig:transition_model_catch}
 \end{figure}
 
-In Fig.\ref{fig:transition_model_catch}, the equivariant model again demonstrates the benefits of inductive biases. The equivariant and MLP models achieve $0.998$ validation accuracy on transitions sampled from the joint expert random policy, with slightly faster convergence. When the model acts on a dataset, which has been filtered for only the left actions. The equivariant G-CNN generalizes to both actions as expected. The Equivariant model preforms slightly better on the random data. However, the performance is lack luster. On inspection the random dataset contains $60$ of the unique transitions found in the join expert-random dataset. This implies that both models are struggling to generalize.
+In Fig.\ref{fig:transition_model_catch}, the equivariant model again demonstrates the benefits of inductive biases. The equivariant and MLP models achieve $0.998$ validation accuracy on transitions sampled from the joint expert random policy, with slightly faster convergence. When the model acts on a dataset, which has been filtered for only the left actions, the equivariant G-CNN generalizes to both actions as expected. The Equivariant model preforms slightly better on the random data. However, the performance is lack luster. On inspection the random dataset contains $60$ of the unique transitions found in the join expert-random dataset. This implies that both models are struggling to generalize.
 
 \subsubsection{Results: Supervised-Dyna}
 Again, three agents were trained over 128 random seeds. To compare the performance the equivariant G-CNN dyna against an MLP transition model with a baseline actor-critic. The number of dyna iterations was set to 50 for both the MLP transition model dyna agent (dyna) and the equivariant transition model (equi-dyna) agent.
@@ -286,5 +287,5 @@ When using the aforementioned transition models for performing supervised-dyna, 
 
 In the Catch environment, both the MLP and G-CNN models achieved identical accuracy after training. When employed to plan trajectories for a dyna agent, these models resulted in a slight improvement in the initial episodes compared to a model-free implementation. Furthermore, they exhibited significantly improved stability across the worst-performing random seeds.
 
-The results of the supervised-dyna experiments indeed demonstrate the effectiveness of the dyna implementation. In certain scenarios, the transition model can effectively enhance an agent's sample efficiency. However, the marginal improvement in performance gained from models that generalize slightly worse suggests that the quality of the model plays a pivotal role in enabling effective model-based reinforcement learning. This observation is not surprising.
+The results of the supervised-dyna experiments indeed demonstrate the effectiveness of the dyna implementation. In certain scenarios, the transition model can effectively enhance an agent's sample efficiency. However, the marginal improvement in performance gained from models that generalize slightly worse suggests that the quality of the model plays a pivotal role in enabling effective model-based reinforcement learning. %TODO Find bad models bad planning literature.
 
