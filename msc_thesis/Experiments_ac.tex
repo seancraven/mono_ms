@@ -1,5 +1,6 @@
 \chapter{Experiments}
 \section{Environments}
+Before diving into the experiments, the symmetric environments are outlined below.
 \section{CartPole}\label{sec:cartpole}
 \begin{figure}[h!]
 	\centering
@@ -28,7 +29,7 @@ To learn the transition dynamics of CartPole and agent must learn how the system
 \begin{equation}
 	\ddot{x} = \frac{ F + m_p l (\dot{\theta}^2 \sin \theta - \ddot{\theta} \cos \theta)}{m_c + m_p}.
 \end{equation}
-Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the angle between the pole and vertical, with the pole length $l$. $F$ is the action force, where the positive direction is right. The masses of the cart and the pole are $m_c, m_p$, respectively. Finally $\dot{}$, indicates a derivative with respect to time.
+Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the angle between the pole and vertical, with the pole length $l$. $F$ is the action force, where the positive direction is right. The masses of the cart and the pole are $m_c, m_p$, respectively. Finally, $\dot{}$, indicates a derivative with respect to time.
 
 These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
 
