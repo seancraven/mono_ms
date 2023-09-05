@@ -1,28 +1,28 @@
 \chapter{Experiments}
 \section{Motivation}
-A series of Experiments were carried out to investigate the efficacy of Equivariant Transition model structure in model-based RL.
+A series of Experiments were carried out to investigate the efficacy of equivariant transition model structure in model-based RL. Where the specific model-based algorithm investigated was Dyna.
 
-Model-Based RL, is inherently more complex than actor-critic or value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent. Even with the simple models constructed here, the model based agents have two times more parameters. With wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
+Model-based RL, is inherently more complex than actor-critic or value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent.
 
-Due to the increased complexity of model-based methods, and the benefit of implementing existing methods, while also providing a baseline for further experimentation a model-free implementation was created.
+Even with the simple models constructed here, the model based agents have two times more parameters. Within wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
+
+Despite this increased complexity, the Dyna algorithm is constructed out of a transition model and a model-free agent. This provides a sensible progression for development and experimentation. Firstly, the model-free agent was constructed, and the symmetric inductive biase was tested only for the agent. Then, transition models were trained offline and tested. Finally these disjoint pieces were brought together to form the full Dyna implementation.
 
 \section{Baseline}\label{sec:baseline}
-The baseline that was chosen was a proximal policy optimization\ref{sec:PPO} agent from PureJaxRL,~\cite{lu2022discovered, schulman2015highdimensional}. This baseline provides a training framework, that trains a single agent concurrently on multiple identical environments.
-
-The Training regime is outlined below in pseudocode.
+The baseline that was chosen was a proximal policy optimization, Sec.\ref{sec:PPO}, agent from PureJaxRL,~\cite{lu2022discovered, schulman2015highdimensional}. This baseline provides a training framework, that trains a single agent concurrently on multiple identical environments. The training regime is outlined below in pseudocode.
 \begin{algorithm}
 	\caption{PureJaxRL PPO Agent Training Structure}
 	\begin{algorithmic}
-		\State Initialize Agent: Actor-Critic $\pi_\theta$, $v_\phi$
-		\State Initialize Replay Buffer: $\mathcal{D}$
+		\State Initialize agent: actor-critic $\pi_\theta$, $v_\phi$
+		\State Initialize replay buffer: $\mathcal{D}$
 		\For{Num Updates}
-		\State Gain Experience For Num Timestep
+		\State Gain experience for Num Timestep
 		\State Store trajectories: $\mathcal{D}$.append($(S, A, S', R))$
-		\State Calculate GAE Estimate From timesteps
+		\State Calculate GAE estimate from experience timesteps
 		\For{ Num Epochs}
-		\State{ Split GAE Estimates into minibatches}
+		\State{ Split GAE estimates into minibatches}
 		\State{ Mini-Batch SGD with Adam on $\pi_\theta, v_\phi$}
-		\Comment{ See~\ref{alg:PPO} for Losses to optimize}
+		\Comment{ See~\ref{alg:PPO} for losses to optimize}
 		\EndFor
 		\EndFor
 		\State Returns($\mathcal{D}$)
@@ -36,8 +36,8 @@ The Training regime is outlined below in pseudocode.
 To form an equivariant network to the group structure of CartPole the actor network must be equivariant to both the identity and inversion operator. This report provides structures for equivariant G-CNNs for both CartPole and Catch, that can easily be extended to other environments with known discrete symmetries.
 
 \subsubsection{Constructing a CartPole Actor-Critic}
-In this section, the outline for the network design is described. In the Catch section~\ref{sec:catch_ac}, a more detailed description of how to extend the procedure to other Groups is outlined.
-The group for CartPole contains two unique elements, in both state and action space. In state space the inversion and identity operator $r, e$ are,
+In this section, the outline for the network design is described. In the Catch section~\ref{sec:catch_ac}, a more detailed description of how to extend the procedure to other groups is outlined.
+The group for CartPole contains two unique elements, in both state and action space. In state space the inversion and identity operator $e, r$ are,
 \begin{equation}
 	\ell^\mathcal{S}_e =
 	\begin{pmatrix}
@@ -74,9 +74,9 @@ Thus, to parametrize an equivariant actor network, the network $\pi_\theta$ must
 \begin{equation}
 	\pi_\theta(\ell^\mathcal{S}_r s) = \ell^\mathcal{A}_r \pi_\theta(s).
 \end{equation}
-Instead of using a G-CNN for the Actor-Critic, a simpler solution involves employing a network with only odd operations, such as the tanh activation, and excluding biases for all hidden representations. By definition, odd functions are equivariant to both inversion and identity transformations, ensuring the network's equivariance. However, this doesn't address the issue of equivariance in the action space. To bridge this gap, a group convolution layer is incorporated to map between representations
+Instead of using a G-CNN for the Actor-Critic, a simpler solution involves employing a network with only odd operations, such as the tanh activation, and excluding biases for all hidden representations. By definition, odd functions are equivariant to both inversion and identity transformations, ensuring the network's equivariance. However, this doesn't address the issue of equivariance in the action space. To bridge this gap, a group convolution layer is incorporated to map between representations.
 
-The network can be considered as a composition of $f_\theta : \mathcal{S} \rightarrow \mathbb{R}^{|H|}$, an odd embedding MLP and $gc_\theta: \mathbb{R}^{|H|} \rightarrow \mathbb{R}^{\mathcal{A}}$ a group convolution layer that "lifts" the equivariance to the action space. As such the parametric policy is,
+The network can be considered as a composition of $f_\theta : \mathcal{S} \rightarrow \mathbb{R}^{|H|}$, an odd embedding MLP and $gc_\theta: \mathbb{R}^{|H|} \rightarrow \mathbb{R}^{\mathcal{A}}$ a group convolution layer that ``lifts" the equivariance to the action space. As such the parametric policy is,
 \begin{equation}
 	\pi_\theta(s) = gc_\theta(f_\theta(s)).
 \end{equation}
@@ -94,20 +94,20 @@ The equivariance properties of the sub-networks with respect to the inversion op
 \end{equation}
 Where $gc_\theta(x) = [P(A=a_0), P(A=a_1)]$ describes the distribution over the binary actions of CartPole.
 
-This G-CNN network for policy learning is the first novel contribution of this report. In comparison to the work of \cite{mondal2020group}, the policy learning G-CNN is fully equivariant, rather than learning action values from an equivariant embedding. Additionally, the network parametrizes a policy directly rather than Q values. Due to the network's end to end equivariance in comparison to the Q-value network proposed by \cite{mondal2020group}, agents parametrized by this network must take the same actions in states that are in the same orbit, which is not the case for the Q-value network, which only has an equivariant embedding.
+This G-CNN network for policy learning is the first novel contribution of this report. In comparison to the work of \cite{mondal2020group}, the policy learning G-CNN is fully equivariant, rather than learning action values from an equivariant embedding. Additionally, the network parametrizes a policy directly rather than Q values. Due to the network's end to end equivariance in comparison to the Q-value network proposed by \cite{mondal2020group}, agents parametrized by this network must take the same actions in states that are in the same orbit, which is not the case for the Q-value network, which only has an equivariant embedding. Thus, they do not guarantee equivariance in the policy.
 
 Further, this network architecture has advantages over Symmetrizer networks, \cite{vanderpol2020mdp}, in that it does not require a large matrix inversions to solve for the parameters of the network, while still maintaining the same equivariance qualities.
 
 \subsubsection{Results: Training Dynamics On the CartPole Benchmark}
-With the network's structure established, the benchmark task focuses on mastering an expert policy within the CartPole environment. By default, CartPole imposes a maximum episode length of 500 interactions. All non-terminal states yield a reward of +1, setting the maximum episodic return at 500. As with most traditional RL problems, the primary objective in CartPole is to optimize the agent's episodic return. Finding an expert policy in CartPole using standard deep learning methods is relatively straightforward and primarily serves as an implementation benchmark. For an equivariant network structure to truly enhance the quality of the learned policy, it should strive to approach the 500 episodic return benchmark with fewer MDP interactions.
+With the network's structure established, the benchmark task focuses on mastering an expert policy within the CartPole environment. By default, CartPole imposes a maximum episode length of 500 interactions. All non-terminal states yield a reward of +1, setting the maximum episodic return at 500. As with most traditional RL problems, the primary objective in CartPole is to optimize the agent's episodic return. Finding an expert policy in CartPole using standard deep learning methods is relatively straightforward and primarily serves as an implementation benchmark. For an equivariant network structure to truly enhance the quality of the learned policy, it should strive to approach the 500 episodic return benchmark with fewer environment interactions.
 
-When comparing the learning dynamics of policy agents, it's crucial to ensure not just that the agent achieves expertise in the task but also that the policy learning procedure remains stable across multiple random seeds. A random seed refers to the initial state in which both the agent and environment begin. Keeping training stability in mind, examining the performance under the least favourable random seeds is informative about the training robustness. If an algorithm is particularly sensitive to its initialization, its performance may be significantly impacted, and may not converge over multiple random seeds.
+When comparing the learning dynamics of policy agents, it's crucial to ensure not just that the agent achieves expertise in the task but also that the policy learning procedure remains stable across multiple random seeds. A random seed refers to the initial state in which both the agent and environment begin. Keeping training stability in mind, examining the performance under the least favourable random seeds is informative about the training robustness. If an algorithm is particularly sensitive to its initialization, its performance may be significantly impacted, and may not converge over multiple random seeds~\cite{henderson2018deep}.
 
 For all experiments, we utilize a standard MLP for the critic without imposing any equivariance constraints. While this setup might not yield optimal performance, it's essential to highlight that training is conducted across 128 random seeds to ensure the stability of the agent's learning.
 
 Due to constraints on the equivariant network structures, it's not always feasible to maintain an identical number of parameters across networks. In instances where the exact parameter count differs, we ensure that the depth of all networks remains constant. We then adjust the width to achieve a parameter count that's within 10\% of the MLP baseline.
 
-Refer to fig\ref{fig:cartpole_equivariant_actor} below, where the mean episodic return of three agents with distinct network architectures is illustrated. Despite the differences in their structures, all networks share the same training hyperparameters, as provided in the PureJaxRL\cite{lu2022discovered} baselines. The three networks depicted are the MLP baseline from PureJaxRL, an implementation of the Symmetrizer network from \cite{vanderpol2020mdp}, and the G-CNN policy network introduced in this report.
+Refer to Fig.\ref{fig:cartpole_equivariant_actor} below, where the mean episodic return of three agents with distinct network architectures is illustrated. Despite the differences in their structures, all networks share the same training hyperparameters, as provided in the PureJaxRL\cite{lu2022discovered} baselines. The three networks depicted are the MLP baseline from PureJaxRL, an implementation of the Symmetrizer network from \cite{vanderpol2020mdp}, and the G-CNN policy network introduced in this report.
 
 \begin{figure}[H]
 	\centering
@@ -115,7 +115,7 @@ Refer to fig\ref{fig:cartpole_equivariant_actor} below, where the mean episodic 
 	\caption{Left: Mean episodic returns for the CartPole agents across 128 random seeds plotted against number of experience time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps. Additionally, all plots have two standard errors plotted. } \label{fig:cartpole_equivariant_actor}
 \end{figure}
 
-Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in Cart-pole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training both the Symmetrizer and the G-CNN, outperform the baseline. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
+Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in Cart-pole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training, both the Symmetrizer and the G-CNN, outperform the baseline. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
 
 It should be noted that here the mean plus minus two standard deviations is plotted in comparison to the median and upper and lower quartiles of cumulative returns, which is plotted in \cite{vanderpol2020mdp}. The performance of the Symmetrizer, is underwhelming despite the implemented network being checked for equivariance. Further tuning of the hyperparameters may yield performance that improves upon the baseline's returns. However, this was not a primary concern in this report.
 
@@ -137,17 +137,17 @@ The G-CNN does compare favourably with the baseline implementation of an MLP, ha
 \end{table}
 Additionally, the mean episodic returns across all random seeds are tabulated at $10,000$, $100,000$, and $500,000$ time-steps in Table \ref{tab:actor-critic}. Upon closer inspection, the G-CNN agent incorporating the equivariant inductive bias significantly outperforms the baseline.
 
-While both models have similar parameter counts, the structure of the G-CNNs makes their forward passes more computationally intensive. This is due to the G-CNN architecture requiring twice as many operations in a forward pass, attributed to the two group actions. However, in a scenario like Cart-Pole, where the networks are relatively small and inexpensive to evaluate—and where computation can be efficiently parallelized—both models can train 128 random seeds in under a minute. This speed is achieved using the hyperparameters listed in the Appendix and executed on a contemporary graphics card.
+While both models have similar parameter counts, the structure of the G-CNNs makes their forward passes more computationally intensive. This is due to the G-CNN architecture requiring twice as many operations in a forward pass, attributed to the two group actions. However, in a scenario like Cart-Pole, where the networks are relatively small and inexpensive to evaluate—and where computation can be efficiently parallelized—both models can train 128 random seeds in under a minute. This speed is achieved using the hyperparameters listed in the Appendix and executed on a RTX 3090.
 
 Encouraged by the promising results from the initial experiment, we decided to explore a new environment to determine whether the equivariance constraint could further enhance performance.
 
 \subsection{Catch}\label{sec:catch_ac}
-To demonstrate that G-CNN actor-c can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging.
+To demonstrate that G-CNN actor-critic can be extended to other environments with different group actions, we implemented the equivariant actor-critic for the Bsuite Catch environment~\cite{osband2020bsuite}. For the Catch environment, constructing an equivariant network is challenging.
 
 \subsubsection{Constructing a Catch Actor-Critic}
 Unlike the CartPole case where layers can be made equivariant to the
-representation, in Catch, the entire network must be built using Group Convolutions.As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
-In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=-(2-x)$. Thus, the equivariance constraint is expressed as:
+representation, in Catch, the entire network must be built using Group Convolutions. As in previous scenarios, we impose an equivariant constraint on the actor $\pi_\theta(s)$.
+In the context of Catch, the input state space is represented as $\mathcal{S} \in [0, 1]^{50}$. Instead of detailing the cumbersome $\ell_r^\mathcal{S} \in \mathcal{R}^{50 \times 50}$ matrix representation of the reflection group action $\ell_r^\mathcal{S}$, it is left symbolically. This action modifies the x-coordinate of both the ball and the paddle using the transformation $r(x)=-(2-x)$. Thus, the equivariance constraint is expressed as:
 \begin{equation}
 	\pi_\theta(\ell_r^\mathcal{S} s) = \begin{pmatrix}
 		0 & 0 & 1 \\
@@ -166,7 +166,7 @@ In the context of Catch, the input state space is represented as $\mathcal{S} \i
 % 	\end{pmatrix}\pi_\theta(s).
 % \end{equation}
 
-To construct a G-CNN, which is equivariant to the group actions a group action in the hidden layers must be determined. Consider a group convolution input layer $f : \mathcal{S} \rightarrow \mathcal{H} \in \mathbb{R}^{|G| \times |H|}$, commonly referred to as a lifting layer. Lifting layers apply a group action to the input and then passes the transformed input through, $ g: \mathcal{S} \rightarrow \mathbb{R}^{|H|}$, a dense/convolution layer. In the full layer the input is transformed by every group action, and then passed through $g$. In the absence of any pooling, this gives a hidden representation, that is the hidden dimensions of the equivalent dense/convolution layer, plus a new axis that is the size of the group. To illustrate the new equivariance constraint a single layer;
+To construct a G-CNN, which is equivariant to the group actions a group action in the hidden layers must be determined. Consider a group convolution input layer $f : \mathcal{S} \rightarrow \mathcal{H} \in \mathbb{R}^{|G| \times |H|}$, commonly referred to as a lifting layer that maps from a state space to a hidden space of $H$. Lifting layers apply a group action to the input and then passes the transformed input through, $ g: \mathcal{S} \rightarrow \mathbb{R}^{|H|}$, a dense/convolution layer. In the full layer the input is transformed by every group action, and then passed through $g$. In the absence of any pooling, this gives a hidden representation, that is the hidden dimensions of the equivalent dense/convolution layer, plus a new axis that is the size of the group. To illustrate the new equivariance constraint a single layer;
 \begin{equation}
 	g(s) = \vec{h} \in \mathbb{R}^{|H|}.
 \end{equation}
@@ -199,7 +199,7 @@ Once a group action is applied to the input, the output values undergo permutati
 	\end{pmatrix}
 	= \mat{P}_n f(s)
 \end{equation}
-Where $\mat{P}_n$, is a permutation matrix defined by the group. There is a unique permutation matrix for each group element. To construct subsequent layers that are also equivariant, we exploit the fact that the output is a permutation of vectors. Consider a subsequent, $h: \mathcal{H} \rightarrow \mathcal{H}'$, a hidden layer that must continue the equivariance to group G. This is achieved by treating each $\mat{P}$ as the group action, and ensuring that the output is equivariant to its application. The new layer can be through of as taking a vector of vectors, where it must be equivariant to the Vectors' permutation,
+Where $\mat{P}_n$, is a permutation matrix defined by the group. There is a unique permutation matrix for each group element. This permutation relation enables one to construct further equivariant layers. Consider a subsequent, $h: \mathcal{H} \rightarrow \mathcal{H}'$, a hidden layer that must continue the equivariance to group G. This is achieved by treating each $\mat{P}$ as the group action, and ensuring that the output is equivariant to its application. The new layer can be through of as taking a vector of responses, where it must be equivariant to the vectors' permutation,
 \begin{equation}
 	h\left( \mat{P_i}
 	\begin{pmatrix}
@@ -216,9 +216,76 @@ Where $\mat{P}_n$, is a permutation matrix defined by the group. There is a uniq
 		v_{|G|}
 	\end{pmatrix}.
 \end{equation}
+Tying this to a concrete example in a 1D convolution, if there is an input that is one hot, and the kernel has a single weight, $w_1$. The output of the layer will be;
+\begin{equation}
+	\text{Conv1D}\begin{pmatrix}
+		0 \\
+		1 \\
+		0 \\
+	\end{pmatrix}
+	= \begin{pmatrix}
+		0   \\
+		w_1 \\
+		0   \\
+	\end{pmatrix}
+\end{equation}
+If the input is translated the output is also translated;
+\begin{equation}
+	\text{Conv1D}\begin{pmatrix}
+		1 \\
+		0 \\
+		0 \\
+	\end{pmatrix}
+	= \begin{pmatrix}
+		w_1 \\
+		0   \\
+		0   \\
+	\end{pmatrix}
+\end{equation}
+Which is the definition of the equivariant constraint, slightly more abstractly\footnote{If you are slightly shocked by the order of the group actions acting on x here, dont be. It comes from the relationship between the right and left action on the kernel see~\cite{cohen2016group}};
+\begin{equation}
+	\text{Conv1D}(x) = \begin{pmatrix}
+		g(\ell_{1}x)   \\
+		g(x)           \\
+		g(\ell_{-1} x) \\
+	\end{pmatrix}
+\end{equation}
+Then when the input is translated up by one $\ell_{-1}$;
+\begin{equation}\label{eq:perm_gr}
+	\text{Conv1D}(\ell_{-1} x) = \begin{pmatrix}
+		g(\ell_{1}\ell_{-1}x)   \\
+		g(\ell_{-1}x)           \\
+		g(\ell_{-1}\ell_{-1} x) \\
+	\end{pmatrix}
+\end{equation}
+And the closure of the group defines its permutation. The group table for this translation group is given below.
+\begin{table}[h]
+	\centering
+	\begin{tabular}{|c| c c c|}
+		\hline
+		G  & -1 & 0  & 1  \\
+		\hline
+		-1 & 1  & -1 & 0  \\
+		0  & -1 & 0  & 1  \\
+		1  & 0  & 1  & -1 \\
+		\hline
+	\end{tabular}
+	\caption{Example translation group}
+\end{table}
+By using this Eq.\ref{eq:perm_gr} becomes;
+
+\begin{equation}\label{eq:perm_gr}
+	\text{Conv1D}(\ell_{-1} x) = \begin{pmatrix}
+		g(x)          \\
+		g(\ell_{-1}x) \\
+		g(\ell_{1}x)  \\
+	\end{pmatrix}
+\end{equation}
+Which is a permutation of the input governed by the group structure of Eq.\ref{eq:gs_perm}.
+
 Given this equivariant structure for each layer, when constructing a network out of an input layer and subsequent hidden layers that all adhere to the equivariance constraint, what remains is to identify an appropriate output. In scenarios such as an actor network operating within a discrete action space, the permutation representation proves ideal. For instance, in the "Catch" environment, the probability of moving left in state \( s \) should mirror the probability of moving right in its reflected state \( s' = \ell_r^\mathcal{S} \). Since the network produces logits—un-normalized probabilities—their permutation upon reflection possesses the desired properties. However, when a permutation doesn't fit the necessary group action, establishing equivariance becomes more intricate. We'll delve into this challenge in subsequent discussions.
 
-With the framework of an equivariant network in place—similar to the CartPole scenario—we established both an equivariant actor-critic and an MLP actor-critic. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the "Symmetrizer" was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the simplicity of the "Catch" task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters, Appendix.\ref{ap:hyp}.
+With the framework of an equivariant network in place—similar to the CartPole scenario—we established both an equivariant actor-critic and an MLP actor-critic. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the Symmetrizer was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the small state-action space of the Catch task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters, Appendix.\ref{ap:hyp}.
 
 \subsubsection{Results: Training Dynamics On the Catch Benchmark}
 % With this equivariant structure for each layer the network constructed out of an input layer and subsequent hidden layers, which all maintain the equivariance constraint, the only thing left is to find an output. In the case of an actor network in a discrete action space, the permutation representation, is perfect, in the case of Catch where the probability of moving left in a state $s$ should be the same as the probability of moving right in a reflected state $s' = \ell_r^\mathcal{S}$. As the network outputs logits, un-normalised probabilities, their permutation on a reflection is the exact property required. For cases where a permutation is not the required group action, achieving equivariance is slightly more difficult. This is left for later.
@@ -230,7 +297,7 @@ With the framework of an equivariant network in place—similar to the CartPole 
 	\includegraphics[width=\linewidth]{Figures/catch_returns.png}
 	\caption{Left: Mean episodic returns for the Catch agents across 128 random seeds plotted against number of interaction time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps. Additionally, two standard errors are plotted.}
 \end{figure}
-Upon examining the qualitative differences in the episodic return curves, we observe a familiar yet more pronounced trend. For Catch, the inductive bias of equivariance seems especially beneficial. Not only does the agent with the G-CNN converge to an expert policy more rapidly than its counterpart, but the bottom decile of random seeds also exhibits markedly improved performance. Furthermore, by referring to the tabulated results in Table~\ref{tab:actor-critic_catch}, the superiority of the Equivariant Network architecture is evident. It manages to achieve a higher proficiency in "Catch" in merely half the time compared to the alternative
+Upon examining the qualitative differences in the episodic return curves, we observe a familiar yet more pronounced trend. For Catch, the inductive bias of equivariance seems especially beneficial. Not only does the agent with the G-CNN converge to an expert policy more rapidly than its counterpart, but the bottom decile of random seeds also exhibits markedly improved performance. Furthermore, by referring to the tabulated results in Table~\ref{tab:actor-critic_catch}, the superiority of the Equivariant Network architecture is evident. It manages to achieve a higher proficiency in "Catch" in merely half the time compared to the alternative.
 % Again, looking at the qualitative performance difference from the Episodic return curves we see a similar but more exaggerated story. For Catch the equivariance inductive bias appears to be incredibly useful, and not only does the agent converge to an expert policy faster, than without the G-CNN, but also the bottom decile of random seeds also perform substantially better. Further, looking at tabulated performance in Table~\ref{tab:actor-critic_catch}, The dominance of the Equivariant Network architecture is apparent, with it achieving a greater mastery of Catch in half of the time.
 
 \begin{table}
@@ -248,14 +315,14 @@ Upon examining the qualitative differences in the episodic return curves, we obs
 	\label{tab:actor-critic_catch}
 \end{table}
 \subsection{Conclusion}
-Equivariant Actors were tested in both environments, and showed a substantially more efficient learning. These results are inline with other Experiments, where Agents are trained with inductive biases about the task's symmetry outperform conventional methods. Further, they also demonstrated the same improvement in cases with challenging initialization conditions.
+Equivariant actors were tested in both environments, and showed a substantially more efficient learning. These results are inline with other experiments, where agents are trained with inductive biases about the task's symmetry outperform conventional methods. Further, they also demonstrated the same improvement in cases with challenging initialization conditions.
 
 The equivariance constraint itself however, is quite limiting. For any given task the group must be known beforehand. Not only this but it must also be an exact symmetry. In many settings these constraints are rare, especially with discrete symmetry groups.
 
-Additionally, there is a forward pass cost to the equivariant network structure, especially with larger groups, despite the same number of parameters being used. With the way G-CNNs are constructed, the number of operations in a forward pass of the network is $\mathcal{O}(|G|)$. As such, the inference time increases when including the inductive bias. However, because these operations can be executed in parallel, the evaluation time increase is limited. For a rough estimation of the increased overhead the G-CNN adds The implementations of the G-CNN for catch and the MLP were benchmarked. The MLP's mean forward pass over $10000$ states was $27.5 \pm 0.1\mu s$, and $29.9 \pm 0.1 \mu s$ for the G-CNN. This is an $8\%$ increase in evaluation time, with similar standard error across 1000 tests.
+Additionally, there is a forward pass cost to the equivariant network structure, especially with larger groups, despite the same number of parameters being used. With the way G-CNNs are constructed, the number of operations in a forward pass of the network is $\mathcal{O}(|G|)$. As such, the inference time increases when including the inductive bias. However, because these operations can be executed in parallel, the evaluation time increase is limited. For a rough estimation of the increased overhead the G-CNN. The implementations of the G-CNN for catch and the MLP were benchmarked. The MLP's mean forward pass over $10000$ states was $27.5 \pm 0.1\mu s$, and $29.9 \pm 0.1 \mu s$ for the G-CNN. This is an $8\%$ increase in evaluation time, with similar standard error across 1000 tests. An increased inference overhead is also not a problem in multiple environments such as robotic control where samples are more expensive than inference.
 
 Despite the mild performance overhead, if a task is known to poses a discrete group symmetry, constructing a network with an inductive bias that accounts for this is demonstrably useful in increasing the training efficiency and reliability of an Agent, and should be exploited. However, the case of an exact symmetry is not universal.
 
-The limited applicability of equivariant models motivates the next section of the report. In the case where the environment has a group structured symmetry or an approximate group structured symmetry, building a world model to perform model based RL, that contains an inductive bias that the environment has a group structured symmetry, may further improve the agent's learning dynamics, while not requiring the exact symmetry to be present.
+The limited applicability of equivariant models motivates the next section of the report. In the case where the environment has a group structured symmetry or an approximate group structured symmetry, building an equivariant transition model may further improve the agent's learning dynamics.
 
 
