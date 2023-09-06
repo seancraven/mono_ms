@@ -124,7 +124,9 @@
 \newcommand \@doctor{Doctor of Philosophy}
 \newcommand \@master{Master of Philosophy}
 \newcommand \@mres{Master of Research}
-\newcommand \@degree@string{\@doctor}
+\newcommand \@msc{Master of Science}
+% \newcommand \@degree@string{\@doctor}
+% \newcommand \@degree@string{\@doctor}
 %    \end{macrocode}
 %  The usual structure of class preamble follows.
 %
@@ -142,6 +144,7 @@
 \DeclareOption{MPhil}{\renewcommand\@degree@string{\@master}}
 \DeclareOption{phd}{\renewcommand\@degree@string{\@doctor}}
 \DeclareOption{PhD}{\renewcommand\@degree@string{\@doctor}}
+\DeclareOption{msc}{\renewcommand\@degree@string{\@msc}}
 \DeclareOption{twocolumn}{\ClassError{ucl_thesis}{Option `twocolumn' not supported for UCL theses}{}}
 \newif \if@draftmode
 \@draftmodefalse
@@ -176,38 +179,38 @@
 \setlength \topmargin{20mm}
 \setlength \oddsidemargin {39mm} % Allow a mm for the bleed.
 \if@twoside
-  \setlength \evensidemargin {20mm}
+	\setlength \evensidemargin {20mm}
 \else
-  \setlength \evensidemargin {39mm}
+	\setlength \evensidemargin {39mm}
 \fi
 %    \end{macrocode}
 %  \begin{macro}{\ps@headings}
 %  Define a new style so that all the standard styles are available.
 %    \begin{macrocode}
 \def \ps@headings{%
-    \def \@oddhead{\normalfont \rmfamily \slshape \hfill \rightmark \hfill \thepage}%
-    \def \@evenhead{\normalfont \rmfamily \slshape \thepage \hfill \leftmark \hfill}%
-    \let \@oddfoot = \@empty%
-    \let \@evenfoot = \@empty%
-    \let \@mkboth = \markboth%
-    \def \chaptermark##1{%
-        \markboth{%
-            \ifnum \c@secnumdepth >\m@ne%
-                \if@mainmatter%
-                    \@chapapp\ \thechapter. \ %
-                \fi%
-            \fi%
-            ##1%
-        }{}%
-    }%
-    \def \sectionmark##1{%
-        \markright {%
-            \ifnum \c@secnumdepth >\z@%
-                \thesection. \ %
-            \fi%
-            ##1%
-        }%
-    }%
+	\def \@oddhead{\normalfont \rmfamily \slshape \hfill \rightmark \hfill \thepage}%
+	\def \@evenhead{\normalfont \rmfamily \slshape \thepage \hfill \leftmark \hfill}%
+	\let \@oddfoot = \@empty%
+	\let \@evenfoot = \@empty%
+	\let \@mkboth = \markboth%
+	\def \chaptermark##1{%
+		\markboth{%
+			\ifnum \c@secnumdepth >\m@ne%
+				\if@mainmatter%
+					\@chapapp\ \thechapter. \ %
+				\fi%
+			\fi%
+			##1%
+		}{}%
+	}%
+	\def \sectionmark##1{%
+		\markright {%
+			\ifnum \c@secnumdepth >\z@%
+				\thesection. \ %
+			\fi%
+			##1%
+		}%
+	}%
 }
 \pagestyle{headings}
 %    \end{macrocode}
@@ -216,9 +219,9 @@
 %  Make the footnote rule go all the way across the page.
 %    \begin{macrocode}
 \renewcommand \footnoterule {%
-    \kern -3\p@%
-    \hrule%
-    \kern 2.6\p@%
+	\kern -3\p@%
+	\hrule%
+	\kern 2.6\p@%
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -230,11 +233,11 @@
 \setlength \parskip  {\z@ \@plus 1\p@}
 \setlength \headsep  {16\p@}
 \ifcase \@ptsize
-    \setlength \footskip{26\p@}
+	\setlength \footskip{26\p@}
 \or
-    \setlength \footskip{27\p@}
+	\setlength \footskip{27\p@}
 \or
-    \setlength \footskip{28\p@}
+	\setlength \footskip{28\p@}
 \fi
 \setlength \partopsep {\z@}
 %    \end{macrocode}
@@ -260,124 +263,124 @@
 %  This means making copies of the macros simply to remove the |\uppercase| usage.
 %    \begin{macrocode}
 \renewcommand \tableofcontents{%
-    \if@twocolumn%
-        \@restonecoltrue \onecolumn%
-    \else%
-        \@restonecolfalse%
-    \fi%
-    \chapter*{%
-        \contentsname%
-        \@mkboth{\contentsname}{\contentsname}%
-    }%
-    \@starttoc{toc}%
-    \if@restonecol%
-        \twocolumn%
-    \fi%
+	\if@twocolumn%
+		\@restonecoltrue \onecolumn%
+	\else%
+		\@restonecolfalse%
+	\fi%
+	\chapter*{%
+	  \contentsname%
+	  \@mkboth{\contentsname}{\contentsname}%
+	 }%
+	\@starttoc{toc}%
+	\if@restonecol%
+		\twocolumn%
+	\fi%
 }
 \renewcommand \listoffigures{%
-    \if@twocolumn%
-        \@restonecoltrue \onecolumn%
-    \else%
-        \@restonecolfalse%
-    \fi%
-    \chapter*{%
-        \listfigurename%
-        \@mkboth{\listfigurename}{\listfigurename}%
-    }%
-    \@starttoc{lof}%
-    \if@restonecol%
-        \twocolumn%
-    \fi%
+	\if@twocolumn%
+		\@restonecoltrue \onecolumn%
+	\else%
+		\@restonecolfalse%
+	\fi%
+	\chapter*{%
+	  \listfigurename%
+	  \@mkboth{\listfigurename}{\listfigurename}%
+	 }%
+	\@starttoc{lof}%
+	\if@restonecol%
+		\twocolumn%
+	\fi%
 }
 \renewcommand \listoftables{%
-    \if@twocolumn%
-        \@restonecoltrue \onecolumn%
-    \else%
-        \@restonecolfalse%
-    \fi%
-    \chapter*{%
-        \listtablename%
-        \@mkboth{\listtablename}{\listtablename}%
-    }%
-    \@starttoc{lot}%
-    \if@restonecol%
-        \twocolumn%
-    \fi%
+	\if@twocolumn%
+		\@restonecoltrue \onecolumn%
+	\else%
+		\@restonecolfalse%
+	\fi%
+	\chapter*{%
+	  \listtablename%
+	  \@mkboth{\listtablename}{\listtablename}%
+	 }%
+	\@starttoc{lot}%
+	\if@restonecol%
+		\twocolumn%
+	\fi%
 }
 \renewenvironment{thebibliography}[1]{%
-    \chapter*{%
-        \bibname%
-        \@mkboth{\bibname}{\bibname}%
-    }%
-%%%
-%%%  Julia Schnabel wanted the following line added since the
-%%%  \chapter* call does not put the bibliography into the table of
-%%%  contents.
-%%%
-%%%    \addcontentsline{toc}{chapter}{\bibname}%
-%%%
-    \list{\@biblabel{\arabic{enumiv}}}%
-         {\settowidth \labelwidth{\@biblabel{#1}}%
-          \leftmargin \labelwidth%
-          \advance \leftmargin \labelsep%
-          \@openbib@code%
-          \usecounter{enumiv}%
-          \let \p@enumiv = \@empty%
-          \renewcommand \theenumiv{\arabic{enumiv}}%
-    }%
-    \sloppy%
-    \clubpenalty 4000%
-    \@clubpenalty \clubpenalty%
-    \widowpenalty 4000%
-    \sfcode`\.=\@m%
+	\chapter*{%
+	  \bibname%
+	  \@mkboth{\bibname}{\bibname}%
+	 }%
+	%%%
+	%%%  Julia Schnabel wanted the following line added since the
+	%%%  \chapter* call does not put the bibliography into the table of
+	%%%  contents.
+	%%%
+	%%%    \addcontentsline{toc}{chapter}{\bibname}%
+	%%%
+	\list{\@biblabel{\arabic{enumiv}}}%
+	{\settowidth \labelwidth{\@biblabel{#1}}%
+		\leftmargin \labelwidth%
+		\advance \leftmargin \labelsep%
+		\@openbib@code%
+		\usecounter{enumiv}%
+		\let \p@enumiv = \@empty%
+		\renewcommand \theenumiv{\arabic{enumiv}}%
+	}%
+	\sloppy%
+	\clubpenalty 4000%
+	\@clubpenalty \clubpenalty%
+	\widowpenalty 4000%
+	\sfcode`\.=\@m%
 }{%
-    \def \@noitemerr{\@latex@warning{Empty `thebibliography' environment}}%
-    \endlist%
+	\def \@noitemerr{\@latex@warning{Empty `thebibliography' environment}}%
+	\endlist%
 }
 \renewenvironment{theindex}{%
-    \if@twocolumn%
-        \@restonecolfalse%
-    \else%
-        \@restonecoltrue%
-    \fi%
-    \columnseprule \z@%
-    \columnsep 35\p@%
-    \twocolumn[\@makeschapterhead{\indexname}]%
-    \@mkboth{\indexname}{\indexname}%
-%%%
-%%% Julia Schnabel had an earlier version of the theindex environment and this used:
-%%%
-%%%     \twocolumn%
-%%%     \chapter*{\indexname}{%
-%%%         \@mkboth{\indexname}{\indexname}%
-%%%     }%
-%%%     \addcontentsline{toc}{chapter}{\indexname}%
-%%%
-%%%     the last line being an addition overwhat was there so as to ensure that the index
-%%%     appeared in the contents.
-%%%
-    \thispagestyle{plain}%
-    \small%
-    \parindent \z@%
-    \parskip \z@ \@plus .3\p@%
-    \relax%
-%%%
-%%% It appears that there is an error in the definition of \@idxitem which causes horrid
-%%% looking indexes.  Redefine the miscreant so as to insert the missing \par.  NB.  Cannot
-%%% use |\renewcommand| since this does not to work on outer block, even if |\global| is
-%%% used.
-%%%
-%%%  As noticed on 1998.03.15, this appears to have been fixed.
-%%%
-%%%    \gdef \@idxitem{\par \hangindent 40\p@}
-%%%
-    \let \item = \@idxitem%
+	\if@twocolumn%
+		\@restonecolfalse%
+	\else%
+		\@restonecoltrue%
+	\fi%
+	\columnseprule \z@%
+	\columnsep 35\p@%
+	\twocolumn[\@makeschapterhead{\indexname}]%
+	\@mkboth{\indexname}{\indexname}%
+	%%%
+	%%% Julia Schnabel had an earlier version of the theindex environment and this used:
+	%%%
+	%%%     \twocolumn%
+	%%%     \chapter*{\indexname}{%
+	%%%         \@mkboth{\indexname}{\indexname}%
+	%%%     }%
+	%%%     \addcontentsline{toc}{chapter}{\indexname}%
+	%%%
+	%%%     the last line being an addition overwhat was there so as to ensure that the index
+	%%%     appeared in the contents.
+	%%%
+	\thispagestyle{plain}%
+	\small%
+	\parindent \z@%
+	\parskip \z@ \@plus .3\p@%
+	\relax%
+	%%%
+	%%% It appears that there is an error in the definition of \@idxitem which causes horrid
+	%%% looking indexes.  Redefine the miscreant so as to insert the missing \par.  NB.  Cannot
+	%%% use |\renewcommand| since this does not to work on outer block, even if |\global| is
+	%%% used.
+	%%%
+	%%%  As noticed on 1998.03.15, this appears to have been fixed.
+	%%%
+	%%%    \gdef \@idxitem{\par \hangindent 40\p@}
+	%%%
+	\let \item = \@idxitem%
 }{%
-    \if@restonecol%
-        \onecolumn%
-    \else%
-        \clearpage%
-    \fi%
+	\if@restonecol%
+		\onecolumn%
+	\else%
+		\clearpage%
+	\fi%
 }
 %    \end{macrocode}
 %
@@ -394,17 +397,17 @@
 \def\department#1{\gdef\@department{#1}}
 \def\@department{\@latex@warning@no@line{No \noexpand\department given}}
 \renewcommand \maketitle{%
-    \setcounter{page}{1}%
-    \thispagestyle{empty}%
-    \@maketitle%
-    \setcounter{footnote}{0}%
-    \let \thanks = \relax%
-    \gdef \@address{}%
-    \gdef \@thanks{}%
-    %\gdef \@author{}%
-    \gdef \@department{}%
-    \gdef \@title{}%
-    \let \maketitle = \relax%
+	\setcounter{page}{1}%
+	\thispagestyle{empty}%
+	\@maketitle%
+	\setcounter{footnote}{0}%
+	\let \thanks = \relax%
+	\gdef \@address{}%
+	\gdef \@thanks{}%
+	%\gdef \@author{}%
+	\gdef \@department{}%
+	\gdef \@title{}%
+	\let \maketitle = \relax%
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -412,55 +415,54 @@
 %  Create a separate title page with the usual material on it.
 %    \begin{macrocode}
 \newcommand \@maketitle{%
-    \newpage%
-    \null%
-    \vspace*{5em}%
-%%%
-%%%  Julia Schnabel wanted the following added.
-%%%
-%%%    \renewcommand{\baselinestretch}{2.5}
-%%%    \small
-%%%    \normalsize
-%%%
-    \begin{center}%
-        {\huge \bfseries \@title}\\[5em]%
-        {\Large \itshape \@author}\\%
-    \end{center}%
-    \vfill%
-    \begin{center}%
-    A dissertation submitted in partial fulfillment \\
-    of the requirements for the degree of \\
-    \textbf{\@degree@string} \\
-    of \\
-    \textbf{University College London}.
-    \end{center}%
-    \vspace{2em}%
-    \begin{center}%
-    \@department \\
-    University College London\\
-    \end{center}%
-    \vspace{2em}%
-    \begin{center}%
-    \@date%
-    \end{center}%
-    \if@twoside %
-      \newpage%
-      ~\\
-      \newpage%
-    \fi
+	\newpage%
+	\null%
+	\vspace*{5em}%
+	%%%
+	%%%  Julia Schnabel wanted the following added.
+	%%%
+	%%%    \renewcommand{\baselinestretch}{2.5}
+	%%%    \small
+	%%%    \normalsize
+	%%%
+	\begin{center}%
+		{\huge \bfseries \@title}\\[5em]%
+		{\Large \itshape \@author}\\%
+	\end{center}%
+	\vfill%
+	\begin{center}%
+		This report is submitted as part requirement for the  Data Science and Machine Learning at University College London. It is substantially the result of my own work except where explicitly indicated in the text.
+		The report may be freely copied and distributed provided the source is explicitly acknowledged.
+		\\
+		\textbf{\@degree@string} \\
+		\textbf{University College London}.
+	\end{center}%
+	\vspace{2em}%
+	\begin{center}%
+		\@department \\
+		University College London\\
+	\end{center}%
+	\vspace{2em}%
+	\begin{center}%
+		\@date%
+	\end{center}%
+	\if@twoside %
+		\newpage%
+		~\\
+		\newpage%
+	\fi
 }
 %    \end{macrocode}
 %  \end{macro}
 %
 %  \begin{macro}{\makedeclaration}
 %    \begin{macrocode}
-       \newcommand \makedeclaration {%
-         \clearpage%
-         I, \@author , confirm that the work presented in this thesis is my own.
-         Where information has been derived from other sources, I confirm that this has been indicated in the work.
-         \gdef \@author{}%
-         \clearpage%
-       }%
+\newcommand \makedeclaration {%
+	\clearpage%
+
+	\gdef \@author{}%
+	\clearpage%
+}%
 %    \end{macrocode}
 %  \end{macro}
 %
@@ -470,65 +472,65 @@
 %  Only include in contents and number down to subsections.
 %    \begin{macrocode}
 \renewcommand \chapter{%
-    \if@openright%
-        \cleardoublepage%
-    \else%
-        \clearpage%
-    \fi
-    \thispagestyle{empty}%
-    \global \@topnum \z@%
-    \@afterindentfalse%
-    \secdef \@chapter \@schapter%
-}
+  \if@openright%
+	  \cleardoublepage%
+  \else%
+	  \clearpage%
+  \fi
+  \thispagestyle{empty}%
+  \global \@topnum \z@%
+  \@afterindentfalse%
+  \secdef \@chapter \@schapter%
+ }
 \def \@makechapterhead#1{%
-    \vspace*{40\p@}%
-    {\parindent \z@%
-     \raggedright%
-     \reset@font%
-     \ifnum \c@secnumdepth >\m@ne%
-         \if@mainmatter%
-             \Large \bfseries \@chapapp{} \thechapter%
-             \par%
-             \vskip 20\p@%
-         \fi%
-     \fi%
-     \huge \bfseries #1%
-     \par%
-     \nobreak%
-     \vskip 40\p@%
-    }%
+	\vspace*{40\p@}%
+	{\parindent \z@%
+		\raggedright%
+		\reset@font%
+		\ifnum \c@secnumdepth >\m@ne%
+			\if@mainmatter%
+				\Large \bfseries \@chapapp{} \thechapter%
+				\par%
+				\vskip 20\p@%
+			\fi%
+		\fi%
+		\huge \bfseries #1%
+		\par%
+		\nobreak%
+		\vskip 40\p@%
+	}%
 }
 \def \@makeschapterhead#1{%
-    \vspace*{50\p@}%
-    {\parindent \z@%
-     \raggedright%
-     \reset@font%
-     \huge \bfseries #1%
-     \par%
-     \nobreak%
-     \vskip 40\p@%
-    }%
+	\vspace*{50\p@}%
+	{\parindent \z@%
+		\raggedright%
+		\reset@font%
+		\huge \bfseries #1%
+		\par%
+		\nobreak%
+		\vskip 40\p@%
+	}%
 }
 \renewcommand \section{\@startsection {section}{1}{\z@}%
-                                      {-1ex \@plus -.4ex \@minus -.2ex}%
-                                      {.6ex \@plus .1ex}%
-                                      {\reset@font \Large \bfseries}}
+  {-1ex \@plus -.4ex \@minus -.2ex}%
+  {.6ex \@plus .1ex}%
+  {\reset@font \Large \bfseries}}
 \renewcommand \subsection{\@startsection{subsection}{2}{\z@}%
-                                        {-.7ex\@plus -.3ex \@minus -.2ex}%
-                                        {.4ex \@plus .1ex}%
-                                        {\reset@font \large \bfseries}}
+	{-.7ex\@plus -.3ex \@minus -.2ex}%
+	{.4ex \@plus .1ex}%
+	{\reset@font \large \bfseries}}
 \renewcommand \subsubsection{\@startsection{subsubsection}{3}{\z@}%
-                                        {-.5ex\@plus -.2ex \@minus -.2ex}%
-                                        {.3ex \@plus .1ex}%
-                                        {\reset@font \large}}
+	{-.5ex\@plus -.2ex \@minus -.2ex}%
+	{.3ex \@plus .1ex}%
+	{\reset@font \large}}
 \renewcommand \paragraph{\@startsection{paragraph}{4}{\z@}%
-                                       {.5ex \@plus .1ex \@minus .2ex}%
-                                       {-.2em}%
-                                       {\reset@font \normalsize \bfseries}}
+	{.5ex \@plus .1ex \@minus .2ex}%
+	{-.2em}%
+	{\reset@font \normalsize \bfseries}}
 \renewcommand \subparagraph{\@startsection{subparagraph}{5}{\parindent}%
-                                          {-.3ex \@plus .1ex \@minus .2ex}%
-                                          {-.2em}%
-                                          {\reset@font \normalsize \bfseries}}
+	{-.3ex \@plus .1ex \@minus .2ex}%
+	{-.2em}%
+	{\reset@font \normalsize \bfseries}}
 \setcounter{secnumdepth}{2}
 %    \end{macrocode}
 %
@@ -539,8 +541,8 @@
 %    \begin{macrocode}
 \newcommand \@abstract{Abstract}
 \newenvironment{abstract}{%
-    \chapter*{\@abstract}%
-    \@mkboth{\@abstract}{\@abstract}%
+	\chapter*{\@abstract}%
+	\@mkboth{\@abstract}{\@abstract}%
 }{%
 }
 %    \end{macrocode}
@@ -550,8 +552,8 @@
 %    \begin{macrocode}
 \newcommand \@acknowledgements{Acknowledgements}
 \newenvironment{acknowledgements}{%
-    \chapter*{\@acknowledgements}%
-    \@mkboth{\@acknowledgements}{\@acknowledgements}%
+	\chapter*{\@acknowledgements}%
+	\@mkboth{\@acknowledgements}{\@acknowledgements}%
 }{%
 }
 %    \end{macrocode}

@@ -7,7 +7,7 @@ Before diving into the experiments, the symmetric environments are outlined belo
 	\includegraphics[width=0.5\textwidth]{Figures/cart_pole.png}
 	\caption{The CartPole environment.}
 \end{figure}
-The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical, in this instantiation. The action space$a \in {0,1}$, for the problem, is to either push the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. A state is a vector s:
+The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical, in this instantiation. The action space$a \in {0,1}$ indicates pushing the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. A state is a vector s:
 \begin{equation}
 	s = \begin{pmatrix}
 		x       \\
@@ -34,7 +34,7 @@ Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the ang
 These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
 
 Both learning a policy and a transition model may be augmented by exploiting symmetry. The symmetry present in CartPole is the cyclic $C_2$ group. Other than the trivial group, the group with a single element, the $C_2$ group, is the simplest. This is a group with only two elements, the identity and inversion.
-\begin{table}\label{tab:c2}[h!]
+\begin{table}[h!]\label{tab:c2}
 	\centering
 	\begin{tabular}{c | c  c}
 		$C_2$ & $e$ & $r$ \\
@@ -50,7 +50,7 @@ Both learning a policy and a transition model may be augmented by exploiting sym
 %%As such, to find the group structured MDP homomorphism, the agent needs to learn an equivariant mapping that respects $\pi_1^s\mathbf{s} = \mathbf{s}$ and $\pi_r^s\mathbf{s} = -\mathbf{s}$, as well as $\pi_1^a\mathbf{a} = \mathbf{a}$ and $\pi_r^a\mathbf{a} = 1 - \mathbf{a}$. Here the state and actions as vectors; $\mathbf{s}, \mathbf{a}$ are being acted upon by the vector representations of $C_2, \pi$ in their respective spaces.
 
 \section{Catch}\label{sec:catch}
-\begin{figure}
+\begin{figure}[h!]
 	\label{fig:catch_env}
 	\centering
 	\includegraphics[width = 0.6\textwidth]{Figures/catch_env.png}
@@ -58,18 +58,18 @@ Both learning a policy and a transition model may be augmented by exploiting sym
 \end{figure}
 The Catch environment~\cite{osband2020bsuite} is another simple MDP task similar to CartPole used mainly for debugging implementations. The aim of the game is to catch a falling ball. The default implementation has ten rows and 5 columns. The ball moves down by one row every time-step, and the position of the paddle is translated left or right by the action of the agent. When the ball reaches the tenth row, the reward of the system is $+1$, if the ball and the paddle are in the same location, otherwise the reward is $-1$. For all other time-steps the reward is 0. This produces an episodic environment, with a maximum return of $1$.
 
-The state and action spaces are both discrete, and the transitions are deterministic. These states are represented to the agent as a $5\times 10$ array, with the ball and paddle's positions indicated by ones. The actions the agent can take are $\mathcal{A} = [0, 1, 2]$, that translate the ball by $1-a$. Thus, the MDP has a finite amount of transitions and state action pairs, 675.
+The state and action spaces are both discrete, and the transitions are deterministic. These states are represented to the agent as a $5\times 10$ array, with the ball and paddle's positions indicated by ones. The actions the agent can take are $\mathcal{A} = [0, 1, 2]$, that translate the ball by $1-a$. Thus, the MDP has a finite amount of transitions and state action pairs, 675 in total.
 
 Like CartPole, the Catch environment possesses $C_2$ group symmetry, however, due to the different state and action spaces the representations of the groups are different. However, because the groups are the same the structure is that in Table.\ref{tab:c2}.
 
 \section{Motivation}
-A series of Experiments were carried out to investigate the efficacy of equivariant transition model structure in model-based RL. Where the specific model-based algorithm investigated was Dyna.
+A series of Experiments were carried out to investigate the efficacy of equivariant transition model structure in model-based RL problems with symmetric environments. Where the specific model-based algorithm investigated was Dyna.
 
 Model-based RL, is inherently more complex than actor-critic or value based methods, as not only does a policy need to be learned, but also a model of the environment dynamics must also be learned. In the case of a NN model, this will require training a model, as well as an agent.
 
-Even with the simple models constructed here, the model based agents have two times more parameters. Within wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete B-suite environment.
+Even with the simple models constructed here, the model based agents have two times more parameters. Within wider literature, models such as Dreamer-v3~\cite{hafner2023mastering}, use 8 million parameters, and multiple GPU days to learn policies on the complete Bsuite~\cite{osband2020bsuite} environment.
 
-Despite this increased complexity, the Dyna algorithm is constructed out of a transition model and a model-free agent. This provides a sensible progression for development and experimentation. Firstly, the model-free agent was constructed, and the symmetric inductive biase was tested only for the agent. Then, transition models were trained offline and tested. Finally these disjoint pieces were brought together to form the full Dyna implementation.
+The increased complexity in the Dyna algorithm is mitigated by its modularity. The Dyna agent is constructed out of a transition model and a model-free agent. This provides a sensible progression for development and experimentation. Firstly, the model-free agent was constructed, and the symmetric inductive biase was tested only for the agent. Then, transition models were trained offline and tested. Finally these disjoint pieces were brought together to form the full Dyna implementation.
 
 \section{Baseline}\label{sec:baseline}
 The baseline that was chosen was a proximal policy optimization, Sec.\ref{sec:PPO}, agent from PureJaxRL,~\cite{lu2022discovered, schulman2015highdimensional}. This baseline provides a training framework, that trains a single agent concurrently on multiple identical environments. The training regime is outlined below in pseudocode.
@@ -99,7 +99,7 @@ The baseline that was chosen was a proximal policy optimization, Sec.\ref{sec:PP
 To form an equivariant network to the group structure of CartPole the actor network must be equivariant to both the identity and inversion operator. This report provides structures for equivariant G-CNNs for both CartPole and Catch, that can easily be extended to other environments with known discrete symmetries.
 
 \subsubsection{Constructing a CartPole Actor-Critic}
-In this section, the outline for the network design is described. In the Catch section~\ref{sec:catch_ac}, a more detailed description of how to extend the procedure to other groups is outlined.
+In this section, the outline for the network design is described. In the Catch section, Sec.\ref{sec:catch_ac}, a more detailed description of how to extend the procedure to other groups is outlined.
 The group for CartPole contains two unique elements, in both state and action space. In state space the inversion and identity operator $e, r$ are,
 \begin{equation}
 	\ell^\mathcal{S}_e =

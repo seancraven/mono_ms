@@ -1,5 +1,5 @@
 \chapter{Conclusions}\label{sec:conclusions}
-This report presented multiple novel contributions. With the focus of leveraging symmetries for reinforcement learning agents. The first of these contributions was a fully equivariant actor-critic architecture using discrete group G-CNNs. These equivariant agents showed superior sample efficiency and robustness to the MLP baselines in multiple environments.
+This report presented multiple novel contributions, with the focus of leveraging symmetries for reinforcement learning agents. The first of these contributions was a fully equivariant actor-critic architecture using discrete group G-CNNs. These equivariant agents showed superior sample efficiency and robustness to the MLP baselines in multiple environments.
 
 In contrast to using equivariant structured actor-critic agents, equivariant transition models were investigated. Here, the Proximal Pooling layer Sec.\ref{sec:proximal_pool} was proposed, which provides a method to produce approximately equivariant transition models from G-CNNs. In experiments, once trained these models demonstrated full equivariance. The power of this was shown in their ability to predict transitions from discrete actions unseen in the training set.
 
@@ -13,7 +13,8 @@ The report presents clear evidence that equivariance is an effective inductive b
 
 
 \section{Future Work}
-There exist multiple interesting future avenues to take. Firstly, implementing alternative model-based RL algorithms with the equivariant G-CNN transition models would be interesting to see if performance improvements can be seen, not only when the model is trained offline. Alternative approaches such as Monte Carlo Tree Search, rely less on perfectly planning trajectories and more on short term planning. Where perfectly accurate transition models are not required to improve agent performance~\cite{silver2016mastering}.
+There exist multiple interesting future avenues to take. Firstly, implementing alternative model-based RL algorithms with the equivariant G-CNN transition models would be interesting to see if performance improvements can be seen, not only when the model is trained offline. Alternative approaches such as Monte Carlo Tree Search, rely less on perfectly planning trajectories and more on short term planning;
+where perfectly accurate transition models are not required to improve agent performance~\cite{silver2016mastering}. Additionally, the fully world model-based Dreamer architectures, \cite{hafner2020mastering, hafner2023mastering}, may be extended with further inductive biases.
 
 Secondly, possibly most interestingly, is that there may be the possibility of learning the group structure, in the G-CNNs using a Meta-Learning method, like that proposed by \cite{zhou2020meta}. This would entail training agents simultaneously, as we do across multiple random seeds acting in different instantiations of environments, learning the permutation matrices described in Sec.\ref{sec:proximal_pool}.
 

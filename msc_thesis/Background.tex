@@ -47,7 +47,7 @@ Typically, learning algorithms face a few persistent problems in Deep RL that ma
 	\item \textbf{Sample Efficiency} The algorithms require a large amount of data to learn. This is because training large neural networks are sample inefficient, taking tens hours to learn tasks such as playing Atari~\cite{hessel2018rainbow}, which humans can do in minutes. As mentioned before, breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
 	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialization of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
 	\item \textbf{Reward Sparsity} Reward functions are often sparse, and coming across states that provide rewards, such as finding diamonds in Minecraft, is a difficult problem when initial exploration is random~\cite{hafner2023mastering}.
-	\item \textbf{Deadly Triad} many algorithms use their own predictions to update their current behaviour, a process known as bootstrapping. This in conjunction with off-policy learning can lead to Q-value divergence~\cite{van2018deep}, and an inability to learn.
+	\item \textbf{Deadly Triad} Many algorithms use their own predictions to update their current behaviour, a process known as bootstrapping. This in conjunction with off-policy learning can lead to Q-value divergence~\cite{van2018deep}, and an inability to learn.
 	\item \textbf{Catastrophic Forgetting} like in the context of supervised learning, deep networks have the problem that when trained on sequential tasks they loose performance on previous tasks in the sequence~\cite{kirkpatrick2017overcoming}. These problems can be somewhat overcome by storing experience in the MDP and always using this to update the agent.
 
 \end{itemize}
@@ -55,9 +55,9 @@ Typically, learning algorithms face a few persistent problems in Deep RL that ma
 
 
 \subsection{Model Free Algorithms}
-Model free algorithms attempt to train an agent to maximize returns from agent experience. The two key paradigms either approximating a value function are, Q-learning. Or the agent learns the best action to take in given states these are policy gradient methods.
+Model free algorithms attempt to train an agent to maximize returns from agent experience. The two key paradigms are, Q-learning which approximates a value function and learns a policy offline. Or policy gradient methods, which directly learn a policy online from experience.
 
-When combining standard dynamic programming algorithms such as Q-learning with function approximation, or direct policy learning, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimizes a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Policy Gradient approaches is that Q-learning uses an epsilon greedy policy to collect experience. Whereas, Actor Critics learn and gain experience with the same policy. However, the training loop is much the same;
+When combining standard dynamic programming algorithms such as Q-learning with function approximation, or direct policy learning, the challenge is finding a way to learn the form of the parametric function approximator, which is often a neural network. As such, there is a common approach between multiple algorithms, where you form a supervised learning problem, finding a function that minimizes a loss. In the RL setting, the data is gained from the MDP. The fundamental difference between Q-Learning and Policy Gradient approaches is that Q-learning uses an epsilon greedy policy to collect experience. Whereas, policy gradient agents learn and gain experience with the same policy. However, an approxiamte training loop is much the same;
 
 \begin{algorithm}
 	\caption{Intuition For Model Free RL Training Loop}
@@ -90,7 +90,7 @@ In most cases, some operations need to be performed on the replay buffer, and th
 \subsubsection{Deep Q-Learning}\label{sec:Q-learning}
 Q-Learning forgoes optimizing the true objective, the policy, to learn the optimal value function. This allows one to find an optimal policy, as there is always a deterministic greedy policy, $\pi^*(s) = \arg \max_{b} Q^*(S, b)$, with a stationary point at the optimal value function.
 
-Such ideas are the foundations of Dynamic Programming, which exploits this idea in algorithms such as Value Iteration\cite{bellamn1957mdp} and Policy Iteration\cite{howard1960dynamic}.
+Such ideas are the foundations of Dynamic Programming, which exploits this idea in algorithms such as Value Iteration~\cite{bellamn1957mdp} and Policy Iteration~\cite{howard1960dynamic}.
 
 When extended to function approximation the convergence guarantee of the original dynamic programming Q-learning algorithm is absent in Deep-Q-Learning. While an exact solution may not be found due to computational constraints, excellent solutions can be found in practice using this method~\cite{mnih2013playing}. Traditional Q-learning updates the value of the current state-action pair, $Q(s, a)$, using the Bellman optimality equation for the action-value function,
 \begin{equation}
@@ -230,7 +230,7 @@ Groups are an abstract mathematical idea on a set with a binary operation, $(\te
 	\item[3] Possession of inverse elements: every element in the group has an inverse element.
 	\item [4] Associativity: $(a \cdot b) \cdot c = a \cdot (b \cdot c) \text{  }\forall a, b, c$
 \end{itemize}
-The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant. An example of a group table can be found below for the cyclic group $C_2$ in section~\ref{sec:cartpole}.
+The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant. An example of a group table can be found below for the cyclic group $C_2$ in Sec.\ref{sec:cartpole}.
 
 \subsection{Representation and Actions}
 Members of groups like rotation operations or flip operations maintain their properties no matter what space you are in. For example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function. As such, the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matrices or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The left and right actions refer to the side of the operand the operator is applied. The group action is defined as,
@@ -328,6 +328,8 @@ What is nice in many ways about the original MLP model is that it is so flexible
 		\hline
 	\end{tabular}
 \end{table}
+
+In relation to the topic of wider unification of inductive biases, Geometric Deep Learning s a field that provides a theoretical commonality for many successful network architectures and has unified disparate architectures \cite{bronstein2021geometric}, such as Transformers and C-NNs, under a common framework. Geometric Deep learning provides a way to generalise the different inductive biases that arise from the world. For example, the translation invariance in object detection or order permutation in Graphs.
 
 For the purposes of this thesis, the focus will be on the induction of group equivariances. However, it is important to note that this strategy to improving machine learning models comes from a more general class of ideas.
 
