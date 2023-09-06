@@ -3,7 +3,7 @@ This report presented multiple novel contributions, with the focus of leveraging
 
 In contrast to using equivariant structured actor-critic agents, equivariant transition models were investigated. Here, the Proximal Pooling layer Sec.\ref{sec:proximal_pool} was proposed, which provides a method to produce approximately equivariant transition models from G-CNNs. In experiments, once trained these models demonstrated full equivariance. The power of this was shown in their ability to predict transitions from discrete actions unseen in the training set.
 
-Finally, the equivariant transition models were applied to Dyna agents, with MLP actor-critics. First the transition models were trained offline, with large volumes of transition samples. The pre-trained equivariant transition models agent in the CartPole environment demonstrated a substantial uplift over the actor-critic baseline. In the Catch environment, the results were less impressive.
+Finally, the equivariant transition models were applied to Dyna agents, with MLP actor-critics. First the transition models were trained offline, with large volumes of transition samples. The pre-trained equivariant transition models agent in the CartPole environment demonstrated a substantial uplift over the actor-critic baseline, see Fig.\ref{fig:Supervised-Dyna-catch}. In the Catch environment, the results were less impressive.
 
 When extended to online trained transition models, neither the equivariant transition models nor the MLP transition models were able to outperform the actor-critic baseline. This inability to perform effective planning was attributed to the transition models not achieving high enough accuracy in simulating the true environment for the leant policy to improve when planning.
 

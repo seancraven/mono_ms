@@ -34,16 +34,17 @@ Here $g$ is the acceleration due to gravity and is positive, $\theta$ is the ang
 These PDEs have no closed solution and their form is taken from \cite{florian2007correct} who provides slight corrections to the original dynamics in \cite{barto1983neuronlike}.
 
 Both learning a policy and a transition model may be augmented by exploiting symmetry. The symmetry present in CartPole is the cyclic $C_2$ group. Other than the trivial group, the group with a single element, the $C_2$ group, is the simplest. This is a group with only two elements, the identity and inversion.
-\begin{table}[h!]\label{tab:c2}
-	\centering
-	\begin{tabular}{c | c  c}
-		$C_2$ & $e$ & $r$ \\
-		\hline
-		$e$   & $e$ & $r$ \\
-		$r$   & $r$ & $e$
-	\end{tabular}
-	\caption{The $C_2$ group table, where entry $i, j$ is the result of group operation on the $i^{th}$ and $j^{th}$ element.}
-
+\begin{table}[h]
+	\begin{center}
+		\begin{tabular}{c | c  c}
+			$C_2$ & $e$ & $r$ \\
+			\hline
+			$e$   & $e$ & $r$ \\
+			$r$   & $r$ & $e$ \\
+		\end{tabular}
+		\caption{The $C_2$ group table, where entry $i, j$ is the result of group operation on the $i^{th}$ and $j^{th}$ element.}
+		\label{tab:cyclic_two}
+	\end{center}
 \end{table}
 
 
@@ -51,16 +52,16 @@ Both learning a policy and a transition model may be augmented by exploiting sym
 
 \section{Catch}\label{sec:catch}
 \begin{figure}[h!]
-	\label{fig:catch_env}
 	\centering
 	\includegraphics[width = 0.6\textwidth]{Figures/catch_env.png}
 	\caption{The Catch environment. The ball position is indicated by B, and the paddle position is indicated by P.}
+	\label{fig:catch_env}
 \end{figure}
 The Catch environment~\cite{osband2020bsuite} is another simple MDP task similar to CartPole used mainly for debugging implementations. The aim of the game is to catch a falling ball. The default implementation has ten rows and 5 columns. The ball moves down by one row every time-step, and the position of the paddle is translated left or right by the action of the agent. When the ball reaches the tenth row, the reward of the system is $+1$, if the ball and the paddle are in the same location, otherwise the reward is $-1$. For all other time-steps the reward is 0. This produces an episodic environment, with a maximum return of $1$.
 
 The state and action spaces are both discrete, and the transitions are deterministic. These states are represented to the agent as a $5\times 10$ array, with the ball and paddle's positions indicated by ones. The actions the agent can take are $\mathcal{A} = [0, 1, 2]$, that translate the ball by $1-a$. Thus, the MDP has a finite amount of transitions and state action pairs, 675 in total.
 
-Like CartPole, the Catch environment possesses $C_2$ group symmetry, however, due to the different state and action spaces the representations of the groups are different. However, because the groups are the same the structure is that in Table.\ref{tab:c2}.
+Like CartPole, the Catch environment possesses $C_2$ group symmetry, however, due to the different state and action spaces the representations of the groups are different. However, because the groups are the same the structure is that in Table.\ref{tab:cyclic_two}.
 
 \section{Motivation}
 A series of Experiments were carried out to investigate the efficacy of equivariant transition model structure in model-based RL problems with symmetric environments. Where the specific model-based algorithm investigated was Dyna.
@@ -172,13 +173,15 @@ Due to constraints on the equivariant network structures, it's not always feasib
 
 Refer to Fig.\ref{fig:cp_equi_ac} below, where the mean episodic return of three agents with distinct network architectures is illustrated. Despite the differences in their structures, all networks share the same training hyperparameters, as provided in the PureJaxRL\cite{lu2022discovered} baselines. The three networks depicted are the MLP baseline from PureJaxRL, an implementation of the Symmetrizer network from \cite{vanderpol2020mdp}, and the G-CNN policy network introduced in this report.
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=\linewidth]{Figures/cart_pole_returns.png}
-	\caption{Left: Mean episodic returns for the CartPole agents across 128 random seeds plotted against number of experience time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps. Additionally, all plots have two standard errors plotted. } \label{fig:cp_equi_ac}
+\begin{figure}[h!]
+	\begin{center}
+		\includegraphics[width=\linewidth]{Figures/cart_pole_returns.png}
+		\caption{Left: Mean episodic returns for the CartPole agents across 128 random seeds plotted against number of experience time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps. Additionally, all plots have two standard errors plotted. }
+		\label{fig:cp_equi_ac}
+	\end{center}
 \end{figure}
 
-Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in Cart-pole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training, both the Symmetrizer and the G-CNN, outperform the baseline. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
+Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in Cart-pole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training, both the Symmetrizer and the G-CNN, outperform the baseline. This is more clearly illustrated in Table.\ref{tab:actor-critic}, where the G-CNN actor-critic has a $54\%$ increase in return over the baseline at 10,000 timsteps. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
 
 It should be noted that here the mean plus minus two standard deviations is plotted in comparison to the median and upper and lower quartiles of cumulative returns, which is plotted in \cite{vanderpol2020mdp}. The performance of the Symmetrizer, is underwhelming despite the implemented network being checked for equivariance. Further tuning of the hyperparameters may yield performance that improves upon the baseline's returns. However, this was not a primary concern in this report.
 
@@ -188,17 +191,17 @@ The G-CNN does compare favourably with the baseline implementation of an MLP, ha
 	\centering
 	\begin{tabular}{|c|c|c|c|}
 		\hline
-		Time-steps & Baseline     & Symmetrizer          & G-CNN                 \\
+		Timesteps  & Baseline     & Symmetrizer          & G-CNN                 \\
 		\hline
 		$10, 000$  & $102 \pm 5$  & $116 \pm 6$          & $\mathbf{158 \pm 8}$  \\
 		$100, 000$ & $260 \pm 10$ & $240 \pm$ 10         & $\mathbf{330 \pm 10}$ \\
 		$500,000$  & $497 \pm 1$  & $\mathbf{500 \pm 1}$ & $499 \pm 1$           \\
 		\hline
 	\end{tabular}
-	\caption{Cumulative episodic returns tabulated for the three network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\caption{Mean episodic returns across 128 random seeds tabulated for the three network architectures at three timesteps. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
 	\label{tab:actor-critic}
 \end{table}
-Additionally, the mean episodic returns across all random seeds are tabulated at $10,000$, $100,000$, and $500,000$ time-steps in Table \ref{tab:actor-critic}. Upon closer inspection, the G-CNN agent incorporating the equivariant inductive bias significantly outperforms the baseline.
+Additionally, the mean episodic returns across all random seeds are tabulated at $10,000$, $100,000$, and $500,000$ time-steps in Table \ref{tab:actor-critic}. Upon closer inspection, the G-CNN agent incorporating the equivariant inductive bias significantly outperforms the baseline at all tabulated timesteps.
 
 While both models have similar parameter counts, the structure of the G-CNNs makes their forward passes more computationally intensive. This is due to the G-CNN architecture requiring twice as many operations in a forward pass, attributed to the two group actions. However, in a scenario like Cart-Pole, where the networks are relatively small and inexpensive to evaluate—and where computation can be efficiently parallelized—both models can train 128 random seeds in under a minute. This speed is achieved using the hyperparameters listed in the Appendix and executed on a RTX 3090.
 
@@ -333,7 +336,7 @@ And the closure of the group defines its permutation. The group table for this t
 		1  & 0  & 1  & -1 \\
 		\hline
 	\end{tabular}
-	\caption{Example translation group}
+	\caption{Example translation group.}
 \end{table}
 By using this Eq.\ref{eq:perm_gr} becomes;
 
@@ -346,7 +349,7 @@ By using this Eq.\ref{eq:perm_gr} becomes;
 \end{equation}
 Which is a permutation of the input governed by the group structure of Eq.\ref{eq:gs_perm}.
 
-Given this equivariant structure for each layer, when constructing a network out of an input layer and subsequent hidden layers that all adhere to the equivariance constraint, what remains is to identify an appropriate output. In scenarios such as an actor network operating within a discrete action space, the permutation representation proves ideal. For instance, in the "Catch" environment, the probability of moving left in state \( s \) should mirror the probability of moving right in its reflected state \( s' = \ell_r^\mathcal{S} \). Since the network produces logits—un-normalized probabilities—their permutation upon reflection possesses the desired properties. However, when a permutation doesn't fit the necessary group action, establishing equivariance becomes more intricate. We'll delve into this challenge in subsequent discussions.
+Given this equivariant structure for each layer, when constructing a network out of an input layer and subsequent hidden layers that all adhere to the equivariance constraint, what remains is to identify an appropriate output. In scenarios such as an actor network operating within a discrete action space, the permutation representation proves ideal. For instance, in the Catch environment, the probability of moving left in state \( s \) should mirror the probability of moving right in its reflected state \( s' = \ell_r^\mathcal{S} \). Since the network produces logits—un-normalized probabilities—their permutation upon reflection possesses the desired properties. However, when a permutation doesn't fit the necessary group action, establishing equivariance becomes more intricate. We'll delve into this challenge in subsequent discussions.
 
 With the framework of an equivariant network in place—similar to the CartPole scenario—we established both an equivariant actor-critic and an MLP actor-critic. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the Symmetrizer was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the small state-action space of the Catch task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters, Appendix.\ref{ap:hyp}.
 
@@ -360,21 +363,22 @@ With the framework of an equivariant network in place—similar to the CartPole 
 	\includegraphics[width=\linewidth]{Figures/catch_returns.png}
 	\caption{Left: Mean episodic returns for the Catch agents across 128 random seeds plotted against number of interaction time-steps in the MDP. Right: The mean cumulative episodic returns of the worst performing 128 random seeds against number of experience time-steps in the MDP. Both of the plots are moving averages, with windows of 10 time-steps. Additionally, two standard errors are plotted.}
 \end{figure}
-Upon examining the qualitative differences in the episodic return curves, we observe a familiar yet more pronounced trend. For Catch, the inductive bias of equivariance seems especially beneficial. Not only does the agent with the G-CNN converge to an expert policy more rapidly than its counterpart, but the bottom decile of random seeds also exhibits markedly improved performance. Furthermore, by referring to the tabulated results in Table~\ref{tab:actor-critic_catch}, the superiority of the Equivariant Network architecture is evident. It manages to achieve a higher proficiency in "Catch" in merely half the time compared to the alternative.
+Upon examining the qualitative differences in the episodic return curves, we observe a familiar yet more pronounced trend. For Catch, the inductive bias of equivariance seems especially beneficial. Not only does the agent with the G-CNN converge to an expert policy more rapidly than its counterpart, but the bottom decile of random seeds also exhibits markedly improved performance. Furthermore, by referring to the tabulated results in Table~\ref{tab:actor-critic_catch}, the superiority of the Equivariant Network architecture is evident. It manages to achieve a higher proficiency in Catch in half the time, achieving a higher mean return at 10,000 timesteps than the baseline at 20,000 timesteps.
+
 % Again, looking at the qualitative performance difference from the Episodic return curves we see a similar but more exaggerated story. For Catch the equivariance inductive bias appears to be incredibly useful, and not only does the agent converge to an expert policy faster, than without the G-CNN, but also the bottom decile of random seeds also perform substantially better. Further, looking at tabulated performance in Table~\ref{tab:actor-critic_catch}, The dominance of the Equivariant Network architecture is apparent, with it achieving a greater mastery of Catch in half of the time.
 
 \begin{table}
 	\centering
 	\begin{tabular}{|c|c|c|}
 		\hline
-		Time-steps & Baseline         & G-CNN                     \\
+		Timesteps & Baseline         & G-CNN                     \\
 		\hline
-		$2, 000$   & $- 0.51\pm 0.07$ & $\mathbf{-0.06 \pm 0.09}$ \\
-		$10, 000$  & $0.70 \pm 0.06$  & $\mathbf{0.95 \pm 0.03} $ \\
-		$20,000$   & $0.875 \pm 0.04$ & $\mathbf{0.96\pm 0.02}$   \\
+		$2, 000$  & $- 0.51\pm 0.07$ & $\mathbf{-0.06 \pm 0.09}$ \\
+		$10, 000$ & $0.70 \pm 0.06$  & $\mathbf{0.95 \pm 0.03} $ \\
+		$20,000$  & $0.875 \pm 0.04$ & $\mathbf{0.96\pm 0.02}$   \\
 		\hline
 	\end{tabular}
-	\caption{Cumulative episodic returns tabulated for the two network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\caption{Mean episodic returns across 128 random seeds tabulated for the two network architectures at three timesteps. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
 	\label{tab:actor-critic_catch}
 \end{table}
 \subsection{Conclusion}

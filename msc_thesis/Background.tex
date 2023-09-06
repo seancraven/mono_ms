@@ -24,7 +24,7 @@ The optimal value function, $V^*(s)$, is the maximum value function over all pos
 	V^*(s) = \max_a \mathbb{E} [ R_{t+1} + \gamma V^*(s_{t+1}) | s_t = s, a_t = a].
 \end{equation}
 
-The value function is very closely linked to the action-value function $Q(s, a) = \mathbb{E} [G_t | s_t=s, a_t,=a]$ which is the expected return from taking action $a$ in state $s$ and then following the current policy. There also exists a bellman optimality equation for the action-value function:
+The value function is very closely linked to the action-value function $Q(s, a) = \mathbb{E} [G_t | s_t=s, a_t,=a]$ which is the expected return from taking action $a$ in state $s$ and then following the current policy. There also exists a Bellman optimality equation for the action-value function:
 \begin{equation}
 	Q^*(s,a) = \mathbb{E} [ R_{t+1} + \gamma \max_{a'} Q^*(s_{t+1}, a') | s_t = s, a_t = a].
 \end{equation}
@@ -45,7 +45,7 @@ In contrast, model-based algorithms learn the problem's dynamics and simulate th
 Typically, learning algorithms face a few persistent problems in Deep RL that make solving problems difficult. A non-exhaustive list is:
 \begin{itemize}
 	\item \textbf{Sample Efficiency} The algorithms require a large amount of data to learn. This is because training large neural networks are sample inefficient, taking tens hours to learn tasks such as playing Atari~\cite{hessel2018rainbow}, which humans can do in minutes. As mentioned before, breakthroughs in RL are often made in games, where data can be simulated and collected cheaply\cite{dulac2019challenges}
-	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialization of the environment and the agent, and special random seeds are required to see good performance\cite{henderson2018deep}.
+	\item \textbf{Training Robustness} The algorithms can often struggle to converge depending on the initialization of the environment and the agent, and favourable initialization conditions produced by special random seeds are required to see good performance~\cite{henderson2018deep}.
 	\item \textbf{Reward Sparsity} Reward functions are often sparse, and coming across states that provide rewards, such as finding diamonds in Minecraft, is a difficult problem when initial exploration is random~\cite{hafner2023mastering}.
 	\item \textbf{Deadly Triad} Many algorithms use their own predictions to update their current behaviour, a process known as bootstrapping. This in conjunction with off-policy learning can lead to Q-value divergence~\cite{van2018deep}, and an inability to learn.
 	\item \textbf{Catastrophic Forgetting} like in the context of supervised learning, deep networks have the problem that when trained on sequential tasks they loose performance on previous tasks in the sequence~\cite{kirkpatrick2017overcoming}. These problems can be somewhat overcome by storing experience in the MDP and always using this to update the agent.
@@ -233,7 +233,7 @@ Groups are an abstract mathematical idea on a set with a binary operation, $(\te
 The key point is that specific symmetries form groups of all the transformations that leave the object/space invariant. An example of a group table can be found below for the cyclic group $C_2$ in Sec.\ref{sec:cartpole}.
 
 \subsection{Representation and Actions}
-Members of groups like rotation operations or flip operations maintain their properties no matter what space you are in. For example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function. As such, the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matrices or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The left and right actions refer to the side of the operand the operator is applied. The group action is defined as,
+Members of groups like rotation operations or flip operations maintain their properties no matter what space you are in. For example flipping an image or a function the group is still the same, in that if you perform two flips you get the same image/function. As such, the group is a very general and abstract concept. When dealing with groups, in a concrete setting then the group is a set of matrices or functionals that operate on a space or a function, these are in general described as group actions, for our purposes only the left action is needed. The left and right actions refer to the side of the operand the operator is applied. The left group action is defined as,
 \begin{equation}
 	\ell_g: \mathcal{X} \times G \rightarrow \mathcal{X}, \forall g \in G, \forall x \in \mathcal{X}.
 \end{equation}
@@ -271,7 +271,7 @@ Here, both $\ell_g$s are actions of the same group member. However, the spaces t
 A homomorphism describes a map between two structures that preserves an operation. In the context of reinforcement learning, the preservation is that of the dynamics and reward structure of a Markov Decision Process.
 
 \section{MDP Homomorphism}
-An MDP homomorphism describes a surjective mapping between one MDP and another; Ravindran and Barto first described this notion in the early 2000s\cite{ravindran2003smdp,ravindran2001symmetries}.
+An MDP homomorphism describes a surjective, one to one, mapping between one MDP and another; Ravindran and Barto first described this notion in the early 2000s\cite{ravindran2003smdp,ravindran2001symmetries}.
 
 \textbf{Definition: MDP Homomorphism} Given some MDP $\mathcal{M}$, where there exists a surjective map, from $\mathcal{S} \times \mathcal{A} \rightarrow \overline{\mathcal{S}} \times \overline{\mathcal{A}}$ where all abstract quantities are denoted with an $\overline{\text{overline}}$. The MDP $\overline{\mathcal{M}}$  is an abstract MDP over the new space. The homomorphism $h$, then is the tuple of $(\sigma, \alpha_s|s \in \mathcal{S})$, where $\sigma: \mathcal{S} \rightarrow \overline{\mathcal{S}}$ and $\alpha_s : \mathcal{A} \rightarrow \overline{\mathcal{A}}$. This surjective map must satisfy two constraints for it to be a valid MDP homomorphism;
 \begin{enumerate}

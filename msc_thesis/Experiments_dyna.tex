@@ -24,7 +24,7 @@ As the number of timesteps is fixed the number of Dyna iterations provides a mec
 	\label{fig:cp_dyna}
 \end{figure}
 
-The matrix of plots in Fig.\ref{fig:cp_dyna} shows underwhelming performance for the Dyna implementation. Both the Dyna and Equi-Dyna agents underperform the baseline actor-critic in all plots. Further, the model's performance is strikingly similar across all planning ratios and Dyna iterations.
+The matrix of plots in Fig.\ref{fig:cp_dyna} shows underwhelming performance for the Dyna implementation. Both the Dyna and Equi-Dyna agents underperform the baseline actor-critic in all plots. The baseline is the same actor-critic and can be used as a reference point to compare the Dyna and Equi-Dyna implementations. Further, the model's performance is strikingly similar across all planning ratios and Dyna iterations.
 
 When only considering a planning ratio of 0.5, where the agent learns from twice the number of real transitions as simulated transitions, the agents with higher Dyna iteration count, thus fewer gradient updates\footnote{Batch size is constant, so parameter updates is a function of dataset size.} from simulated transitions, perform similarly to the baseline. Additionally, the discontinuities seen in models with higher Dyna iterations were not present.
 

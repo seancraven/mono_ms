@@ -2,7 +2,7 @@
 In the previous section, Actor-Critic methods were implemented on both the CartPole and Catch environments. The inclusion of an inductive bias exploiting the symmetry of an MDP led to improvements in the sample efficiency of learning an expert policy, while maintaining robustness to initialization conditions.
 In the case where the transition dynamics of the MDP are group-structured, or approximately group-structured, this report proposes the use of an equivariant world model. With a world model that has inductive biases designed to aid in learning the MDP's transition dynamics, the world model may be learned more efficiently and accurately from fewer samples from the environment, improving the effectiveness of planning for the agent.
 
-The specific algorithm implemented to create a model-based agent is a Dyna, Alg.\ref{algo:Dyna}, with a PPO agent ,Sec.\ref{sec:PPO}. Using the Dyna-PPO agent means that when the number of planning steps is set to zero, the agent becomes a model-free PPO agent, enabling direct comparison with the baseline MLP PPO implementation, found in Sec.\ref{sec:baseline}.
+The specific algorithm implemented to create a model-based agent is a Dyna, Alg.\ref{algo:Dyna}, with a PPO agent outlined in Sec.\ref{sec:PPO}. Using the Dyna-PPO agent means that when the number of planning steps is set to zero, the agent becomes a model-free PPO agent, enabling direct comparison with the baseline MLP PPO implementation, found in Sec.\ref{sec:baseline}.
 
 Both Catch and CartPole are environments where the reward function is only a function of the state the agent is in, and not a state-action pair. Further, because their rewards are simple functions of their state, this report forgoes learning the reward dynamics of the environments and uses their existing reward structure on simulated states, such that:
 \begin{equation}
@@ -126,7 +126,7 @@ As motivation for why this occurs, when the G-CNN performs a forward pass, one o
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width = 0.6\textwidth]{Figures/logits_correlation.png}
-	\caption{Pearson $r^2$ value for each logit in the output of the transition model between $g(s, a)$ and $\ell_r^\mathcal{S}g(\ell_r^\mathcal{S}s,\ell_r^\mathcal{A}a)$, for one of the 675 possible state action pairs, across 1000 random  seeds for network initialization. }
+	\caption{Pearson correlation coefficient for each logit in the output of the transition model between $g(s, a)$ and $\ell_r^\mathcal{S}g(\ell_r^\mathcal{S}s,\ell_r^\mathcal{A}a)$, for one of the 675 possible state action pairs, across 1000 random  seeds for network initialization. }
 	\label{fig:logits_correlation}
 \end{figure}
 Empirically, one can see the lack of correlation in Fig.\ref{fig:logits_correlation}, which plots the $r^2$ co-efficient between the transition images across 1,000 randomly initialized untrained networks. The network parameterizes the next states as two distributions, by outputting an array of 50 logits. As expected, the network responses along the centre axis should be invariant to the input transformation. Thus, a positive correlation coefficient is encouraging. For all other logits in the distribution over the next state there is no evidence of a correlation between the two transition images, at a 5\% significance level.
@@ -216,7 +216,7 @@ The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the Equi-Dyna mode
 		$500,000$  & $497 \pm 1$  & $\mathbf{500 \pm 1}$ & $498 \pm 13$          \\
 		\hline
 	\end{tabular}
-	\caption{Cumulative episodic returns tabulated for the three network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\caption{Mean episodic returns across 128 random seeds tabulated for the three network architectures at three timesteps. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
 	\label{tab:sup-dyna-cp}
 \end{table}
 
@@ -277,7 +277,7 @@ Again tabulating the returns' mean distribution in Table.\ref{tab:Supervised-Dyn
 		$20,000$   & $0.875 \pm 0.04$ & $0.88\pm 0.06$   & $\mathbf{0.90\pm 0.05}$   \\
 		\hline
 	\end{tabular}
-	\caption{Mean cumulative episodic returns tabulated for the two network architectures. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
+	\caption{Mean episodic returns across 128 random seeds tabulated for the two network architectures at three timesteps. All episodic returns are recorded with confidence intervals of two standard errors across 128 random seeds.}
 	\label{tab:Supervised-Dyna-catch}
 \end{table}
 
