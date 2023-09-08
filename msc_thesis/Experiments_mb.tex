@@ -11,7 +11,7 @@ Both Catch and CartPole are environments where the reward function is only a fun
 Where, $R$, is the reward function defined by the environment.
 
 \subsection{Constructing Transition Models}
-Before using a full model-free algorithm, where the model is learned online, during the training. A simplified algorithm, Supervised-Dyna, is tested that uses offline trained world models. The process for this is outlined below.
+Before using a full model-free algorithm, where the model is learned online during the training. A simplified algorithm, Supervised-Dyna, is tested that uses offline trained world models. The process for this is outlined below.
 \begin{algorithm}
 	\caption{Supervised-Dyna}\label{alg:Supervised-Dyna}
 	\begin{algorithmic}
@@ -113,7 +113,7 @@ This is not the case for the Catch network. Catch has $675$ state-action pairs, 
 
 When trained, the Catch model is able to achieve a validation accuracy of 1. As such, the lack of perfect equivariance may not be an issue in some scenarios. Small, discrete spaces with a high degree of symmetry are the worst in terms of a lack of equivariant predictions.
 
-When there are few possible states, the probability that a random state is closer to the prediction increases. In the limit where there are two states, a distance metric between the two is either $0, d$ and as such a random prediction is the same distance or closer half of the time.  Additionally, for MDPs where no sensible distance metric can be constructed, this method will fail.
+In small state spaces when there are few possible states, the probability that a random state is closer to the prediction increases. In the limit where there are two states, a distance metric between the two is either $0, d$ and as such a random prediction is the same distance or closer half of the time.  Additionally, for MDPs where no sensible distance metric can be constructed, this method will fail.
 
 \begin{proposition}
 	Given some distance metric between two states $d(s, s')$ and a G-CNN transition model of the form Eq.\ref{eq:g-cnn}. If at some time $t$ a state transition from $s_t$ to $s_{t+1}$ takes place. And the MDP has a group structured discrete symmetry, if the state space obeys,
@@ -129,7 +129,7 @@ As motivation for why this occurs, when the G-CNN performs a forward pass, one o
 	\caption{Pearson correlation coefficient for each logit in the output of the transition model between $g(s, a)$ and $\ell_r^\mathcal{S}g(\ell_r^\mathcal{S}s,\ell_r^\mathcal{A}a)$, for one of the 675 possible state action pairs, across 1000 random  seeds for network initialization. }
 	\label{fig:logits_correlation}
 \end{figure}
-Empirically, one can see the lack of correlation in Fig.\ref{fig:logits_correlation}, which plots the $r^2$ co-efficient between the transition images across 1,000 randomly initialized untrained networks. The network parameterizes the next states as two distributions, by outputting an array of 50 logits. As expected, the network responses along the centre axis should be invariant to the input transformation. Thus, a positive correlation coefficient is encouraging. For all other logits in the distribution over the next state there is no evidence of a correlation between the two transition images, at a 5\% significance level.
+Empirically, one can see the lack of correlation in Fig.\ref{fig:logits_correlation}, which plots the Pearson correlation coefficient between the transition images across 1,000 randomly initialized untrained networks. The network parametrizes the next states as two distributions, by outputting an array of 50 logits. As expected, the network responses along the centre axis should be invariant to the input transformation. Thus, a positive correlation coefficient is encouraging. For all other logits in the distribution over the next state there is no evidence of a correlation between the two transition images, at a 5\% significance level.
 
 With the two outputs being independent of each other, the correct next state can be selected using the proximal layer reliably, and the networks can be approximately equivariant.
 
@@ -192,7 +192,7 @@ This superior generalization is demonstrated when the model is trained on random
 This property may be important in training Dyna agents. Where initially the agents' policies are suboptimal and may tend to be worse at keeping the pole upright. However, the agents' learning in the simulated environments may be augmented by the improved generalization to small angels. As the policies improve from simulated experience, they tend towards having more transitions at small angels.\footnote{The transition distributions can be found in the Appendix.\ref{ap:dist_cp}.}
 
 \subsubsection{Results: Supervised-Dyna}
-Using the off-line trained world models above on the joint expert-random data. Both actor-critic agent were trained using the Supervised-Ayna algorithm, Alg.\ref{alg:Supervised-Dyna}. With only equivariant transition models, and conventional MLP actor-critics. The model-based agents have 50 Dyna iterations, and the full hyperparameter set can be found in Appendix.\ref{ap:hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
+Using the off-line trained world models on the joint expert-random data. Both actor-critic agent were trained using the Supervised-Dyna algorithm, Alg.\ref{alg:Supervised-Dyna}. With only equivariant transition models, and conventional MLP actor-critics. The model-based agents have 50 Dyna iterations, and the full hyperparameter set can be found in Appendix.\ref{ap:hyp}. Further, a hyperparameter sweep was performed over planning ratio and the best planning ratios were chosen.
 \begin{figure}
 	\centering
 	\includegraphics[width=\textwidth]{Figures/Expert_dyna_cp_best.png}
@@ -204,7 +204,7 @@ Using the off-line trained world models above on the joint expert-random data. B
 		plotted. The Equi-Dyna model uses a planning ratio of 8 and the Dyna model uses a planning ratio of 1.}
 	\label{fig:sup-dyna-cp}
 \end{figure}
-The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the Equi-Dyna model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the Dyna model only providing a small uplift over a model-free baseline.
+The results are displayed in Fig.\ref{fig:sup-dyna-cp}. Where the Equi-Dyna (G-CNN transition model) model was found to perform best with a high planning ratio. The small difference in validation loss between the transition models appears to have a large impact on the quality of the planning available to the agents, with the Dyna model only providing a small uplift over a model-free baseline.
 \begin{table}
 	\centering
 	\begin{tabular}{|c|c|c|c|}

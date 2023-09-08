@@ -1,19 +1,19 @@
 \chapter{Experiments}
 \section{Environments}
-Before diving into the experiments, the symmetric environments are outlined below.
+Before diving into the experiments, the symmetric environments used are outlined below. Additionally, for notational convince the policy $\pi(a|s)$ is denoted as $\pi(s)$.
 \section{CartPole}\label{sec:cartpole}
 \begin{figure}[h!]
 	\centering
 	\includegraphics[width=0.5\textwidth]{Figures/cart_pole.png}
 	\caption{The CartPole environment.}
 \end{figure}
-The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical, in this instantiation. The action space$a \in {0,1}$ indicates pushing the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. A state is a vector s:
+The CartPole environment is the "Hello World" of reinforcement learning; it describes a game where at each timestep, the aim is to balance a mass above a slider, 1 point is given for each timestep that the mass makes an angle of fewer than 12 degrees from vertical, in this instantiation. The action space$a \in {0,1}$ indicates pushing the pole left or right. The state space is the position of the cart, the velocity of the cart, the angle of the pole and the angular velocity of the pole. Then a state is a vector s:
 \begin{equation}
 	s = \begin{pmatrix}
 		x       \\
 		\dot{x} \\
 		\theta  \\
-		\dot{\theta}
+		\dot{\theta}.
 	\end{pmatrix}
 \end{equation}
 Thus, $s \in \mathbb{R}^4$.
@@ -57,7 +57,7 @@ Both learning a policy and a transition model may be augmented by exploiting sym
 	\caption{The Catch environment. The ball position is indicated by B, and the paddle position is indicated by P.}
 	\label{fig:catch_env}
 \end{figure}
-The Catch environment~\cite{osband2020bsuite} is another simple MDP task similar to CartPole used mainly for debugging implementations. The aim of the game is to catch a falling ball. The default implementation has ten rows and 5 columns. The ball moves down by one row every time-step, and the position of the paddle is translated left or right by the action of the agent. When the ball reaches the tenth row, the reward of the system is $+1$, if the ball and the paddle are in the same location, otherwise the reward is $-1$. For all other time-steps the reward is 0. This produces an episodic environment, with a maximum return of $1$.
+The Catch environment~\cite{osband2020bsuite} is another simple MDP task similar to CartPole used mainly for debugging implementations. The aim of the game is to catch a falling ball. The default implementation has ten rows and five columns. The ball moves down by one row every time-step, and the position of the paddle is translated left or right by the action of the agent. When the ball reaches the tenth row, the reward of the system is $+1$, if the ball and the paddle are in the same location, otherwise the reward is $-1$. For all other time-steps the reward is zero. This produces an episodic environment, with a maximum return of one.
 
 The state and action spaces are both discrete, and the transitions are deterministic. These states are represented to the agent as a $5\times 10$ array, with the ball and paddle's positions indicated by ones. The actions the agent can take are $\mathcal{A} = [0, 1, 2]$, that translate the ball by $1-a$. Thus, the MDP has a finite amount of transitions and state action pairs, 675 in total.
 
@@ -181,7 +181,7 @@ Refer to Fig.\ref{fig:cp_equi_ac} below, where the mean episodic return of three
 	\end{center}
 \end{figure}
 
-Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in Cart-pole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training, both the Symmetrizer and the G-CNN, outperform the baseline. This is more clearly illustrated in Table.\ref{tab:actor-critic}, where the G-CNN actor-critic has a $54\%$ increase in return over the baseline at 10,000 timsteps. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
+Both the Symmetrizer and the G-CNN are equivariant to the actions of the $C_2$ group. This equivariance constraint requires a learned policy that respects the inversion symmetry present in CartPole. The equivariance  should improve the sample efficiency of the agent as any learning from one state additionally informs the agent about the agent about the policy for the other state in the orbit. This hypothesis, is supported somewhat by the observed training dynamics. Over the first period of training, both the Symmetrizer and the G-CNN, outperform the baseline. This is more clearly illustrated in Table.\ref{tab:actor-critic}, where the G-CNN actor-critic has a $54\%$ increase in return over the baseline at 10,000 timsteps. The Symmetrizer, does not maintain this performance advantage. Our implementation uses the same network size, as the original paper and the same network hyperparameters. Despite this, the Symmetrizer agent fails to learn an expert policy in fewer steps than that of the baseline.
 
 It should be noted that here the mean plus minus two standard deviations is plotted in comparison to the median and upper and lower quartiles of cumulative returns, which is plotted in \cite{vanderpol2020mdp}. The performance of the Symmetrizer, is underwhelming despite the implemented network being checked for equivariance. Further tuning of the hyperparameters may yield performance that improves upon the baseline's returns. However, this was not a primary concern in this report.
 
@@ -203,7 +203,7 @@ The G-CNN does compare favourably with the baseline implementation of an MLP, ha
 \end{table}
 Additionally, the mean episodic returns across all random seeds are tabulated at $10,000$, $100,000$, and $500,000$ time-steps in Table \ref{tab:actor-critic}. Upon closer inspection, the G-CNN agent incorporating the equivariant inductive bias significantly outperforms the baseline at all tabulated timesteps.
 
-While both models have similar parameter counts, the structure of the G-CNNs makes their forward passes more computationally intensive. This is due to the G-CNN architecture requiring twice as many operations in a forward pass, attributed to the two group actions. However, in a scenario like Cart-Pole, where the networks are relatively small and inexpensive to evaluate—and where computation can be efficiently parallelized—both models can train 128 random seeds in under a minute. This speed is achieved using the hyperparameters listed in the Appendix and executed on a RTX 3090.
+While both models have similar parameter counts, the structure of the G-CNNs makes their forward passes more computationally intensive. This is due to the G-CNN architecture requiring twice as many operations in a forward pass, attributed to the two group actions. However, in a scenario like CartPole, where the networks are relatively small and inexpensive to evaluate—and where computation can be efficiently parallelized—both models can train 128 random seeds in under a minute. This speed is achieved using the hyperparameters listed in the Appendix and executed on a RTX 3090.
 
 Encouraged by the promising results from the initial experiment, we decided to explore a new environment to determine whether the equivariance constraint could further enhance performance.
 
@@ -349,9 +349,9 @@ By using this Eq.\ref{eq:perm_gr} becomes;
 \end{equation}
 Which is a permutation of the input governed by the group structure of Eq.\ref{eq:gs_perm}.
 
-Given this equivariant structure for each layer, when constructing a network out of an input layer and subsequent hidden layers that all adhere to the equivariance constraint, what remains is to identify an appropriate output. In scenarios such as an actor network operating within a discrete action space, the permutation representation proves ideal. For instance, in the Catch environment, the probability of moving left in state \( s \) should mirror the probability of moving right in its reflected state \( s' = \ell_r^\mathcal{S} \). Since the network produces logits—un-normalized probabilities—their permutation upon reflection possesses the desired properties. However, when a permutation doesn't fit the necessary group action, establishing equivariance becomes more intricate. We'll delve into this challenge in subsequent discussions.
+Given this equivariant structure for each layer, when constructing a network out of an input layer and subsequent hidden layers that all adhere to the equivariance constraint, what remains is to identify an appropriate output. In scenarios such as an actor network operating within a discrete action space, the permutation representation proves ideal. For instance, in the Catch environment, the probability of moving left in state \( s \) should mirror the probability of moving right in its reflected state \( s' = \ell_r^\mathcal{S} \). Since the network produces logits, un-normalized probabilities, their permutation upon reflection possesses the desired properties. However, when a permutation doesn't fit the necessary group action, establishing equivariance becomes more intricate. This challenge will be delved into in subsequent sections, Sec.\ref{sec:tm_catch}.
 
-With the framework of an equivariant network in place—similar to the CartPole scenario—we established both an equivariant actor-critic and an MLP actor-critic. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the Symmetrizer was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the small state-action space of the Catch task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters, Appendix.\ref{ap:hyp}.
+With the framework of an equivariant network in place, similar to the CartPole scenario. Both an equivariant actor-critic and an MLP actor-critic, were established. These were designed with two hidden layers and an approximate equivalent in parameter count. For this experiment, the Symmetrizer was omitted due to the difficulties encountered when trying to optimize its performance, as depicted in the primary study. Given the small state-action space of the Catch task relative to CartPole, agents were allotted 20,000 MDP interactions for learning. The MLP baseline once again employed the PureJaxRL baseline actor-critic, albeit with minor modifications for adaptation to the new environment. Both network architectures were assigned identical hyperparameters, Appendix.\ref{ap:hyp}.
 
 \subsubsection{Results: Training Dynamics On the Catch Benchmark}
 % With this equivariant structure for each layer the network constructed out of an input layer and subsequent hidden layers, which all maintain the equivariance constraint, the only thing left is to find an output. In the case of an actor network in a discrete action space, the permutation representation, is perfect, in the case of Catch where the probability of moving left in a state $s$ should be the same as the probability of moving right in a reflected state $s' = \ell_r^\mathcal{S}$. As the network outputs logits, un-normalised probabilities, their permutation on a reflection is the exact property required. For cases where a permutation is not the required group action, achieving equivariance is slightly more difficult. This is left for later.
