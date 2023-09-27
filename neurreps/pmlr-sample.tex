@@ -131,9 +131,14 @@
 \end{abstract}
 
 \section{Introduction}
-Encoding equivariance into agent networks has been an effective inductive bias for Reinforcement learning agents in symmetric environments. Enabling agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies on previously unapproachable tasks \cite{wang2022so2}.
+Encoding equivariance into agent networks has been an effective inductive bias for Reinforcement learning agents in symmetric environments. Enabling agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies on previously unapproachable tasks \cite{wang2022so2}. 
 
-In our preliminary findings we investigate extending the equivariant inductive bias to a transition model of the environment, enabling an agent to learn a planning capable world model with fewer interactions with the Markov Decision Process (MDP).
+Our preliminary findings focus on extending the equivariant inductive bias to a transition model of the environment, to enable planning. Our initial investigation focus around augmenting a PPO agent with the ability to plan using learned transition models.
+
+We implemeted a Dyna-style agent which directly learning a policy from both the real environment, and trajectories simulated by a equivariant transition model. To achieve this a novel method of polling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with equivariant transition models. However, we failed to implement a Dyna-style agent that outperformed a PPO agent in the Cart-Pole and Catch environments that were tested in.
+
+\section{Method}
+The Dyna-style training process for the equivariant agents cosists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase. Where the agent gains experience from a simulated MDP. The transition model, $T_\phi$, of the simulated MDP is constructed with a Group-Convolutional Neural Netowk (G-CNN). When constructing a transition model $T: \mathcal{S} \times \mathcal{A} -> \mathcal{A}$, maps from state and action space to state space. Where each state has a well defined shape. 
 
 
 \label{sec:intro}
