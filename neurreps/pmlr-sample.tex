@@ -131,14 +131,29 @@
 \end{abstract}
 
 \section{Introduction}
-Encoding equivariance into agent networks has been an effective inductive bias for Reinforcement learning agents in symmetric environments. Enabling agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies on previously unapproachable tasks \cite{wang2022so2}. 
+Encoding equivariance into agent networks has been an effective inductive bias for Reinforcement learning agents in symmetric environments. Enabling agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies on previously unapproachable tasks \cite{wang2022so2}. These works exploit properties of Group structured MDP homomorphisms~\cite{ravindran2003smdp, ravindran2001symmetries}. Which describes an abstract MDP, where in the deterministic case:
+\begin{equation}
+  T(S, A) = S', \\
+  T(g \cdot S, g \cdot a) = g \cdot S'.
+  \label{eq:gs_mdp}
+\end{equation}
+\begin{equation}
+  R(S, A) = r, \\
+  R(g \cdot S, g \cdot A) = r.
+  \label{eq:gs_mdp_rw}
+\end{equation}
+Here $S, S' \in \matchal{S}$ are states, and $A \in \mathcal{A}$ are actions. $g$ are group actions acting on the state action space. This definition is taken from \cite{van2020plannable}, with slightly altered notation. These notions can be extended to stocastic MDPs trivially.
 
 Our preliminary findings focus on extending the equivariant inductive bias to a transition model of the environment, to enable planning. Our initial investigation focus around augmenting a PPO agent with the ability to plan using learned transition models.
 
 We implemeted a Dyna-style agent which directly learning a policy from both the real environment, and trajectories simulated by a equivariant transition model. To achieve this a novel method of polling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with equivariant transition models. However, we failed to implement a Dyna-style agent that outperformed a PPO agent in the Cart-Pole and Catch environments that were tested in.
 
 \section{Method}
-The Dyna-style training process for the equivariant agents cosists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase. Where the agent gains experience from a simulated MDP. The transition model, $T_\phi$, of the simulated MDP is constructed with a Group-Convolutional Neural Netowk (G-CNN). When constructing a transition model $T: \mathcal{S} \times \mathcal{A} -> \mathcal{A}$, maps from state and action space to state space. Where each state has a well defined shape. 
+The Dyna-style training process for the equivariant agents cosists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase. Where the agent gains experience from a simulated MDP. The transition model, $T_\phi$, of the simulated MDP is constructed with a Group-Convolutional Neural Netowk (G-CNN). When constructing a transition model $T: \mathcal{S} \times \mathcal{A} -> \mathcal{A}$, maps from state and action space to state space. Where each state has a well defined shape.
+
+Tho produce the correct output shape for the G-CNN each convolution with a kernel in the final layer must output something in $\mathcal{S}$. If this is the case due to the kernel being acted on by each member in the symmetry group. The output will be of $\mathcal{S} \times |G|$, where $|G|$ is the size of the symmetry Group. If a max or average pooling was used over the $|G|$ dimension the equivariance of the group convolution would be lost and the transition model would become invariant to group operations on the input. This motivates the Proximal Pool. 
+
+The proximal pooling layer provides a empirically reliable method to produce equivariant networks. Inspired by the intuition that transitions to next states in many physical problems are closer to the previous state than a random state sampled from the environment.
 
 
 \label{sec:intro}
