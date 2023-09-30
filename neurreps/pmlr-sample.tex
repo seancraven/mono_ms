@@ -114,9 +114,9 @@
 
 
  % Authors with different addresses:
- \author{\Name{Sean Craven} \Email{sean.craven.22@ucl.ac.uk}\\
+ \author{\Name{Sean Craven} \Email{sean.craven.22@ucl.ac.uk, sean.craven@advai.co.uk}\\
  \AND
- \Name{Caswell Barry} \Email{}\\
+\Name{Caswell Barry} \Email{}\\}
  % \addr Address 2
  %}
 
@@ -142,18 +142,33 @@ Encoding equivariance into agent networks has been an effective inductive bias f
   R(g \cdot S, g \cdot A) = r.
   \label{eq:gs_mdp_rw}
 \end{equation}
-Here $S, S' \in \matchal{S}$ are states, and $A \in \mathcal{A}$ are actions. $g$ are group actions acting on the state action space. This definition is taken from \cite{van2020plannable}, with slightly altered notation. These notions can be extended to stocastic MDPs trivially.
+Here $S, S' \in \mathcal{S}$ are states, and $A \in \mathcal{A}$ are actions. $g \in G$ are group actions acting on the state action space. This definition is taken from \cite{van2020plannable}, with slightly altered notation. These notions can be extended to stochastic MDPs.
 
 Our preliminary findings focus on extending the equivariant inductive bias to a transition model of the environment, to enable planning. Our initial investigation focus around augmenting a PPO agent with the ability to plan using learned transition models.
 
-We implemeted a Dyna-style agent which directly learning a policy from both the real environment, and trajectories simulated by a equivariant transition model. To achieve this a novel method of polling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with equivariant transition models. However, we failed to implement a Dyna-style agent that outperformed a PPO agent in the Cart-Pole and Catch environments that were tested in.
+We implemented a Dyna-style agent which directly learning a policy from both the real environment, and trajectories simulated by a equivariant transition model. To achieve this a novel method of polling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with equivariant transition models. However, we failed to implement a Dyna-style agent that outperformed a PPO agent in the Cart-Pole and Catch environments that were tested in.
 
 \section{Method}
-The Dyna-style training process for the equivariant agents cosists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase. Where the agent gains experience from a simulated MDP. The transition model, $T_\phi$, of the simulated MDP is constructed with a Group-Convolutional Neural Netowk (G-CNN). When constructing a transition model $T: \mathcal{S} \times \mathcal{A} -> \mathcal{A}$, maps from state and action space to state space. Where each state has a well defined shape.
+The Dyna-style training process for the equivariant agents consists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase. Where the agent gains experience from a simulated MDP. The transition model, $T_\phi$, of the simulated MDP is constructed with a Group-Convolutional Neural Network (G-CNN)~\cite{cohen2016group}. 
 
-Tho produce the correct output shape for the G-CNN each convolution with a kernel in the final layer must output something in $\mathcal{S}$. If this is the case due to the kernel being acted on by each member in the symmetry group. The output will be of $\mathcal{S} \times |G|$, where $|G|$ is the size of the symmetry Group. If a max or average pooling was used over the $|G|$ dimension the equivariance of the group convolution would be lost and the transition model would become invariant to group operations on the input. This motivates the Proximal Pool. 
+To construct a transition model $T: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{A}$, maps from state and action space to state space. Where each state has a well defined shape.
 
-The proximal pooling layer provides a empirically reliable method to produce equivariant networks. Inspired by the intuition that transitions to next states in many physical problems are closer to the previous state than a random state sampled from the environment.
+Each group convolution layer is constructed out of a single kernel which is convolved with the input. For each group action in a given symmetry group that the layer is equivariant to the kernel is operated on by a group action. Thus a layer takes the form of
+\begin{equation}
+  \begin{pmatrix}
+     k \cdot g_0* f \\
+     k \cdot g_1 * f\\
+     \vdots \\
+     k \cdot g_{|G|} * f
+  \end{pmatrix}.
+  \label{eq:g-cnn}
+\end{equation}
+Where $k$ is the kernel cross-correlated with the input $f$. In our setting each cross-correlation produces an output of the same shape as a state. As such, a reduction must be performed to get an output in state space. If a max or average pooling was used over the $|G|$ dimension the equivariance of the group convolution would be lost. The network would become invariant to group operations on the input. This loss of equivariance motivates the need for an equivariant reduction to ensure that the transition models used for planning are fully equivariant.
+
+The proximal pooling layer provides a novel and empirically reliable method to produce equivariant networks. Inspired by the intuition that transitions to subsequent states in many environments are closer to the previous state than a random state sampled from the environment. It only requires a distance metric, $d(s, s')$ that measures the difference between two states. In both Catch and Cart-Pole the L1 distance is used between parts of the state.
+
+The forward pass of the network outputs multiple 
+
 
 
 \label{sec:intro}
