@@ -81,7 +81,7 @@
 \end{abstract}
 
 \section{Introduction}
-Encoding equivariance into deep reinforcement learning agent's policy and value networks has been an effective inductive bias for reinforcement learning agents in symmetric environments, enabling agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies challenging robotic control tasks \cite{wang2022so2}. These works exploit properties of group structured MDP homomorphisms~\cite{ravindran2003smdp, ravindran2001symmetries}. Where the symmetry is described by a discrete group $G$. This forms a subset of Markov Decision Process (MDP), where in the deterministic case they obey:
+Encoding equivariance into deep reinforcement learning agent's policy and value networks has been an effective inductive bias for reinforcement learning agents in symmetric environments. Leveraging symmetric inductive biases have enabled agents to learn effective policies with superior sample efficiency \cite{van2020plannable, mondal2020group} or learn policies challenging robotic control tasks \cite{wang2022so2}. These works exploit properties of group structured MDP homomorphisms~\cite{ravindran2003smdp, ravindran2001symmetries}. Where the symmetry is described by a discrete group $G$. This forms a subset of Markov Decision Process (MDP), where in the deterministic case they obey:
 \begin{equation}
 	T(S, A) = S', \\
 	T(g \cdot S, g \cdot a) = g \cdot S',
@@ -95,7 +95,10 @@ Here $S, S' \in \mathcal{S}$ are states, and $A \in \mathcal{A}$ is an action. $
 
 Our preliminary findings focus on extending the equivariant inductive bias to a transition model of the environment, to enable planning. Our initial investigation augments Proximal Policy Optimization (PPO)~\cite{schulman2017proximal} agent with the ability to plan using learned transition models.
 
-We implemented a Dyna-style agent, which directly learnt a policy from both the real environment, and trajectories simulated by an equivariant transition model. To achieve this a novel method of pooling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with pre-trained equivariant transition modeles in both the Catch~\cite{osband2020bsuite} and Cart-Pole~\cite{barto1983neuronlike, florian2007correct}.
+We implemented a Dyna-style agent, which directly learnt a policy from both the real environment, and trajectories simulated by an equivariant transition model. To achieve this a novel method of pooling is proposed to produce approximately equivariant transition models. In our initial testing we see promising potential when planning with pre-trained equivariant transition models in both the Catch~\cite{osband2020bsuite} and Cart-Pole~\cite{barto1983neuronlike, florian2007correct}.
+
+For Both Catch and Cart-Pole, there are two group members in their symmetry group. The identity element, $e$, and the inversion element, $r$. In Cart-Pole the inversion group action is $r \cdot S$ = $ - S$. In action space, the inversion is $r \cdot A = 1 - A$. In Catch the operations are similar with the inversion operator mapping the ball and paddel's $x$ locations $r \cdot S_x = 5- S_x$, the y locations are left unchanged. If the action space is $[-1, 0, 1]$; left, nothing right, then $r \cdot A = - A$. While we only demonstrate two groups the method of producing equivariant networks is transferrable to other discrete groups.
+
 \section{Method}
 The Dyna-style training process for the equivariant agents consists of equal length planning and acting phases. In the acting phase the agent gains experience in the real environment, which is followed by a planning phase, where the agent gains experience from a simulated MDP. The transition model, $T$, of the simulated MDP is constructed with a Group-Convolutional Neural Network (G-CNN)~\cite{cohen2016group}.
 
@@ -115,11 +118,12 @@ Where $k$ is the kernel cross-correlated with the input $f$. In our setting each
 
 The proximal pooling layer provides a novel and empirically reliable method to produce equivariant networks. Inspired by the intuition that transitions to subsequent states in many environments are closer to the previous state than a random state sampled from the environment this layer only requires a distance metric, $d(s, s')$ that measures the difference between two states. In Cart-Pole, the L1 distance is used between the states. In Catch, the L1 distance between the two states' balls is summed with a scaled L1 distance between the states' paddels.
 
-The forward pass of the network outputs multiple ``transition images", rows of the vector in Equation.\ref{eq:g-cnn}. The objective of the pooling layer is to select the ``transition image", which provides equivariance for the transition model as defined in Equation.\ref{eq:gs_mdp}. If the group action acting upon the input was known beforehand then this could be done analytically, however, this is not always possible. But for the two MDPs tested we found that using a distance metric between $S$, the input state and $S'$, the predicted state was enough to produce fully equivariant network's once trained.
+The forward pass of the network outputs multiple ``transition channels", rows of the vector in Equation.\ref{eq:g-cnn}. The objective of the pooling layer is to select the ``transition image", which provides equivariance for the transition model as defined in Equation.\ref{eq:gs_mdp}. If the group action acting upon the input was known beforehand then this could be done analytically, however, this is not always possible. But for the two MDPs tested we found that using a distance metric between $S$, the input state and $S'$, the predicted state was enough to produce fully equivariant network's once trained.
 
-To check equivariance we sampled many random satates and passed both the state and a trandformed version of the state throught the network In Cart-Pole, in both untrained and trained networks on 1000 uniformly randomly sampled state the transition models were perfectly accurate and equivariant, when using L1 distance metric between state vectors with 1000 random seeds for network parameters. In Catch, on the 675 state action pairs, 1000 randomly seeded untrained networks achieved $98.3 \pm 0.6$ equivariance. Once trained these models again achieved perfect equivariance. With a method for producing equivariant transition models, the question is how well do they work?
 
 \section{Experiments}
+
+To check equivariance we sampled many random states and performed a forward pass with the equivariant networks  on both the state, $S$, and a transformed version of the state, $g \cdot S$. In Cart-Pole, in both untrained and trained networks on 1000 uniformly randomly sampled state the transition models were perfectly accurate and equivariant, when using L1 distance metric between state vectors with 1000 random seeds for network parameters. In Catch, on the 675 state action pairs, 1000 randomly seeded untrained networks achieved $98.3 \pm 0.6$ equivariance. Once trained these models again achieved perfect equivariance. With a method for producing equivariant transition models, the question is how well do they work?
 
 Firstly, a set of offline trained world models were produced for each environment. Three different datasets were collected; the first dataset contained a 50/50 split between transition sampled from a expert\footnote{Gymnax's PPO sample agent implementation that reliably completes Cart-Pole episodes with 500 return.} and random policy (Joint Expert-Random). The second, contains only actions that move the Pole/Paddle left (Left Hand), and the final takes only actions sampled from a random policy (Random). These random transitions are a disjoint set from the joint expert-random set.
 
@@ -138,7 +142,7 @@ The training and validation loss for the three equivariant transition models (G-
 
 In all cases the equivariant transition model outperforms the MLP. In the central plot of Figure~\ref{fig:tm_cp}, the equivariant model generalises to transitions that are out of the distribution of the ``left hand" training dataset. This is the key property of the equivariance exploiting the symmetry of the environment, such that if the state is transformed by a group action so is the policy.
 
-Interestingly, the G-CNNs equivariance enables the model to generalise better than the MLP to the expert policy sampled validation set, when trained on a random policy sampled data. This is notable because the steady state distributions of an expert and random policy are vastly different. Empirically, expert policies sample many more transitions at small angles\footnote{See appendix Figure~\ref{fig:cp_hist}}. This is an encouraging result for learning the equivariant transition model online. Where generalising to transitions in small angles for Cart-Pole is important in the early stages of learning. When the policy is improving, but the transition data is mostly random. The story for the Cart-Pole transition model is much the same and is left out for the sake of brevity.
+Interestingly, the G-CNNs equivariance enables the model to generalise better than the MLP to the expert policy sampled validation set, when trained on a random policy sampled data. This is notable because the steady state distributions of an expert and random policy are vastly different. Empirically, expert policies sample many more transitions at small angles, $|\theta| < 1^o$\footnote{See appendix Figure~\ref{fig:cp_hist}}. This is an encouraging result for learning the equivariant transition model online. \textbf{Not Sure how to say next bit: Where generalising to transitions in small angles for Cart-Pole is important in the early stages of learning. When the policy is improving, but the transition data is mostly random.}
 
 \begin{figure}
 	\centering
@@ -154,18 +158,16 @@ Interestingly, the G-CNNs equivariance enables the model to generalise better th
 	\label{fig:joint}
 \end{figure}
 
-The next set of experiments were performed with the models trained on joint expert-random datasets. A PPO two layer MLP agent samples experience from the real environment, and then from the pre-trained transition model. This is then iterated over. The ratio between the number of simulated transitions is the ``planning ratio". In Figure~\ref{fig:joint}, the planning ratios are eight and one for Equi-Dyna and Dyna, respectively. In the Catch environment both model based methods used a planning ratio of four.
+The next set of experiments were performed with the models trained on joint expert-random datasets. A PPO two layer MLP agent samples experience from the real environment, and then from the pre-trained transition model. This is then iterated over 50 times. The ratio between the number of simulated transitions is the ``planning ratio". In Figure~\ref{fig:joint}, the planning ratios are eight and one for Equi-Dyna and Dyna, respectively. In the Catch environment both model based methods used a planning ratio of four. These values were found from a grid search.
 
-From, both of the return curves in Figure~\ref{fig:joint} we see that the equivariant planning models do successfully improve the interaction efficiency of the agents. Further, they substantially improve upon the model's without an inductive bias for the symmetry of the environment. This is a reassuring initial result, that confirms that the proximal pooling layer is an effective method to implement approximate equivariance in transition models.
+From, both of the return curves in Figure~\ref{fig:joint} we see that the equivariant planning models do successfully improve the interaction efficiency of the agents. Further, they substantially improve upon the MLPs which are not equivariant. This confirms that the proximal pooling layer is an effective method to implement approximate equivariance in transition models.
 
 \section{Future Work}
-Balancing the sample hunger of the transition models while learning them online is quite challenging. In our initial tests, when learning the models online none of the transition models were able to predict accurate enough transitions to plan multiple episodes for agents. This may  in itself not be a problem, learning to plan short term, could prove more fruitful.
+Balancing the sample efficiency of the transition models while learning them online is quite challenging. In our initial tests, when learning the models online none of the transition models were able to predict accurate enough transitions to plan multiple episodes. This may  in itself not be a problem, learning to plan short term, could prove more fruitful.
 
-In addition, exploring other model based planning algorithms which may be more forgiving to model accuracy may also be a promising avenue for further work.
+Additionally, a strong motivation for using the G-CNN architecture is to leverage the ability to meta-learn their parameter sharing structure from experience using the method presented by~\cite{zhou2020meta}.
 
 \newpage
-
-\acks{Acknowledgements go here.}
 
 \bibliography{pmlr-sample}
 
