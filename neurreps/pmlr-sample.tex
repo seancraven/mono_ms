@@ -77,7 +77,7 @@
 \maketitle
 
 \begin{abstract}
-	We present a novel method of exploiting symmetry in the transition structure of MDPs. We exhibit the potential of our approach by performing Dyna-style planning with pre-trained equivariant transition models and see strong improvements upon non-equivariant transition models. Our method also compares favorably to agents that don't plan with the same training data and number of parameters. Extending this to learning a transition model is suggested as future work.
+	We present a novel method of exploiting symmetry in the transition structure of MDPs. We demonstrate the potential of our approach by performing Dyna-style planning with pre-trained equivariant transition models and see strong improvements upon non-equivariant transition models. Our method also compares favorably to agents that don't plan with the same training data and number of parameters. Extending this to learning a transition model is suggested as future work.
 \end{abstract}
 
 \vspace{-15}
@@ -115,11 +115,12 @@ To construct a transition model $T: \mathcal{S} \times \mathcal{A} \rightarrow \
 	\end{pmatrix}.
 	\label{eq:g-cnn}
 \end{equation}
-Where $k$ is the kernel cross-correlated with the input $f$. In our setting each cross-correlation produces an output of the same shape as a state. As such, a reduction must be performed to get an output in state space. If a max or average pooling was used over the $|G|$ dimension the equivariance of the group convolution would be lost. The network would become invariant to group operations on the input. This loss of equivariance motivates the need for an equivariant reduction to ensure that the transition models used for planning are fully equivariant.
+Where $k$ is the kernel cross-correlated with the input $f$. In our setting each cross-correlation produces an output of the same shape as a state. As such, a reduction must be performed to get an output in state space. If a max or average pooling was used over the ``group axis'' $g$, the equivariance of the group convolution would be lost. The network would become invariant to group operations on the input. This loss of equivariance motivates the need for an equivariant reduction to ensure that the transition models used for planning are fully equivariant.
 
 \textbf{Our novel proximal pooling layer} provides an empirically reliable method to produce equivariant networks. Our approach is based on the intuition that transitions to subsequent states in many environments are closer to the previous state than a random state sampled from the environment. Our pooling layer is constructed using a distance metric, $d(s, s')$ that measures the difference between two states. In Cart-Pole, the L1 distance is used between the states. In Catch, the L1 distance between the two states' balls is summed with a scaled L1 distance between the states' paddles.
 
-Our pooling layer is applied after the forward pass of the network outputs multiple ``transition channels", rows of the vector in Equation (\ref{eq:g-cnn}). The objective of the pooling layer is to select the ``transition image'', which provides equivariance for the transition model as defined in Equation (\ref{eq:gs_mdp}). For the two MDPs tested we found that using a distance metric between $S$, the input state and $S'$, the predicted state was enough to produce fully equivariant networks once trained.
+Our pooling layer is applied after the forward pass of the network outputs multiple ``transition channels", rows of the vector in Equation (\ref{eq:g-cnn}). The objective of the pooling layer is to select the ``transition channel'', which provides equivariance for the transition model as defined in Equation (\ref{eq:gs_mdp}). For the two MDPs tested we found that using a poll of the form, $d(\arg\min_{\text{g}}T(S,A)_{g,s}, S)$ was enough to produce fully equivariant networks once trained. Where the $g$ is the ``group axis''.
+
 % write a mathemtical expression for your pooling method inline above
 % If the group action acting upon the input was known beforehand then this could be done analytically, however, this is not always possible.
 
@@ -143,7 +144,7 @@ Our pooling layer is applied after the forward pass of the network outputs multi
 
 The training and validation loss for the three equivariant transition models (G-CNNs) are plotted against comparable multi layer perceptron (MLP) networks with the same depth and parameter count on these three different datasets. Each dataset contains $400,000$ transitions. In all three figures the model is validated on a new expert policy sampled dataset. This enables testing out of distribution generalisation.
 
-In all cases the equivariant transition model outperforms the MLP. In the central plot of Figure~\ref{fig:tm_cp}, the equivariant model generalises to transitions that are out of the distribution of the ``left hand" training dataset. This is the key property of the equivariance exploiting the symmetry of the environment, such that if the state is transformed by a group action so is the policy.
+In all cases the equivariant transition model outperforms the MLP. In the central plot of Figure~\ref{fig:tm_cp}, the equivariant model generalises to transitions that are out of the distribution of the ``Left Hand" training dataset. This is the key property of the equivariance exploiting the symmetry of the environment, such that if the state is transformed by a group action so is the policy.
 
 Interestingly, the G-CNNs equivariance enables the model to generalise better than the MLP to the expert policy sampled validation set, when only trained on random policy data. This is notable because the steady state distributions of an expert and random policy are vastly different. Empirically, expert policies sample many more transitions at small angles, $|\theta| < 1^o$\footnote{See appendix Figure~\ref{fig:cp_hist}}. This is an encouraging result for learning the equivariant transition model online. The initial policy of an RL agent is often approximately random, and so the dataset for the transition model is mostly random. Our approach could deliver faster model learning in these early stages due its ability to generalise better to increasingly expert policies as the agent learns.
 
